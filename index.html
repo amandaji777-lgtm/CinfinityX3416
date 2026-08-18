@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="拾光">
+  <meta name="theme-color" content="#ffd6e0">
+  <meta name="description" content="AI 对话、记忆收藏与心情能量波动记录的个人小工作台">
+  <title>拾光</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="wizard-root"></div>
+
+  <div id="app-shell" class="app-shell">
+    <header class="app-header">
+      <div class="app-header-text">
+        <h1 id="app-title">拾光</h1>
+        <p id="app-subtitle"></p>
+      </div>
+    </header>
+
+    <div id="offline-banner" class="offline-banner">当前处于离线状态，本地记录仍可正常查看和编辑，AI 对话需要联网。</div>
+
+    <main class="app-main">
+      <section id="view-chat" class="view active"></section>
+      <section id="view-bookmarks" class="view"></section>
+      <section id="view-mood" class="view"></section>
+      <section id="view-more" class="view"></section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn" data-tab="chat"><span class="nav-icon">💬</span><span>对话</span></button>
+      <button class="nav-btn" data-tab="bookmarks"><span class="nav-icon">📌</span><span>收藏</span></button>
+      <button class="nav-btn" data-tab="mood"><span class="nav-icon">🌈</span><span>心情</span></button>
+      <button class="nav-btn" data-tab="more"><span class="nav-icon">⋯</span><span>更多</span></button>
+    </nav>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/crypto-utils.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/backup.js"></script>
+  <script src="js/wizard.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/bookmarks.js"></script>
+  <script src="js/mood.js"></script>
+  <script src="js/more.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
