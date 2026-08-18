@@ -34,7 +34,7 @@ const App = (() => {
 
   function applyTheme(s) {
     document.documentElement.dataset.theme = s.theme === 'soft-dark' ? 'soft-dark' : 'light';
-    document.documentElement.dataset.colorTheme = s.colorTheme || 'cream';
+    document.documentElement.dataset.colorTheme = s.colorTheme || 'duskpink';
   }
 
   async function startMainApp() {

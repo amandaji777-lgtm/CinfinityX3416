@@ -27,7 +27,7 @@ const More = (() => {
               <div class="swatch-row">
                 ${Wizard.COLOR_THEMES.map((c) => `
                   <label class="swatch-option">
-                    <input type="radio" name="colorTheme" value="${c.id}" ${(s.colorTheme || 'cream') === c.id ? 'checked' : ''}>
+                    <input type="radio" name="colorTheme" value="${c.id}" ${(s.colorTheme || 'duskpink') === c.id ? 'checked' : ''}>
                     <span class="swatch" style="background:${c.swatch}"></span><span class="swatch-label">${c.label}</span>
                   </label>`).join('')}
               </div>
@@ -111,7 +111,7 @@ const More = (() => {
         workspaceName: fd.get('workspaceName') || '拾光',
         subtitle: fd.get('subtitle') || '',
         nickname: fd.get('nickname') || '',
-        colorTheme: fd.get('colorTheme') || 'cream',
+        colorTheme: fd.get('colorTheme') || 'duskpink',
         theme: fd.get('theme') || 'light',
         aiEnabled: fd.get('aiEnabled') === 'on',
         proactiveMessagesEnabled: fd.get('proactiveMessagesEnabled') === 'on',
