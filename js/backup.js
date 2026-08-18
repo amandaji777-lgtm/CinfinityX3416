@@ -1,22 +1,17 @@
 // JSON 全量导入导出。API Key 密文/设备密钥不会被导出，避免备份文件泄露密钥。
 const Backup = (() => {
   async function exportAll() {
-    const [settings, connections, conversations, messages, bookmarks, moods] = await Promise.all([
-      DB.getAll('settings'),
-      DB.getAll('connections'),
-      DB.getAll('conversations'),
-      DB.getAll('messages'),
-      DB.getAll('bookmarks'),
-      DB.getAll('moods'),
-    ]);
-
-    const safeConnections = connections.map(({ apiKeyCipher, apiKeyIv, ...rest }) => rest);
+    const data = {};
+    for (const store of DB.STORE_NAMES) {
+      data[store] = await DB.getAll(store);
+    }
+    data.connections = data.connections.map(({ apiKeyCipher, apiKeyIv, ...rest }) => rest);
 
     return {
       schema: 'shiguang-backup-v1',
       exportedAt: nowISO(),
       dbVersion: DB_VERSION,
-      data: { settings, connections: safeConnections, conversations, messages, bookmarks, moods },
+      data,
       note: 'API Key 出于安全考虑不包含在备份中，恢复后需要重新填写。',
     };
   }
@@ -47,28 +42,18 @@ const Backup = (() => {
     }
   }
 
-  // 恢复：逐表覆盖式导入，导入前需要调用方二次确认。
+  // 恢复：逐表覆盖式导入，导入前需要调用方二次确认。旧版本备份文件缺少的表按空数组处理。
   async function importFromPayload(payload) {
     validate(payload);
-    const { settings, connections, conversations, messages, bookmarks, moods } = payload.data;
     const tasks = [];
-    for (const row of settings || []) tasks.push(DB.put('settings', row));
-    for (const row of connections || []) tasks.push(DB.put('connections', row));
-    for (const row of conversations || []) tasks.push(DB.put('conversations', row));
-    for (const row of messages || []) tasks.push(DB.put('messages', row));
-    for (const row of bookmarks || []) tasks.push(DB.put('bookmarks', row));
-    for (const row of moods || []) tasks.push(DB.put('moods', row));
+    const counts = {};
+    for (const store of DB.STORE_NAMES) {
+      const rows = payload.data[store] || [];
+      counts[store] = rows.length;
+      for (const row of rows) tasks.push(DB.put(store, row));
+    }
     await Promise.all(tasks);
-    return {
-      counts: {
-        settings: (settings || []).length,
-        connections: (connections || []).length,
-        conversations: (conversations || []).length,
-        messages: (messages || []).length,
-        bookmarks: (bookmarks || []).length,
-        moods: (moods || []).length,
-      },
-    };
+    return { counts };
   }
 
   function readFile(file) {

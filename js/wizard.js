@@ -62,6 +62,10 @@ const Wizard = (() => {
             <input type="checkbox" name="aiEnabled" ${v.aiEnabled !== false ? 'checked' : ''}>
             <span>启用 AI 对话功能（之后随时可在设置里关闭）</span>
           </label>
+          <label class="field-inline">
+            <input type="checkbox" name="proactiveMessagesEnabled" ${v.proactiveMessagesEnabled ? 'checked' : ''}>
+            <span>启用角色主动消息（默认关闭，没有后台推送，只在你打开/回到 App 时检查生成）</span>
+          </label>
 
           <div class="wizard-note">
             <strong>关于数据存储：</strong>本应用采用<b>仅本机模式</b>：所有内容保存在这台设备浏览器的 IndexedDB 里，不会上传到任何云端。
@@ -84,6 +88,7 @@ const Wizard = (() => {
         theme: fd.get('theme') || 'light',
         clockFormat: Number(fd.get('clockFormat')) || 24,
         aiEnabled: fd.get('aiEnabled') === 'on',
+        proactiveMessagesEnabled: fd.get('proactiveMessagesEnabled') === 'on',
         storageMode: 'local-only',
         wizardCompleted: true,
         createdAt: v.createdAt || nowISO(),

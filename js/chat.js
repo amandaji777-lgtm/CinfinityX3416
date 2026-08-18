@@ -1,4 +1,5 @@
-// AI 对话模块：会话列表 + 聊天室，简化人设卡（不做世界书/预设/我的角色卡/独立长记忆分区）。
+// AI 对话模块（第6部分完整版）：会话绑定对方角色卡(0-1)/我的角色卡(0-1)/预设(0-1)/
+// 世界书(0-多)/手工长记忆(0-多) + 聊天连接与总结连接。上下文编排顺序按指令 6.2 实现。
 const Chat = (() => {
   let container;
   let state = {
@@ -8,6 +9,7 @@ const Chat = (() => {
     currentConversationId: null,
     messages: [],
     showArchived: false,
+    showContextPreview: false,
     streaming: false,
     abortController: null,
   };
@@ -49,7 +51,10 @@ const Chat = (() => {
       <div class="chat-list-view">
         <div class="view-header">
           <h2>AI 对话</h2>
-          <button class="btn-icon" id="btn-new-conv" title="新建对话"><i class="icon">＋</i></button>
+          <div class="header-actions">
+            <button class="btn-icon" id="btn-res-lib" title="AI 资料库">📚</button>
+            <button class="btn-icon" id="btn-new-conv" title="新建对话">＋</button>
+          </div>
         </div>
         ${state.connections.length === 0 ? `
           <div class="hint-banner">
@@ -62,17 +67,24 @@ const Chat = (() => {
       </div>
     `;
     container.querySelector('#btn-new-conv').addEventListener('click', openNewConversationDialog);
+    container.querySelector('#btn-res-lib').addEventListener('click', () => window.App.switchTab('resources'));
     container.querySelectorAll('.conv-row').forEach((el) => {
       el.addEventListener('click', () => openConversation(el.dataset.id));
     });
   }
 
+  function characterOf(conv) {
+    return conv.characterResourceId ? Resources.all.find((r) => r.id === conv.characterResourceId) : null;
+  }
+
   function convItem(c) {
+    const character = characterOf(c);
+    const pendingDraft = window.Proactive?.getPendingDraft(c.id);
     return `
       <div class="conv-row" data-id="${c.id}">
-        <div class="conv-avatar">${escapeHtml((c.character?.name || c.title || '对')[0])}</div>
+        <div class="conv-avatar">${escapeHtml((character?.name || c.title || '对')[0])}</div>
         <div class="conv-meta">
-          <div class="conv-title">${escapeHtml(c.title || c.character?.name || '未命名对话')}</div>
+          <div class="conv-title">${escapeHtml(c.title || character?.name || '未命名对话')} ${pendingDraft ? '<span class="tag draft-tag">主动消息草稿</span>' : ''}</div>
           <div class="conv-sub">${escapeHtml(c.lastMessagePreview || '还没有消息')}</div>
         </div>
         <div class="conv-time">${formatRelativeTime(c.updatedAt)}</div>
@@ -80,27 +92,70 @@ const Chat = (() => {
     `;
   }
 
-  function openNewConversationDialog() {
+  function resourceOptions(kind, selectedId, allowEmpty) {
+    const list = Resources.byKind(kind);
+    return (allowEmpty ? `<option value="">（不设定）</option>` : '') +
+      list.map((r) => `<option value="${r.id}" ${selectedId === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('');
+  }
+
+  function resourceCheckboxes(kind, selectedIds, name) {
+    const list = Resources.byKind(kind);
+    if (list.length === 0) return `<div class="empty-sub">还没有${Resources.KIND_META[kind].label}，可以去资料库新建</div>`;
+    return list.map((r) => `
+      <label class="field-inline-sm">
+        <input type="checkbox" name="${name}" value="${r.id}" ${selectedIds.includes(r.id) ? 'checked' : ''}> ${escapeHtml(r.name)}
+      </label>
+    `).join('');
+  }
+
+  function bindingFieldsHTML(conv) {
+    const c = conv || {};
+    const connOptions = state.connections.map((cn) =>
+      `<option value="${cn.id}" ${c.connectionId === cn.id ? 'selected' : ''}>${escapeHtml(cn.name)}</option>`).join('');
+    return `
+      <label class="field"><span>使用的连接</span>
+        <select name="connectionId"><option value="">（未绑定）</option>${connOptions}</select>
+      </label>
+      <label class="field"><span>对方角色卡（0-1，来自资料库）</span>
+        <select name="characterResourceId">${resourceOptions('character', c.characterResourceId, true)}</select>
+      </label>
+      <label class="field"><span>我的角色卡（0-1）</span>
+        <select name="personaResourceId">${resourceOptions('persona', c.personaResourceId, true)}</select>
+      </label>
+      <label class="field"><span>预设（0-1）</span>
+        <select name="presetResourceId">${resourceOptions('preset', c.presetResourceId, true)}</select>
+      </label>
+      <fieldset class="fieldset"><legend>世界书（0-多）</legend>${resourceCheckboxes('lorebook', c.lorebookResourceIds || [], 'lorebookResourceIds')}</fieldset>
+      <fieldset class="fieldset"><legend>手工长记忆（0-多）</legend>${resourceCheckboxes('longMemory', c.manualMemoryResourceIds || [], 'manualMemoryResourceIds')}</fieldset>
+      <label class="field"><span>额外系统提示词（可选）</span><textarea name="systemPromptExtra" rows="2">${escapeHtml(c.systemPromptExtra || '')}</textarea></label>
+      <p class="section-hint">还没有想要的资料？去"资料库"里新建后再回来选。</p>
+    `;
+  }
+
+  function collectBindingFields(dialog) {
+    const fd = new FormData(dialog.querySelector('form'));
+    return {
+      connectionId: fd.get('connectionId') || null,
+      characterResourceId: fd.get('characterResourceId') || null,
+      personaResourceId: fd.get('personaResourceId') || null,
+      presetResourceId: fd.get('presetResourceId') || null,
+      lorebookResourceIds: fd.getAll('lorebookResourceIds'),
+      manualMemoryResourceIds: fd.getAll('manualMemoryResourceIds'),
+      systemPromptExtra: (fd.get('systemPromptExtra') || '').trim(),
+      title: (fd.get('title') || '').trim(),
+    };
+  }
+
+  async function openNewConversationDialog() {
+    await Resources.refresh();
     const dialog = document.createElement('div');
     dialog.className = 'modal-overlay';
-    const connOptions = state.connections.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}（${c.provider}）</option>`).join('');
     dialog.innerHTML = `
       <div class="modal-card">
         <h3>新建对话</h3>
         <form id="new-conv-form">
           <label class="field"><span>对话标题</span><input name="title" maxlength="24" placeholder="例如：晚安聊天"></label>
-          <label class="field"><span>使用的连接</span>
-            <select name="connectionId" ${state.connections.length === 0 ? 'disabled' : ''}>
-              ${connOptions || '<option value="">（尚未配置连接）</option>'}
-            </select>
-          </label>
-          <fieldset class="fieldset">
-            <legend>对方人设卡（可选，简化版）</legend>
-            <label class="field"><span>名字</span><input name="charName" maxlength="20" placeholder="留空则不设定角色"></label>
-            <label class="field"><span>人设描述</span><textarea name="charPersona" rows="3" placeholder="性格、说话方式、背景等，AI 会据此扮演"></textarea></label>
-            <label class="field"><span>开场白（可选）</span><textarea name="charGreeting" rows="2" placeholder="对话开始时角色说的第一句话"></textarea></label>
-          </fieldset>
-          <label class="field"><span>额外系统提示词（可选）</span><textarea name="systemPrompt" rows="2" placeholder="给 AI 的额外指令，例如语言风格、回复长度"></textarea></label>
+          ${bindingFieldsHTML(null)}
           <div class="modal-actions">
             <button type="button" class="btn-secondary" id="cancel-new-conv">取消</button>
             <button type="submit" class="btn-primary">创建并进入</button>
@@ -112,31 +167,27 @@ const Chat = (() => {
     dialog.querySelector('#cancel-new-conv').addEventListener('click', () => dialog.remove());
     dialog.querySelector('#new-conv-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
+      const fields = collectBindingFields(dialog);
       const id = uuid();
       const now = nowISO();
-      const charName = fd.get('charName')?.trim();
+      const character = fields.characterResourceId ? Resources.all.find((r) => r.id === fields.characterResourceId) : null;
       const conversation = {
         id,
-        title: fd.get('title')?.trim() || charName || '未命名对话',
-        connectionId: fd.get('connectionId') || null,
-        character: charName ? {
-          name: charName,
-          persona: fd.get('charPersona')?.trim() || '',
-          greeting: fd.get('charGreeting')?.trim() || '',
-        } : null,
-        systemPrompt: fd.get('systemPrompt')?.trim() || '',
+        title: fields.title || character?.name || '未命名对话',
+        ...fields,
+        longMemory: { enabled: false, summarizeEveryN: 0, maxCount: 200, summaryPrompt: '', injectionPrompt: '', injectionCap: 6, lastSummarizedCount: 0 },
+        proactive: { mode: 'off', quietStart: '23:00', quietEnd: '08:00', minCooldownMinutes: 120, dailyCap: 3, paused: false, dailyCount: 0, dailyCountDate: '', lastTriggeredAt: '' },
         lastMessagePreview: '',
         createdAt: now,
         updatedAt: now,
       };
       await DB.put('conversations', conversation);
-      if (conversation.character?.greeting) {
+      if (character?.data?.openingLine) {
         await DB.put('messages', {
           id: uuid(),
           conversationId: id,
           role: 'assistant',
-          content: conversation.character.greeting,
+          content: character.data.openingLine,
           createdAt: now,
           archived: false,
           bookmarked: false,
@@ -153,6 +204,8 @@ const Chat = (() => {
     state.currentConversationId = id;
     state.view = 'room';
     state.showArchived = false;
+    await Resources.refresh();
+    if (window.Memory) await window.Memory.refresh(id);
     await loadMessages();
     render();
   }
@@ -175,21 +228,35 @@ const Chat = (() => {
     const conv = currentConversation();
     if (!conv) { state.view = 'list'; return render(); }
     const msgs = visibleMessages();
+    const character = characterOf(conv);
+    const draft = window.Proactive?.getPendingDraft(conv.id);
     container.innerHTML = `
       <div class="chat-room-view">
         <div class="room-header">
-          <button class="btn-icon" id="btn-back"><i class="icon">←</i></button>
+          <button class="btn-icon" id="btn-back">←</button>
           <div class="room-title">
             <div class="room-name">${escapeHtml(conv.title)}</div>
-            <div class="room-sub">${conv.character ? 'AI 生成角色 · ' + escapeHtml(conv.character.name) : '无角色人设'}</div>
+            <div class="room-sub">${character ? 'AI 生成角色 · ' + escapeHtml(character.name) : '无角色人设'}</div>
           </div>
-          <button class="btn-icon" id="btn-room-settings" title="对话设置"><i class="icon">⚙</i></button>
+          <button class="btn-icon" id="btn-room-settings" title="对话设置">⚙</button>
         </div>
         ${!navigator.onLine ? '<div class="hint-banner warn">当前处于离线状态，暂时无法连接 AI 服务。</div>' : ''}
+        ${draft ? `
+          <div class="hint-banner draft-banner">
+            <b>${escapeHtml(character?.name || '角色')}</b> 主动想对你说：「${escapeHtml(truncate(draft.content, 60))}」
+            <div class="draft-actions">
+              <button class="msg-act" id="btn-draft-send">发送</button>
+              <button class="msg-act" id="btn-draft-discard">忽略</button>
+            </div>
+          </div>` : ''}
         ${state.messages.some((m) => m.archived) ? `
           <div class="archived-toggle">
             <label><input type="checkbox" id="toggle-archived" ${state.showArchived ? 'checked' : ''}> 显示已封存的消息（回溯/重说产生的历史分支）</label>
           </div>` : ''}
+        <div class="context-preview-wrap">
+          <button class="context-preview-toggle" id="toggle-context">${state.showContextPreview ? '▾' : '▸'} 本轮上下文预览</button>
+          ${state.showContextPreview ? `<pre class="context-preview-body">${escapeHtml(buildContext(conv, visibleMessages()).systemText || '（空）')}</pre>` : ''}
+        </div>
         <div class="message-list" id="message-list">
           ${msgs.length === 0 ? emptyState('开始聊天吧', '在下方输入框发送第一条消息') : msgs.map(messageBubble).join('')}
         </div>
@@ -203,6 +270,11 @@ const Chat = (() => {
     `;
     container.querySelector('#btn-back').addEventListener('click', () => { state.view = 'list'; render(); });
     container.querySelector('#btn-room-settings').addEventListener('click', () => openRoomSettings(conv));
+    container.querySelector('#toggle-context').addEventListener('click', () => { state.showContextPreview = !state.showContextPreview; render(); });
+    if (draft) {
+      container.querySelector('#btn-draft-send').addEventListener('click', async () => { await window.Proactive.sendDraft(draft.id); await loadMessages(); await refreshConversations(); render(); });
+      container.querySelector('#btn-draft-discard').addEventListener('click', () => { window.Proactive.discardDraft(draft.id); render(); });
+    }
     const archivedToggle = container.querySelector('#toggle-archived');
     if (archivedToggle) archivedToggle.addEventListener('change', (e) => { state.showArchived = e.target.checked; render(); });
 
@@ -238,7 +310,7 @@ const Chat = (() => {
       <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''}" data-id="${m.id}">
         <div class="msg-content">${renderMarkdownish(m.content)}</div>
         <div class="msg-meta">
-          ${!isUser ? '<span class="ai-tag">AI 生成</span>' : ''}
+          ${!isUser ? `<span class="ai-tag">${m.isProactive ? 'AI 生成 · 主动消息' : 'AI 生成'}</span>` : ''}
           <span class="msg-time">${formatTime(m.createdAt)}</span>
         </div>
         <div class="msg-actions">
@@ -286,14 +358,16 @@ const Chat = (() => {
       m.archived = true;
       await DB.put('messages', m);
     }
-    // 关联到这些消息的记忆收藏标记为 stale，而不是删除。
+    const archivedIds = toArchive.map((m) => m.id);
+    // 关联到这些消息的记忆收藏 / 自动长记忆标记为 stale，而不是删除。
     const bookmarks = await DB.getAllByIndex('bookmarks', 'conversationId', state.currentConversationId);
     for (const b of bookmarks) {
-      if (b.messageId && toArchive.some((m) => m.id === b.messageId)) {
+      if (b.messageId && archivedIds.includes(b.messageId)) {
         b.stale = true;
         await DB.put('bookmarks', b);
       }
     }
+    if (window.Memory) await window.Memory.markStaleForMessages(state.currentConversationId, archivedIds);
   }
 
   async function toggleBookmarkMessage(conv, msg) {
@@ -333,19 +407,110 @@ const Chat = (() => {
     await requestAssistantReply(conv);
   }
 
-  async function requestAssistantReply(conv) {
+  // ---- 第 6.2 部分：上下文编排 ----
+  // 顺序：事实与边界 → 预设 → 对方卡 → 我的卡 → 常驻世界书 → 命中关键词世界书 →
+  //      手工长记忆 → 自动长记忆 → 最近聊天 → 当前消息 → 历史后指令
+  function buildContext(conv, historyMessages) {
+    const character = characterOf(conv);
+    const persona = conv.personaResourceId ? Resources.all.find((r) => r.id === conv.personaResourceId) : null;
+    const preset = conv.presetResourceId ? Resources.all.find((r) => r.id === conv.presetResourceId) : null;
+    const lorebooks = (conv.lorebookResourceIds || []).map((id) => Resources.all.find((r) => r.id === id)).filter(Boolean);
+    const manualMemories = (conv.manualMemoryResourceIds || []).map((id) => Resources.all.find((r) => r.id === id)).filter(Boolean);
+    const recentText = historyMessages.slice(-6).map((m) => m.content).join('\n').toLowerCase();
+
+    const blocks = [];
+
+    // 事实与边界
+    const boundaries = [character?.data?.boundaries, persona?.data?.boundaries, persona?.data?.forbiddenRealInfo ? `绝不引用：${persona.data.forbiddenRealInfo}` : ''].filter(Boolean);
+    if (boundaries.length) blocks.push(`【事实与边界】\n${boundaries.join('\n')}`);
+    blocks.push('【AI 身份声明】你是 AI 生成的对话角色，所有回复都是 AI 生成内容，不代表真实人物，不构成现实承诺。');
+
+    // 预设
+    if (preset) {
+      const p = preset.data;
+      const presetLines = Object.entries(p)
+        .filter(([k]) => k !== 'systemPrompt' && k !== 'postHistoryPrompt')
+        .map(([, v]) => v).filter(Boolean);
+      if (p.systemPrompt) blocks.push(`【预设 · 系统提示】${p.systemPrompt}`);
+      if (presetLines.length) blocks.push(`【预设】\n${presetLines.join('\n')}`);
+    }
+
+    // 对方卡
+    if (character) {
+      const c = character.data;
+      const lines = Object.entries(c).filter(([k]) => k !== 'openingLine').map(([, v]) => v).filter(Boolean);
+      blocks.push(`【对方角色卡 · ${character.name}】\n${lines.join('\n')}`);
+    }
+
+    // 我的卡
+    if (persona) {
+      const p = persona.data;
+      const lines = Object.entries(p).filter(([k]) => k !== 'forbiddenRealInfo').map(([, v]) => v).filter(Boolean);
+      blocks.push(`【我的角色卡】\n${lines.join('\n')}`);
+    }
+
+    // 常驻世界书
+    const alwaysEntries = [];
+    const keywordEntries = [];
+    for (const lb of lorebooks) {
+      for (const entry of (lb.data.entries || [])) {
+        if (entry.enabled === false) continue;
+        if (entry.triggerMode === 'keyword') keywordEntries.push(entry);
+        else alwaysEntries.push(entry);
+      }
+    }
+    sortEntries(alwaysEntries);
+    if (alwaysEntries.length) blocks.push(`【常驻世界书】\n${alwaysEntries.map(entryText).join('\n')}`);
+
+    // 命中关键词世界书
+    const hitEntries = keywordEntries.filter((entry) => {
+      const kws = (entry.keywords || '').split(/[,，]/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+      return kws.some((kw) => kw && recentText.includes(kw));
+    });
+    sortEntries(hitEntries);
+    if (hitEntries.length) blocks.push(`【命中关键词世界书】\n${hitEntries.map(entryText).join('\n')}`);
+
+    // 手工长记忆
+    if (manualMemories.length) {
+      blocks.push(`【手工长记忆】\n${manualMemories.map((m) => {
+        const d = m.data;
+        return `- ${d.title || m.name}：${[d.facts, d.feelings, d.relationshipChange, d.stablePreferencesTaboos, d.unfinishedPromises].filter(Boolean).join('；')}`;
+      }).join('\n')}`);
+    }
+
+    // 自动长记忆（第8部分）
+    const autoMemories = window.Memory ? window.Memory.getInjectableMemories(conv, historyMessages) : [];
+    if (autoMemories.length) {
+      const prefix = conv.longMemory?.injectionPrompt ? conv.longMemory.injectionPrompt + '\n' : '';
+      blocks.push(`【自动长记忆】\n${prefix}${autoMemories.map((m) => `- ${m.content}`).join('\n')}`);
+    }
+
+    if (conv.systemPromptExtra) blocks.push(`【额外系统提示词】\n${conv.systemPromptExtra}`);
+
+    return { systemText: blocks.join('\n\n'), postHistoryText: preset?.data?.postHistoryPrompt || '' };
+  }
+
+  function sortEntries(entries) {
+    entries.sort((a, b) => (Number(b.priority) || 0) - (Number(a.priority) || 0));
+  }
+  function entryText(entry) {
+    const parts = [entry.content, entry.rules, entry.organization, entry.relationships, entry.historyEvents].filter(Boolean);
+    return `- ${entry.title ? entry.title + '：' : ''}${parts.join('；')}`;
+  }
+
+  async function requestAssistantReply(conv, { isProactiveCheck = false } = {}) {
     const connection = state.connections.find((c) => c.id === conv.connectionId);
     if (!connection) {
-      toast('这个对话还没有绑定 API 连接，去对话设置里选一个吧');
-      return;
+      if (!isProactiveCheck) toast('这个对话还没有绑定 API 连接，去对话设置里选一个吧');
+      return null;
     }
     const provider = Providers[connection.provider];
-    if (!provider) { toast('未知的连接类型'); return; }
+    if (!provider) { toast('未知的连接类型'); return null; }
 
     const apiKey = connection.apiKeyCipher ? await CryptoUtils.decryptText(connection.apiKeyCipher, connection.apiKeyIv) : '';
 
-    const history = visibleMessages().filter((m) => !m.isGreeting || m !== visibleMessages()[0]);
-    const systemText = buildSystemPrompt(conv);
+    const history = visibleMessages();
+    const { systemText, postHistoryText } = buildContext(conv, history);
 
     state.streaming = true;
     state.abortController = new AbortController();
@@ -358,11 +523,17 @@ const Chat = (() => {
       let stream;
       if (connection.provider === 'anthropic') {
         const msgs = history.map((m) => ({ role: m.role, content: m.content }));
-        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, systemText);
+        const fullSystem = [systemText, postHistoryText].filter(Boolean).join('\n\n');
+        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem);
+      } else if (connection.provider === 'gemini') {
+        const msgs = history.map((m) => ({ role: m.role, content: m.content }));
+        const fullSystem = [systemText, postHistoryText].filter(Boolean).join('\n\n');
+        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem);
       } else {
         const msgs = [
           ...(systemText ? [{ role: 'system', content: systemText }] : []),
           ...history.map((m) => ({ role: m.role, content: m.content })),
+          ...(postHistoryText ? [{ role: 'system', content: postHistoryText }] : []),
         ];
         stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal);
       }
@@ -392,9 +563,11 @@ const Chat = (() => {
         conv.lastMessagePreview = assistantMsg.content.slice(0, 40);
         await DB.put('conversations', conv);
         await refreshConversations();
+        if (window.Memory) await window.Memory.maybeAutoSummarize(conv);
       }
       render();
     }
+    return assistantMsg;
   }
 
   function updateStreamingBubble(msg) {
@@ -410,35 +583,54 @@ const Chat = (() => {
     list.scrollTop = list.scrollHeight;
   }
 
-  function buildSystemPrompt(conv) {
-    const parts = [];
-    if (conv.character?.persona) {
-      parts.push(`你正在扮演角色"${conv.character.name}"。人设：${conv.character.persona}`);
-      parts.push('请始终以该角色的口吻回复，但你的回复本质上是 AI 生成内容，不代表真实人物。');
-    }
-    if (conv.systemPrompt) parts.push(conv.systemPrompt);
-    return parts.join('\n\n');
-  }
-
   function openRoomSettings(conv) {
     const dialog = document.createElement('div');
     dialog.className = 'modal-overlay';
-    const connOptions = state.connections.map((c) =>
-      `<option value="${c.id}" ${conv.connectionId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}（${c.provider}）</option>`).join('');
+    const lm = conv.longMemory || {};
+    const pr = conv.proactive || {};
+    const summaryConnOptions = state.connections.map((cn) =>
+      `<option value="${cn.id}" ${lm.summaryConnectionId === cn.id ? 'selected' : ''}>${escapeHtml(cn.name)}</option>`).join('');
     dialog.innerHTML = `
       <div class="modal-card">
         <h3>对话设置</h3>
         <form id="room-settings-form">
           <label class="field"><span>标题</span><input name="title" value="${escapeAttr(conv.title)}" maxlength="24"></label>
-          <label class="field"><span>使用的连接</span>
-            <select name="connectionId"><option value="">（未绑定）</option>${connOptions}</select>
-          </label>
-          <fieldset class="fieldset">
-            <legend>对方人设卡</legend>
-            <label class="field"><span>名字</span><input name="charName" value="${escapeAttr(conv.character?.name || '')}" maxlength="20"></label>
-            <label class="field"><span>人设描述</span><textarea name="charPersona" rows="3">${escapeHtml(conv.character?.persona || '')}</textarea></label>
+          ${bindingFieldsHTML(conv)}
+
+          <fieldset class="fieldset"><legend>独立长记忆（第8部分）</legend>
+            <label class="field-inline"><input type="checkbox" name="lmEnabled" ${lm.enabled ? 'checked' : ''}><span>启用自动总结长记忆</span></label>
+            <label class="field"><span>总结连接（不选则用聊天连接）</span><select name="lmSummaryConnectionId"><option value="">（同聊天连接）</option>${summaryConnOptions}</select></label>
+            <label class="field"><span>每 N 条消息自动总结一次（0 为关闭）</span><input type="number" name="lmEveryN" value="${lm.summarizeEveryN || 0}" min="0"></label>
+            <label class="field"><span>最大记忆条数</span><input type="number" name="lmMaxCount" value="${lm.maxCount || 200}" min="1"></label>
+            <label class="field"><span>注入上限（每轮最多注入几条）</span><input type="number" name="lmInjectionCap" value="${lm.injectionCap ?? 6}" min="0"></label>
+            <label class="field"><span>总结提示词</span><textarea name="lmSummaryPrompt" rows="2">${escapeHtml(lm.summaryPrompt || '')}</textarea></label>
+            <label class="field"><span>注入提示词</span><textarea name="lmInjectionPrompt" rows="2">${escapeHtml(lm.injectionPrompt || '')}</textarea></label>
+            <div class="modal-actions" style="justify-content:flex-start">
+              <button type="button" class="btn-secondary" id="btn-summarize-now">立即总结</button>
+              <button type="button" class="btn-secondary" id="btn-open-memories">查看/管理长记忆</button>
+            </div>
           </fieldset>
-          <label class="field"><span>额外系统提示词</span><textarea name="systemPrompt" rows="2">${escapeHtml(conv.systemPrompt || '')}</textarea></label>
+
+          <fieldset class="fieldset"><legend>角色主动消息（第9部分）</legend>
+            <p class="section-hint">没有独立后台/推送服务：只会在你打开、回到前台、或应用保持打开期间定时检查生成，应用被完全关闭后不会收到新消息推送。</p>
+            <label class="field"><span>模式</span>
+              <select name="pMode">
+                <option value="off" ${pr.mode !== 'draft' && pr.mode !== 'auto' ? 'selected' : ''}>关闭</option>
+                <option value="draft" ${pr.mode === 'draft' ? 'selected' : ''}>仅草稿（生成后等你确认发送）</option>
+                <option value="auto" ${pr.mode === 'auto' ? 'selected' : ''}>允许自动发送</option>
+              </select>
+            </label>
+            <label class="field"><span>安静时段（开始-结束，24 小时制）</span>
+              <div style="display:flex;gap:8px">
+                <input type="time" name="pQuietStart" value="${pr.quietStart || '23:00'}">
+                <input type="time" name="pQuietEnd" value="${pr.quietEnd || '08:00'}">
+              </div>
+            </label>
+            <label class="field"><span>最短冷却（分钟）</span><input type="number" name="pMinCooldown" value="${pr.minCooldownMinutes ?? 120}" min="1"></label>
+            <label class="field"><span>每日上限（条）</span><input type="number" name="pDailyCap" value="${pr.dailyCap ?? 3}" min="0"></label>
+            <label class="field-inline"><input type="checkbox" name="pPaused" ${pr.paused ? 'checked' : ''}><span>一键暂停</span></label>
+          </fieldset>
+
           <div class="modal-actions">
             <button type="button" class="btn-danger" id="btn-delete-conv">删除对话</button>
             <button type="button" class="btn-secondary" id="cancel-room-settings">取消</button>
@@ -449,6 +641,19 @@ const Chat = (() => {
     `;
     document.body.appendChild(dialog);
     dialog.querySelector('#cancel-room-settings').addEventListener('click', () => dialog.remove());
+    dialog.querySelector('#btn-summarize-now').addEventListener('click', async () => {
+      if (!window.Memory) return;
+      toast('总结中…');
+      try {
+        await window.Memory.summarizeNow(conv);
+        toast('已生成新的长记忆，去"查看/管理长记忆"确认');
+      } catch (err) {
+        alert('总结失败：' + (err.message || err));
+      }
+    });
+    dialog.querySelector('#btn-open-memories').addEventListener('click', () => {
+      if (window.Memory) window.Memory.openManager(conv);
+    });
     dialog.querySelector('#btn-delete-conv').addEventListener('click', async () => {
       if (!confirm('删除这段对话及其全部消息？此操作不可撤销（收藏内容会保留但会标记为来源已删除）。')) return;
       const msgs = await DB.getAllByIndex('messages', 'conversationId', conv.id);
@@ -463,12 +668,30 @@ const Chat = (() => {
     });
     dialog.querySelector('#room-settings-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const fields = collectBindingFields(dialog);
       const fd = new FormData(e.target);
-      conv.title = fd.get('title')?.trim() || conv.title;
-      conv.connectionId = fd.get('connectionId') || null;
-      const charName = fd.get('charName')?.trim();
-      conv.character = charName ? { ...(conv.character || {}), name: charName, persona: fd.get('charPersona')?.trim() || '' } : null;
-      conv.systemPrompt = fd.get('systemPrompt')?.trim() || '';
+      conv.title = fields.title || conv.title;
+      Object.assign(conv, fields);
+      delete conv.title_unused;
+      conv.longMemory = {
+        ...lm,
+        enabled: fd.get('lmEnabled') === 'on',
+        summaryConnectionId: fd.get('lmSummaryConnectionId') || null,
+        summarizeEveryN: Number(fd.get('lmEveryN')) || 0,
+        maxCount: Number(fd.get('lmMaxCount')) || 200,
+        injectionCap: Number(fd.get('lmInjectionCap')) || 0,
+        summaryPrompt: fd.get('lmSummaryPrompt') || '',
+        injectionPrompt: fd.get('lmInjectionPrompt') || '',
+      };
+      conv.proactive = {
+        ...pr,
+        mode: fd.get('pMode') || 'off',
+        quietStart: fd.get('pQuietStart') || '23:00',
+        quietEnd: fd.get('pQuietEnd') || '08:00',
+        minCooldownMinutes: Number(fd.get('pMinCooldown')) || 120,
+        dailyCap: Number(fd.get('pDailyCap')) || 0,
+        paused: fd.get('pPaused') === 'on',
+      };
       conv.updatedAt = nowISO();
       await DB.put('conversations', conv);
       dialog.remove();
@@ -481,8 +704,17 @@ const Chat = (() => {
     state.connections = await DB.getAll('connections');
   }
 
-  return { init, refreshConnections };
+  return {
+    init, refreshConnections, characterOf, buildContext,
+    get state() { return state; },
+    requestAssistantReply,
+    async refreshList() { await refreshConversations(); if (state.view === 'list') render(); },
+    async reloadIfCurrent(conversationId) {
+      if (state.currentConversationId === conversationId) { await loadMessages(); render(); }
+    },
+  };
 })();
+window.Chat = Chat;
 
 function emptyState(title, sub) {
   return `<div class="empty-state"><div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
@@ -513,6 +745,10 @@ function formatRelativeTime(iso) {
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day}天前`;
   return new Date(iso).toLocaleDateString('zh-CN');
+}
+function truncate(s, n) {
+  s = s || '';
+  return s.length > n ? s.slice(0, n) + '…' : s;
 }
 async function copyToClipboard(text) {
   try {

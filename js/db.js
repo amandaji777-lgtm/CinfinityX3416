@@ -1,6 +1,6 @@
 // 固定数据库名与版本；升级时只新增/迁移，不删除已有数据。
 const DB_NAME = 'shiguang-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -36,6 +36,28 @@ function openDB() {
 
         // 设备本地密钥，不随备份导出，不出现在任何导出/日志文件里。
         db.createObjectStore('device_key', { keyPath: 'id' });
+      }
+
+      if (oldVersion < 2) {
+        // 第6部分：AI 资料库五区（character/persona/preset/lorebook/longMemory）统一存放。
+        const resources = db.createObjectStore('ai_resources', { keyPath: 'id' });
+        resources.createIndex('kind', 'kind');
+        resources.createIndex('updatedAt', 'updatedAt');
+
+        // 第8部分：独立长记忆（自动摘要，区别于第6部分的手工长记忆资源卡）。
+        const memories = db.createObjectStore('ai_memories', { keyPath: 'id' });
+        memories.createIndex('conversationId', 'conversationId');
+        memories.createIndex('generatedAt', 'generatedAt');
+
+        // 第5部分：每日链接状态，按角色资源 id + 日期。
+        const linkStatus = db.createObjectStore('link_daily_status', { keyPath: 'id' });
+        linkStatus.createIndex('characterId', 'characterId');
+        linkStatus.createIndex('date', 'date');
+
+        // 第9部分：角色主动消息触发审计记录。
+        const proactiveLog = db.createObjectStore('proactive_log', { keyPath: 'id' });
+        proactiveLog.createIndex('conversationId', 'conversationId');
+        proactiveLog.createIndex('triggeredAt', 'triggeredAt');
       }
     };
 
@@ -118,7 +140,10 @@ const DB = {
     }
   },
 
-  STORE_NAMES: ['settings', 'connections', 'conversations', 'messages', 'bookmarks', 'moods'],
+  STORE_NAMES: [
+    'settings', 'connections', 'conversations', 'messages', 'bookmarks', 'moods',
+    'ai_resources', 'ai_memories', 'link_daily_status', 'proactive_log',
+  ],
 };
 
 function uuid() {

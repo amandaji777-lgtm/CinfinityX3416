@@ -110,6 +110,120 @@ const Providers = {
     },
   },
 
+  'gemini': {
+    label: 'Gemini 原生',
+    async testConnection(conn, apiKey) {
+      const url = geminiUrl(conn, apiKey, 'generateContent');
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+            generationConfig: { maxOutputTokens: 1 },
+          }),
+        });
+        if (!res.ok) throw explainHttpError(res.status);
+        return { ok: true };
+      } catch (e) {
+        throw explainNetworkError(e);
+      }
+    },
+    async *streamChat(conn, apiKey, messages, signal, systemPrompt) {
+      const url = geminiUrl(conn, apiKey, 'streamGenerateContent') + '&alt=sse';
+      const contents = messages.map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+      let res;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal,
+          body: JSON.stringify({
+            contents,
+            systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+            generationConfig: {
+              temperature: conn.temperature ?? 0.8,
+              topP: conn.topP ?? 1,
+              maxOutputTokens: conn.maxTokens ?? 1024,
+            },
+          }),
+        });
+      } catch (e) {
+        throw explainNetworkError(e);
+      }
+      if (!res.ok) throw explainHttpError(res.status);
+      const reader = res.body.getReader();
+      for await (const line of parseSSELines(reader)) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data) continue;
+        try {
+          const json = JSON.parse(data);
+          const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('');
+          if (text) yield text;
+        } catch (_) { /* 忽略无法解析的行 */ }
+      }
+    },
+  },
+
+  // 受限的自定义协议映射：仅做声明式的字段/模板替换和响应路径提取，不执行用户提供的任意代码。
+  'custom': {
+    label: '自定义协议',
+    async testConnection(conn, apiKey) {
+      try {
+        const { url, method, headers, body } = buildCustomRequest(conn, apiKey, [{ role: 'user', content: 'ping' }], '');
+        const res = await fetch(url, { method, headers, body });
+        if (!res.ok) throw explainHttpError(res.status);
+        return { ok: true };
+      } catch (e) {
+        throw explainNetworkError(e);
+      }
+    },
+    async *streamChat(conn, apiKey, messages, signal, systemPrompt) {
+      const { url, method, headers, body } = buildCustomRequest(conn, apiKey, messages, systemPrompt);
+      let res;
+      try {
+        res = await fetch(url, { method, headers, body, signal });
+      } catch (e) {
+        throw explainNetworkError(e);
+      }
+      if (!res.ok) throw explainHttpError(res.status);
+      const format = conn.customStreamFormat || 'none';
+      const path = conn.customResponseTextPath || '';
+      if (format === 'none') {
+        const json = await res.json();
+        const text = getPath(json, path);
+        if (text) yield String(text);
+        return;
+      }
+      const reader = res.body.getReader();
+      if (format === 'sse-json-path') {
+        for await (const line of parseSSELines(reader)) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const data = trimmed.slice(5).trim();
+          if (!data || data === '[DONE]') continue;
+          try {
+            const text = getPath(JSON.parse(data), path);
+            if (text) yield String(text);
+          } catch (_) { /* 忽略无法解析的行 */ }
+        }
+      } else if (format === 'ndjson-json-path') {
+        for await (const line of parseSSELines(reader)) {
+          if (!line.trim()) continue;
+          try {
+            const text = getPath(JSON.parse(line), path);
+            if (text) yield String(text);
+          } catch (_) { /* 忽略无法解析的行 */ }
+        }
+      }
+    },
+  },
+
   'anthropic': {
     label: 'Anthropic',
     async testConnection(conn, apiKey) {
@@ -182,6 +296,43 @@ function buildOpenAIHeaders(conn, apiKey) {
   return headers;
 }
 
+function geminiUrl(conn, apiKey, method) {
+  const base = (conn.baseUrl || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
+  return `${base}/models/${encodeURIComponent(conn.model)}:${method}?key=${encodeURIComponent(apiKey || '')}`;
+}
+
+// 简单的 {{占位符}} 字符串替换，不做任何代码求值/执行。
+function fillTemplate(template, vars) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => (key in vars ? vars[key] : ''));
+}
+
+function getPath(obj, path) {
+  if (!path) return undefined;
+  return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+}
+
+function buildCustomRequest(conn, apiKey, messages, systemPrompt) {
+  if (!conn.customUrl) throw new AIError('自定义协议还没有填写请求 URL。', 'not_found');
+  const vars = {
+    model: conn.model || '',
+    apiKey: apiKey || '',
+    system: JSON.stringify(systemPrompt || ''),
+    messagesJSON: JSON.stringify(messages),
+    temperature: String(conn.temperature ?? 0.8),
+    maxTokens: String(conn.maxTokens ?? 1024),
+  };
+  const url = fillTemplate(conn.customUrl, vars);
+  const headers = { 'Content-Type': 'application/json' };
+  if (conn.customAuthHeaderName && conn.customAuthHeaderTemplate) {
+    headers[conn.customAuthHeaderName] = fillTemplate(conn.customAuthHeaderTemplate, vars);
+  }
+  if (conn.customHeaders) {
+    try { Object.assign(headers, JSON.parse(conn.customHeaders)); } catch (_) { /* 忽略非法 JSON */ }
+  }
+  const bodyText = conn.customBodyTemplate ? fillTemplate(conn.customBodyTemplate, vars) : vars.messagesJSON;
+  return { url, method: conn.customMethod || 'POST', headers, body: bodyText };
+}
+
 function buildAnthropicHeaders(conn, apiKey) {
   const headers = {
     'Content-Type': 'application/json',
@@ -197,5 +348,14 @@ function buildAnthropicHeaders(conn, apiKey) {
 const PROVIDER_PRESETS = [
   { id: 'openai', provider: 'openai-compatible', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   { id: 'deepseek', provider: 'openai-compatible', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { id: 'xai', provider: 'openai-compatible', name: 'xAI Grok', baseUrl: 'https://api.x.ai/v1', model: 'grok-4' },
   { id: 'anthropic', provider: 'anthropic', name: 'Anthropic (Claude)', baseUrl: 'https://api.anthropic.com', model: 'claude-sonnet-4-5' },
+  { id: 'gemini', provider: 'gemini', name: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.5-flash' },
 ];
+
+const PROVIDER_LABELS = {
+  'openai-compatible': 'OpenAI 兼容',
+  'anthropic': 'Anthropic',
+  'gemini': 'Gemini 原生',
+  'custom': '自定义协议',
+};

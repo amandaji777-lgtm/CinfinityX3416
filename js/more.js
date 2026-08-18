@@ -37,6 +37,7 @@ const More = (() => {
               <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${s.theme === 'soft-dark' ? 'checked' : ''}><span>柔和深色</span></label>
             </div>
             <label class="field-inline"><input type="checkbox" name="aiEnabled" ${s.aiEnabled !== false ? 'checked' : ''}><span>启用 AI 对话功能</span></label>
+            <label class="field-inline"><input type="checkbox" name="proactiveMessagesEnabled" ${s.proactiveMessagesEnabled ? 'checked' : ''}><span>启用角色主动消息（总开关，具体每个角色还要单独在对话设置里打开）</span></label>
             <button type="submit" class="btn-primary">保存设置</button>
           </form>
         </section>
@@ -90,7 +91,7 @@ const More = (() => {
       <div class="conn-row" data-id="${c.id}">
         <div class="conn-info">
           <div class="conn-name">${escapeHtml(c.name)}</div>
-          <div class="conn-sub">${c.provider} · ${escapeHtml(c.model)}</div>
+          <div class="conn-sub">${PROVIDER_LABELS[c.provider] || c.provider} · ${escapeHtml(c.model || c.customUrl || '')}</div>
         </div>
         <div class="conn-actions">
           <button class="msg-act" data-act="test">测试</button>
@@ -113,6 +114,7 @@ const More = (() => {
         colorTheme: fd.get('colorTheme') || 'cream',
         theme: fd.get('theme') || 'light',
         aiEnabled: fd.get('aiEnabled') === 'on',
+        proactiveMessagesEnabled: fd.get('proactiveMessagesEnabled') === 'on',
       };
       for (const [k, v] of Object.entries(updated)) await DB.setSetting(k, v);
       App.settings = updated;
@@ -189,14 +191,35 @@ const More = (() => {
           </label>
           <label class="field"><span>名称</span><input name="name" required value="${escapeAttr(item?.name || '')}" maxlength="20"></label>
           <label class="field"><span>协议</span>
-            <select name="provider">
-              <option value="openai-compatible" ${item?.provider === 'openai-compatible' ? 'selected' : ''}>OpenAI 兼容</option>
-              <option value="anthropic" ${item?.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
+            <select name="provider" id="provider-select">
+              ${Object.entries(PROVIDER_LABELS).map(([id, label]) => `<option value="${id}" ${item?.provider === id ? 'selected' : ''}>${label}</option>`).join('')}
             </select>
           </label>
-          <label class="field"><span>Base URL</span><input name="baseUrl" required value="${escapeAttr(item?.baseUrl || '')}" placeholder="https://api.openai.com/v1"></label>
-          <label class="field"><span>模型</span><input name="model" required value="${escapeAttr(item?.model || '')}" placeholder="例如 gpt-4o-mini"></label>
+          <div id="standard-fields">
+            <label class="field"><span>Base URL</span><input name="baseUrl" value="${escapeAttr(item?.baseUrl || '')}" placeholder="https://api.openai.com/v1"></label>
+            <label class="field"><span>模型</span><input name="model" value="${escapeAttr(item?.model || '')}" placeholder="例如 gpt-4o-mini"></label>
+          </div>
           <label class="field"><span>API Key ${item ? '（留空则不修改）' : ''}</span><input name="apiKey" type="password" placeholder="sk-..." autocomplete="off"></label>
+          <fieldset class="fieldset" id="custom-fields" style="display:none">
+            <legend>自定义协议映射</legend>
+            <p class="section-hint">仅做声明式模板替换，不会执行任何脚本。占位符：{{model}} {{apiKey}} {{system}} {{messagesJSON}} {{temperature}} {{maxTokens}}</p>
+            <label class="field"><span>请求方法</span>
+              <select name="customMethod"><option value="POST" ${item?.customMethod !== 'GET' ? 'selected' : ''}>POST</option><option value="GET" ${item?.customMethod === 'GET' ? 'selected' : ''}>GET</option></select>
+            </label>
+            <label class="field"><span>请求 URL</span><input name="customUrl" value="${escapeAttr(item?.customUrl || '')}" placeholder="https://example.com/v1/chat?model={{model}}"></label>
+            <label class="field"><span>鉴权请求头名称</span><input name="customAuthHeaderName" value="${escapeAttr(item?.customAuthHeaderName || 'Authorization')}"></label>
+            <label class="field"><span>鉴权请求头模板</span><input name="customAuthHeaderTemplate" value="${escapeAttr(item?.customAuthHeaderTemplate || 'Bearer {{apiKey}}')}"></label>
+            <label class="field"><span>其他请求头（JSON，可选）</span><textarea name="customHeaders" rows="2">${escapeHtml(item?.customHeaders || '')}</textarea></label>
+            <label class="field"><span>请求体模板（JSON）</span><textarea name="customBodyTemplate" rows="3" placeholder='{"model":"{{model}}","messages":{{messagesJSON}},"stream":true}'>${escapeHtml(item?.customBodyTemplate || '')}</textarea></label>
+            <label class="field"><span>响应文本路径</span><input name="customResponseTextPath" value="${escapeAttr(item?.customResponseTextPath || '')}" placeholder="choices.0.delta.content"></label>
+            <label class="field"><span>流式格式</span>
+              <select name="customStreamFormat">
+                <option value="none" ${(item?.customStreamFormat || 'none') === 'none' ? 'selected' : ''}>不支持流式（一次性返回）</option>
+                <option value="sse-json-path" ${item?.customStreamFormat === 'sse-json-path' ? 'selected' : ''}>SSE（data: 前缀的 JSON 行）</option>
+                <option value="ndjson-json-path" ${item?.customStreamFormat === 'ndjson-json-path' ? 'selected' : ''}>NDJSON（每行一个 JSON）</option>
+              </select>
+            </label>
+          </fieldset>
           <div class="modal-actions">
             ${!isNew ? '<button type="button" class="btn-danger" id="conn-delete">删除</button>' : ''}
             <button type="button" class="btn-secondary" id="conn-cancel">取消</button>
@@ -206,6 +229,15 @@ const More = (() => {
       </div>
     `;
     document.body.appendChild(dialog);
+
+    function toggleProviderFields() {
+      const provider = dialog.querySelector('#provider-select').value;
+      dialog.querySelector('#custom-fields').style.display = provider === 'custom' ? '' : 'none';
+      dialog.querySelector('#standard-fields').style.display = provider === 'custom' ? 'none' : '';
+    }
+    toggleProviderFields();
+    dialog.querySelector('#provider-select').addEventListener('change', toggleProviderFields);
+
     dialog.querySelector('#preset-select').addEventListener('change', (e) => {
       const preset = PROVIDER_PRESETS.find((p) => p.id === e.target.value);
       if (!preset) return;
@@ -214,6 +246,7 @@ const More = (() => {
       f.provider.value = preset.provider;
       f.baseUrl.value = preset.baseUrl;
       f.model.value = preset.model;
+      toggleProviderFields();
     });
     dialog.querySelector('#conn-cancel').addEventListener('click', () => dialog.remove());
     dialog.querySelector('#conn-delete')?.addEventListener('click', () => { dialog.remove(); deleteConn(item); });
@@ -232,10 +265,18 @@ const More = (() => {
         id: item?.id || uuid(),
         name: fd.get('name').trim(),
         provider: fd.get('provider'),
-        baseUrl: fd.get('baseUrl').trim(),
-        model: fd.get('model').trim(),
+        baseUrl: (fd.get('baseUrl') || '').trim(),
+        model: (fd.get('model') || '').trim(),
         apiKeyCipher,
         apiKeyIv,
+        customMethod: fd.get('customMethod') || 'POST',
+        customUrl: (fd.get('customUrl') || '').trim(),
+        customAuthHeaderName: (fd.get('customAuthHeaderName') || '').trim(),
+        customAuthHeaderTemplate: fd.get('customAuthHeaderTemplate') || '',
+        customHeaders: fd.get('customHeaders') || '',
+        customBodyTemplate: fd.get('customBodyTemplate') || '',
+        customResponseTextPath: (fd.get('customResponseTextPath') || '').trim(),
+        customStreamFormat: fd.get('customStreamFormat') || 'none',
         createdAt: item?.createdAt || nowISO(),
       };
       await DB.put('connections', conn);

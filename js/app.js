@@ -24,7 +24,10 @@ const App = (() => {
   }
 
   async function loadSettings() {
-    const keys = ['workspaceName', 'subtitle', 'nickname', 'theme', 'colorTheme', 'clockFormat', 'aiEnabled', 'wizardCompleted', 'storageMode', 'createdAt'];
+    const keys = [
+      'workspaceName', 'subtitle', 'nickname', 'theme', 'colorTheme', 'clockFormat',
+      'aiEnabled', 'proactiveMessagesEnabled', 'wizardCompleted', 'storageMode', 'createdAt',
+    ];
     const entries = await Promise.all(keys.map(async (k) => [k, await DB.getSetting(k)]));
     return Object.fromEntries(entries);
   }
@@ -44,8 +47,19 @@ const App = (() => {
     updateOfflineBanner();
 
     await Chat.init(document.getElementById('view-chat'));
+    if (window.Proactive) await Proactive.refresh();
     switchTab('chat');
     bindNav();
+
+    // 第9部分能力分级：没有独立后台/推送服务，只在应用打开、回到前台、
+    // 或应用保持打开期间的定时检查里生成主动消息，绝不假装能在关闭后推送。
+    if (window.Proactive) {
+      Proactive.checkAll();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') Proactive.checkAll();
+      });
+      setInterval(() => { if (document.visibilityState === 'visible') Proactive.checkAll(); }, 5 * 60 * 1000);
+    }
   }
 
   function updateOfflineBanner() {
@@ -68,6 +82,8 @@ const App = (() => {
     if (tab === 'bookmarks') await Bookmarks.init(view);
     if (tab === 'mood') await Mood.init(view);
     if (tab === 'more') await More.init(view);
+    if (tab === 'resources') await Resources.init(view);
+    if (tab === 'chat' && Chat.refreshList) await Chat.refreshList();
   }
 
   async function goToChat(conversationId, messageId) {
@@ -78,6 +94,7 @@ const App = (() => {
 
   return { boot, switchTab, goToChat, get settings() { return settings; }, set settings(v) { settings = v; }, applyTheme };
 })();
+window.App = App;
 
 document.addEventListener('DOMContentLoaded', () => {
   App.boot();
