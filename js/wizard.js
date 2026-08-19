@@ -12,6 +12,7 @@ const Wizard = (() => {
     container.innerHTML = `
       <div class="wizard-overlay">
         <form class="wizard-card" id="wizard-form">
+          <div class="wizard-rose">${typeof roseFlourish === 'function' ? roseFlourish(34) : ''}</div>
           <h1>欢迎使用拾光</h1>
           <p class="wizard-sub">先花一分钟做几个简单设置，之后随时可以在"更多 → 设置"里修改。</p>
 

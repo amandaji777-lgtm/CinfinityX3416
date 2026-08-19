@@ -240,7 +240,8 @@ button { cursor: pointer; }
 }
 .nav-btn.active { color: var(--text); font-weight: 600; background: var(--accent); }
 html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1); color: var(--text); }
-.nav-icon { font-size: 20px; }
+.nav-icon { display: flex; }
+.nav-icon svg { width: 21px; height: 21px; }
 
 /* ---------- 通用组件 ---------- */
 .view-header {
@@ -295,6 +296,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .empty-state { padding: 60px 24px; text-align: center; color: var(--text-muted); }
 .empty-title { font-size: 15px; margin-bottom: 4px; color: var(--text); }
 .empty-sub { font-size: 13px; }
+.rose-flourish { color: var(--accent-strong); opacity: 0.55; margin-bottom: 10px; }
 
 /* ---------- 表单 ---------- */
 .field { display: block; margin-bottom: 12px; }
@@ -341,6 +343,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
   z-index: 100;
 }
 .wizard-card {
+  position: relative;
   background: var(--glass-bg-strong);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
@@ -351,6 +354,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
   width: 100%;
   box-shadow: var(--glass-shadow);
 }
+.wizard-rose { position: absolute; top: 16px; right: 18px; color: var(--accent-strong); opacity: 0.5; transform: rotate(12deg); }
 .wizard-card h1 { font-size: 22px; margin: 0 0 4px; }
 .wizard-sub { color: var(--text-muted); font-size: 13px; margin: 0 0 20px; }
 .wizard-note {
@@ -455,6 +459,24 @@ html[data-theme="soft-dark"] .msg-bubble {
 .msg-bubble.from-user { margin-left: auto; background: var(--user-bubble-bg); }
 .msg-bubble.from-ai { margin-right: auto; }
 .msg-bubble.is-archived { opacity: 0.5; }
+
+/* 分组气泡：同一发言方连续消息只有最后一条保留完整圆角，中间的贴角变方一点。 */
+.msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
+.msg-row.from-user { justify-content: flex-end; }
+.msg-row .msg-bubble { margin: 0 0 3px; }
+.msg-row.from-ai .msg-bubble.is-group-mid { border-bottom-left-radius: 4px; }
+.msg-row.from-user .msg-bubble.is-group-mid { border-bottom-right-radius: 4px; }
+.msg-row.from-ai .msg-bubble.is-group-last { margin-bottom: 14px; }
+.msg-row.from-user .msg-bubble.is-group-last { margin-bottom: 14px; }
+.msg-avatar {
+  width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+  margin-bottom: 3px;
+}
 .msg-bubble.is-highlighted { box-shadow: 0 0 0 3px var(--accent-strong); }
 @keyframes bubble-in {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
@@ -613,8 +635,8 @@ html[data-theme="soft-dark"] .msg-bubble {
 }
 .splash-badge {
   position: relative;
-  width: clamp(180px, 56vw, 230px);
-  height: clamp(180px, 56vw, 230px);
+  width: clamp(240px, 74vw, 300px);
+  height: clamp(240px, 74vw, 300px);
   margin: 0 auto 18px;
 }
 .splash-ring, .splash-scene {
@@ -624,13 +646,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   height: 100%;
 }
 .splash-ring {
-  animation: ring-spin 7s linear infinite;
-  transform-origin: 110px 110px;
   filter: drop-shadow(0 0 6px rgba(242, 167, 196, 0.45));
-}
-@keyframes ring-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 .splash-scene {
   filter: drop-shadow(0 10px 30px rgba(0,0,0,0.4));
@@ -650,7 +666,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   color: rgba(245, 238, 251, 0.55);
 }
 @media (prefers-reduced-motion: reduce) {
-  .splash-ring { animation: none; }
+  .splash-ring use { display: none; }
 }
 @keyframes splash-fade-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }

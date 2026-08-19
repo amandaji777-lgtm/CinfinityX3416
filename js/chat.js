@@ -258,7 +258,8 @@ const Chat = (() => {
           ${state.showContextPreview ? `<pre class="context-preview-body">${escapeHtml(buildContext(conv, visibleMessages()).systemText || '（空）')}</pre>` : ''}
         </div>
         <div class="message-list" id="message-list">
-          ${msgs.length === 0 ? emptyState('开始聊天吧', '在下方输入框发送第一条消息') : msgs.map(messageBubble).join('')}
+          ${msgs.length === 0 ? emptyState('开始聊天吧', '在下方输入框发送第一条消息') :
+            msgs.map((m, i) => messageBubble(m, !msgs[i + 1] || msgs[i + 1].role !== m.role, character)).join('')}
         </div>
         <div class="composer">
           <textarea id="composer-input" rows="1" placeholder="输入消息…"></textarea>
@@ -304,19 +305,25 @@ const Chat = (() => {
     }
   }
 
-  function messageBubble(m) {
+  // isGroupLast：连续同一发言方的最后一条消息才保留完整圆角（尾部），
+  // 其余在群组中间的消息用方一点的角，视觉上"粘"在一起，参考 Tidal_Echo 的分组气泡。
+  function messageBubble(m, isGroupLast, character) {
     const isUser = m.role === 'user';
+    const avatarHtml = !isUser ? `<div class="msg-avatar">${escapeHtml((character?.name || '拾').slice(0, 1))}</div>` : '';
     return `
-      <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''}" data-id="${m.id}">
-        <div class="msg-content">${renderMarkdownish(m.content)}</div>
-        <div class="msg-meta">
-          <span class="msg-time">${formatTime(m.createdAt)}</span>
-        </div>
-        <div class="msg-actions">
-          <button class="msg-act" data-act="copy" title="复制">复制</button>
-          <button class="msg-act ${m.bookmarked ? 'active' : ''}" data-act="bookmark" title="收藏">${m.bookmarked ? '★ 已收藏' : '☆ 收藏'}</button>
-          ${isUser && !m.archived ? '<button class="msg-act" data-act="edit" title="回溯编辑">回溯编辑</button>' : ''}
-          ${!isUser && !m.archived && !m.isGreeting ? '<button class="msg-act" data-act="retry" title="让他重说">让他重说</button>' : ''}
+      <div class="msg-row ${isUser ? 'from-user' : 'from-ai'}">
+        ${avatarHtml}
+        <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''} ${isGroupLast ? 'is-group-last' : 'is-group-mid'}" data-id="${m.id}">
+          <div class="msg-content">${renderMarkdownish(m.content)}</div>
+          <div class="msg-meta">
+            <span class="msg-time">${formatTime(m.createdAt)}</span>
+          </div>
+          <div class="msg-actions">
+            <button class="msg-act" data-act="copy" title="复制">复制</button>
+            <button class="msg-act ${m.bookmarked ? 'active' : ''}" data-act="bookmark" title="收藏">${m.bookmarked ? '★ 已收藏' : '☆ 收藏'}</button>
+            ${isUser && !m.archived ? '<button class="msg-act" data-act="edit" title="回溯编辑">回溯编辑</button>' : ''}
+            ${!isUser && !m.archived && !m.isGreeting ? '<button class="msg-act" data-act="retry" title="让他重说">让他重说</button>' : ''}
+          </div>
         </div>
       </div>
     `;
@@ -341,7 +348,8 @@ const Chat = (() => {
           await loadMessages();
           render();
         } else if (act === 'retry') {
-          await archiveFrom(msg.createdAt, false);
+          // 封存这条回复本身（以及它之后的任何消息），再重新生成一次。
+          await archiveFrom(msg.createdAt, true);
           await loadMessages();
           render();
           await requestAssistantReply(conv);
@@ -510,6 +518,7 @@ const Chat = (() => {
 
     const history = visibleMessages();
     const { systemText, postHistoryText } = buildContext(conv, history);
+    const character = characterOf(conv);
 
     state.streaming = true;
     state.abortController = new AbortController();
@@ -543,7 +552,7 @@ const Chat = (() => {
           state.messages.push(assistantMsg);
           appended = true;
         }
-        updateStreamingBubble(assistantMsg);
+        updateStreamingBubble(assistantMsg, character);
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -552,7 +561,7 @@ const Chat = (() => {
         assistantMsg.content = (assistantMsg.content ? assistantMsg.content + '\n\n' : '') + `⚠️ ${err.message || err}`;
       }
       if (!appended) { state.messages.push(assistantMsg); appended = true; }
-      updateStreamingBubble(assistantMsg);
+      updateStreamingBubble(assistantMsg, character);
     } finally {
       state.streaming = false;
       state.abortController = null;
@@ -569,12 +578,12 @@ const Chat = (() => {
     return assistantMsg;
   }
 
-  function updateStreamingBubble(msg) {
+  function updateStreamingBubble(msg, character) {
     const list = container.querySelector('#message-list');
     if (!list) return;
     let el = list.querySelector(`[data-id="${msg.id}"]`);
     if (!el) {
-      list.insertAdjacentHTML('beforeend', messageBubble(msg));
+      list.insertAdjacentHTML('beforeend', messageBubble(msg, true, character));
       el = list.querySelector(`[data-id="${msg.id}"]`);
     } else {
       el.querySelector('.msg-content').innerHTML = renderMarkdownish(msg.content);
@@ -716,7 +725,24 @@ const Chat = (() => {
 window.Chat = Chat;
 
 function emptyState(title, sub) {
-  return `<div class="empty-state"><div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
+  return `<div class="empty-state">${roseFlourish(30)}<div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
+}
+
+// 简约线稿玫瑰花饰，用作空状态/引导页的点缀。
+function roseFlourish(size) {
+  const petal = 'M0,0 C-3,-3 -2,-7 0,-9 C2,-7 3,-3 0,0 Z';
+  return `
+    <svg class="rose-flourish" width="${size}" height="${size}" viewBox="-14 -16 28 30" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round">
+      <g transform="translate(0,-2)">
+        <path d="${petal}"/><path d="${petal}" transform="rotate(72)"/><path d="${petal}" transform="rotate(144)"/>
+        <path d="${petal}" transform="rotate(216)"/><path d="${petal}" transform="rotate(288)"/>
+        <circle r="1.6" opacity="0.6"/>
+      </g>
+      <path d="M0,7 V13"/>
+      <path d="M0,9c-2 0-3.5 1.3-4 3"/>
+      <path d="M0,11.5c1.8 0 3.2 1 3.6 2.6"/>
+    </svg>
+  `;
 }
 
 function escapeHtml(s) {

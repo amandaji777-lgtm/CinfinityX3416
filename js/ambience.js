@@ -25,21 +25,23 @@ const Ambience = (() => {
     return (r * 299 + g * 587 + b * 114) / 1000;
   }
 
+  // 留白角落始终是白银色的光，只有"闪烁的疏密/亮度"随最近一次心情记录变化——
+  // 不把角落染成心情的颜色（那样反而像状态指示灯，不是"通感"的氛围光）。
   async function refreshCorner() {
     const el = document.getElementById('ambient-corner');
     if (!el || typeof DB === 'undefined') return;
     let moods = [];
     try { moods = await DB.getAll('moods'); } catch (_) { return; }
-    if (!moods.length) {
-      el.style.background = 'radial-gradient(circle, rgba(255,255,255,0.3), transparent 70%)';
-      el.innerHTML = '';
-      return;
+
+    let fleckCount = 2;
+    let softness = 0.5; // 越低越"柔软暗淡"（对应疲惫），越高越明亮
+    if (moods.length) {
+      moods.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+      const brightness = colorBrightness(moods[0].color);
+      softness = Math.min(1, Math.max(0.35, brightness / 255));
+      fleckCount = brightness > 180 ? 7 : brightness > 120 ? 4 : 2;
     }
-    moods.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-    const color = moods[0].color || '#cdbfe0';
-    el.style.background = `radial-gradient(circle, ${color}, transparent 72%)`;
-    const brightness = colorBrightness(color);
-    const fleckCount = brightness > 180 ? 6 : brightness > 120 ? 3 : 1;
+    el.style.background = `radial-gradient(circle, rgba(255,255,255,${softness.toFixed(2)}), transparent 72%)`;
     el.innerHTML = Array.from({ length: fleckCount }, () => {
       const x = (Math.random() * 34 + 4).toFixed(0);
       const y = (Math.random() * 34 + 4).toFixed(0);

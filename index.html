@@ -26,17 +26,30 @@
     <canvas id="splash-canvas"></canvas>
     <div class="splash-content">
       <div class="splash-badge">
-        <svg class="splash-ring" viewBox="0 0 220 220" aria-hidden="true">
+        <svg class="splash-ring" viewBox="0 0 300 300" aria-hidden="true">
           <defs>
             <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stop-color="#f2a7c4"/>
               <stop offset="100%" stop-color="#b7a8d6"/>
             </linearGradient>
+            <path id="loopL" d="M174,150 A82,82 0 1,1 10,150 A82,82 0 1,1 174,150"/>
+            <path id="loopR" d="M290,150 A82,82 0 1,1 126,150 A82,82 0 1,1 290,150"/>
+            <path d="M0,-5 C1,-1.2 1.2,-1 5,0 C1.2,1 1,1.2 0,5 C-1,1.2 -1.2,1 -5,0 C-1.2,-1 -1,-1.2 0,-5 Z" id="sparkleShape"/>
           </defs>
-          <circle cx="110" cy="110" r="102" fill="none" stroke="url(#ringGrad)" stroke-width="2.5"
-                  stroke-linecap="round" stroke-dasharray="380 260" opacity="0.85"/>
+          <circle cx="92" cy="150" r="82" fill="none" stroke="url(#ringGrad)" stroke-width="2" opacity="0.4"/>
+          <circle cx="208" cy="150" r="82" fill="none" stroke="url(#ringGrad)" stroke-width="2" opacity="0.4"/>
+          <use href="#sparkleShape" fill="#fff" opacity="0.95">
+            <animateMotion dur="4.5s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#loopL"/>
+            </animateMotion>
+          </use>
+          <use href="#sparkleShape" fill="#f2a7c4" opacity="0.9">
+            <animateMotion dur="4.5s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#loopR"/>
+            </animateMotion>
+          </use>
         </svg>
-        <svg class="splash-scene" viewBox="0 0 220 220">
+        <svg class="splash-scene" viewBox="0 0 300 300">
           <defs>
             <radialGradient id="skyGrad" cx="42%" cy="35%" r="75%">
               <stop offset="0%" stop-color="#2c2657"/>
@@ -49,6 +62,7 @@
             <clipPath id="frameClip"><circle cx="110" cy="110" r="88"/></clipPath>
           </defs>
 
+          <g transform="translate(40,40)">
           <circle cx="110" cy="110" r="88" fill="url(#skyGrad)"/>
           <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
 
@@ -82,6 +96,7 @@
               <path d="M 3,-3 Q 5,0 7,-3" fill="none" stroke="#2a2430" stroke-width="1.3" stroke-linecap="round"/>
             </g>
           </g>
+          </g>
         </svg>
       </div>
       <div class="splash-welcome">Welcome back</div>
@@ -111,10 +126,38 @@
     </main>
 
     <nav class="bottom-nav">
-      <button class="nav-btn" data-tab="chat"><span class="nav-icon">💬</span><span>对话</span></button>
-      <button class="nav-btn" data-tab="bookmarks"><span class="nav-icon">📌</span><span>收藏</span></button>
-      <button class="nav-btn" data-tab="mood"><span class="nav-icon">🌈</span><span>心情</span></button>
-      <button class="nav-btn" data-tab="more"><span class="nav-icon">⋯</span><span>更多</span></button>
+      <button class="nav-btn" data-tab="chat">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9 L4 4 L9 7"/><path d="M18 9 L20 4 L15 7"/>
+          <circle cx="12" cy="13" r="7"/>
+          <circle cx="9.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/>
+          <circle cx="14.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/>
+          <path d="M11 15.5 Q12 16.5 13 15.5"/>
+        </svg></span>
+        <span class="nav-label">对话</span>
+      </button>
+      <button class="nav-btn" data-tab="bookmarks">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="7.6" r="2.5"/><circle cx="16.2" cy="10.5" r="2.5"/>
+          <circle cx="14.6" cy="15.3" r="2.5"/><circle cx="9.4" cy="15.3" r="2.5"/>
+          <circle cx="7.8" cy="10.5" r="2.5"/>
+          <circle cx="12" cy="11.2" r="1.5" fill="currentColor" stroke="none"/>
+        </svg></span>
+        <span class="nav-label">收藏</span>
+      </button>
+      <button class="nav-btn" data-tab="mood">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5.5"/>
+          <ellipse cx="12" cy="12" rx="10" ry="3.2" transform="rotate(-18 12 12)"/>
+        </svg></span>
+        <span class="nav-label">心情</span>
+      </button>
+      <button class="nav-btn" data-tab="more">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 9c-2.2 0-4 1.6-4 3.5S4.8 16 7 16c2.5 0 3.7-1.8 5-3.5C13.3 10.8 14.5 9 17 9c2.2 0 4 1.6 4 3.5S19.2 16 17 16c-2.5 0-3.7-1.8-5-3.5C10.7 10.8 9.5 9 7 9Z"/>
+        </svg></span>
+        <span class="nav-label">更多</span>
+      </button>
     </nav>
   </div>
 
