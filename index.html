@@ -13,16 +13,79 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Pinyon+Script&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div id="ambient-corner" class="ambient-corner" aria-hidden="true"></div>
 
   <div id="splash-screen" class="splash-screen" aria-hidden="true">
     <canvas id="splash-canvas"></canvas>
     <div class="splash-content">
-      <div class="splash-logo">拾光</div>
-      <div class="splash-sub">对话 · 收藏 · 心情</div>
+      <div class="splash-badge">
+        <svg class="splash-ring" viewBox="0 0 220 220" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#f2a7c4"/>
+              <stop offset="100%" stop-color="#b7a8d6"/>
+            </linearGradient>
+          </defs>
+          <circle cx="110" cy="110" r="102" fill="none" stroke="url(#ringGrad)" stroke-width="2.5"
+                  stroke-linecap="round" stroke-dasharray="380 260" opacity="0.85"/>
+        </svg>
+        <svg class="splash-scene" viewBox="0 0 220 220">
+          <defs>
+            <radialGradient id="skyGrad" cx="42%" cy="35%" r="75%">
+              <stop offset="0%" stop-color="#2c2657"/>
+              <stop offset="100%" stop-color="#15122c"/>
+            </radialGradient>
+            <linearGradient id="planetGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#d9c2ea"/>
+              <stop offset="100%" stop-color="#7d6a9e"/>
+            </linearGradient>
+            <clipPath id="frameClip"><circle cx="110" cy="110" r="88"/></clipPath>
+          </defs>
+
+          <circle cx="110" cy="110" r="88" fill="url(#skyGrad)"/>
+          <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+
+          <g clip-path="url(#frameClip)">
+            <circle cx="50" cy="52" r="1.3" fill="#fff" opacity="0.8"/>
+            <circle cx="150" cy="40" r="1" fill="#fff" opacity="0.6"/>
+            <circle cx="168" cy="70" r="1.4" fill="#fff" opacity="0.7"/>
+            <circle cx="40" cy="86" r="1" fill="#fff" opacity="0.5"/>
+            <circle cx="128" cy="34" r="0.9" fill="#fff" opacity="0.6"/>
+            <circle cx="76" cy="30" r="1.1" fill="#fff" opacity="0.5"/>
+
+            <ellipse cx="112" cy="196" rx="98" ry="16" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5" transform="rotate(-7 112 196)"/>
+            <circle cx="110" cy="207" r="74" fill="url(#planetGrad)"/>
+            <path d="M 46,190 Q 90,178 110,182 Q 96,192 46,190 Z" fill="rgba(255,255,255,0.12)"/>
+
+            <g transform="translate(86,150) rotate(4)">
+              <path d="M -14,21 C -15,3 -10,-15 0,-17 C 10,-15 15,3 14,21 C 14,27 -14,27 -14,21 Z" fill="#20202e" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+              <polygon points="-9,-14 -13,-25 -3,-16" fill="#20202e"/>
+              <polygon points="9,-14 13,-25 3,-16" fill="#20202e"/>
+              <path d="M 13,17 C 24,16 27,6 20,-1 C 17,-4 15,1 17,7" fill="none" stroke="#20202e" stroke-width="4" stroke-linecap="round"/>
+              <path d="M -7,-3 Q -5,0 -3,-3" fill="none" stroke="#f4eefa" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M 3,-3 Q 5,0 7,-3" fill="none" stroke="#f4eefa" stroke-width="1.3" stroke-linecap="round"/>
+            </g>
+
+            <g transform="translate(129,153) rotate(-6) scale(0.92)">
+              <path d="M -14,21 C -15,3 -10,-15 0,-17 C 10,-15 15,3 14,21 C 14,27 -14,27 -14,21 Z" fill="#f6f1e9" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
+              <polygon points="-9,-14 -13,-25 -3,-16" fill="#f6f1e9" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
+              <polygon points="9,-14 13,-25 3,-16" fill="#f6f1e9" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
+              <path d="M -13,17 C -24,16 -27,6 -20,-1 C -17,-4 -15,1 -17,7" fill="none" stroke="#f6f1e9" stroke-width="4" stroke-linecap="round"/>
+              <path d="M -7,-3 Q -5,0 -3,-3" fill="none" stroke="#2a2430" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M 3,-3 Q 5,0 7,-3" fill="none" stroke="#2a2430" stroke-width="1.3" stroke-linecap="round"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="splash-welcome">Welcome back</div>
+      <div class="splash-sub">拾光 · 对话 · 收藏 · 心情</div>
     </div>
     <button id="splash-skip" class="splash-skip">跳过</button>
   </div>
@@ -68,6 +131,7 @@
   <script src="js/bookmarks.js"></script>
   <script src="js/mood.js"></script>
   <script src="js/more.js"></script>
+  <script src="js/ambience.js"></script>
   <script src="js/splash.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -48,6 +48,7 @@ const App = (() => {
 
     await Chat.init(document.getElementById('view-chat'));
     if (window.Proactive) await Proactive.refresh();
+    if (window.Ambience) Ambience.init();
     switchTab('chat');
     bindNav();
 

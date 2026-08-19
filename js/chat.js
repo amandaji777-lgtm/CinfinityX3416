@@ -310,7 +310,6 @@ const Chat = (() => {
       <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''}" data-id="${m.id}">
         <div class="msg-content">${renderMarkdownish(m.content)}</div>
         <div class="msg-meta">
-          ${!isUser ? `<span class="ai-tag">${m.isProactive ? 'AI 生成 · 主动消息' : 'AI 生成'}</span>` : ''}
           <span class="msg-time">${formatTime(m.createdAt)}</span>
         </div>
         <div class="msg-actions">
