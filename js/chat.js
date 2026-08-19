@@ -50,9 +50,9 @@ const Chat = (() => {
     container.innerHTML = `
       <div class="chat-list-view">
         <div class="view-header">
-          <h2>AI 对话</h2>
+          <h2>Home</h2>
           <div class="header-actions">
-            <button class="btn-icon" id="btn-res-lib" title="AI 资料库">📚</button>
+            <button class="btn-icon" id="btn-res-lib" title="AI 资料库">${roseFlourish(18)}</button>
             <button class="btn-icon" id="btn-new-conv" title="新建对话">＋</button>
           </div>
         </div>

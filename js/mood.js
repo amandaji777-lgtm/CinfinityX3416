@@ -1,15 +1,6 @@
 // 能量波动图：记录当下心情颜色，按日/周/月/年查看颜色的波动。
 const Mood = (() => {
-  const PRESETS = [
-    { label: '平和', color: '#cdbfe0' },
-    { label: '开心', color: '#ffd166' },
-    { label: '安稳', color: '#9fd8b8' },
-    { label: '兴奋', color: '#ff8fa3' },
-    { label: '疲惫', color: '#9aa5c9' },
-    { label: '低落', color: '#7f9cc4' },
-    { label: '焦虑', color: '#f4a261' },
-    { label: '烦躁', color: '#e76f51' },
-  ];
+  const DEFAULT_COLOR = '#b8965a';
 
   let container;
   let entries = [];
@@ -122,19 +113,22 @@ const Mood = (() => {
     `;
   }
 
+  function heatmapCell(d, sizeClass) {
+    const dayEntries = entriesForDate(d);
+    const stripes = dayEntries.map((e) => `<span class="hm-stripe" style="background:${e.color}"></span>`).join('');
+    const label = sizeClass ? '' : `<span class="hm-cell-label">${d.slice(8, 10)}</span>`;
+    return `<div class="hm-cell ${sizeClass || ''} ${d === todayStr() ? 'is-today' : ''}" data-date="${d}">
+      <span class="hm-stripes">${stripes}</span>${label}
+    </div>`;
+  }
+
   function renderHeatmap(dates, title) {
     return `
       <div class="hm-title">${title}</div>
       <div class="hm-grid">
-        ${dates.map((d) => {
-          const dayEntries = entriesForDate(d);
-          const blend = blendColors(dayEntries.map((e) => e.color));
-          return `<div class="hm-cell ${d === todayStr() ? 'is-today' : ''}" data-date="${d}" style="background:${blend || 'var(--surface-2)'}">
-            <span class="hm-cell-label">${d.slice(8, 10)}</span>
-          </div>`;
-        }).join('')}
+        ${dates.map((d) => heatmapCell(d)).join('')}
       </div>
-      <div class="hm-hint">点击某一天可查看当天详情</div>
+      <div class="hm-hint">点击某一天可查看当天详情；一天记录多种颜色时会分层显示</div>
     `;
   }
 
@@ -148,10 +142,7 @@ const Mood = (() => {
         <div class="year-month-block">
           <div class="year-month-label">${i + 1} 月</div>
           <div class="hm-grid hm-grid-compact">
-            ${dates.map((d) => {
-              const blend = blendColors(entriesForDate(d).map((e) => e.color));
-              return `<div class="hm-cell hm-cell-sm" data-date="${d}" style="background:${blend || 'var(--surface-2)'}"></div>`;
-            }).join('')}
+            ${dates.map((d) => heatmapCell(d, 'hm-cell-sm')).join('')}
           </div>
         </div>
       `).join('')}
@@ -167,22 +158,10 @@ const Mood = (() => {
       <div class="modal-card">
         <h3>${isNew ? '记录此刻的心情' : '编辑心情记录'}</h3>
         <form id="mood-form">
-          <div class="field">
-            <span>选择颜色</span>
-            <div class="swatch-row">
-              ${PRESETS.map((p) => `
-                <label class="swatch-option">
-                  <input type="radio" name="preset" value="${p.color}|${p.label}">
-                  <span class="swatch" style="background:${p.color}"></span>
-                  <span class="swatch-label">${p.label}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
-          <label class="field"><span>微调颜色（可选，覆盖上面的预设）</span>
-            <input type="color" name="colorPicker" value="${item?.color || PRESETS[0].color}">
+          <label class="field field-color"><span>选择颜色</span>
+            <input type="color" name="colorPicker" value="${item?.color || DEFAULT_COLOR}">
           </label>
-          <label class="field"><span>标签</span><input name="label" maxlength="12" value="${escapeAttr(item?.label || '')}" placeholder="例如：平和 / 有点累"></label>
+          <label class="field"><span>这个颜色代表什么</span><input name="label" maxlength="12" value="${escapeAttr(item?.label || '')}" placeholder="自己起个名字，例如：平和 / 有点累"></label>
           <label class="field"><span>备注（可选）</span><textarea name="note" rows="2">${escapeHtml(item?.note || '')}</textarea></label>
           <label class="field"><span>时间</span><input type="datetime-local" name="time" value="${toLocalInputValue(item?.time || now.toISOString())}"></label>
           <div class="modal-actions">
@@ -194,14 +173,6 @@ const Mood = (() => {
     `;
     document.body.appendChild(dialog);
     dialog.querySelector('#mood-cancel').addEventListener('click', () => dialog.remove());
-    dialog.querySelectorAll('input[name=preset]').forEach((r) => {
-      r.addEventListener('change', () => {
-        const [color, label] = r.value.split('|');
-        dialog.querySelector('input[name=colorPicker]').value = color;
-        const labelInput = dialog.querySelector('input[name=label]');
-        if (!labelInput.value) labelInput.value = label;
-      });
-    });
     dialog.querySelector('#mood-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -264,21 +235,6 @@ const Mood = (() => {
   function minutesOfDay(iso) {
     const d = new Date(iso);
     return d.getHours() * 60 + d.getMinutes();
-  }
-  function blendColors(colors) {
-    if (!colors || colors.length === 0) return null;
-    let r = 0, g = 0, b = 0;
-    colors.forEach((c) => {
-      const [rr, gg, bb] = hexToRgb(c);
-      r += rr; g += gg; b += bb;
-    });
-    const n = colors.length;
-    return `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
-  }
-  function hexToRgb(hex) {
-    const m = hex.replace('#', '');
-    const bigint = parseInt(m.length === 3 ? m.split('').map((c) => c + c).join('') : m, 16);
-    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
   }
   function formatDateHuman(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');

@@ -24,34 +24,17 @@ const More = (() => {
             <label class="field"><span>副标题</span><input name="subtitle" value="${escapeAttr(s.subtitle || '')}" maxlength="30"></label>
             <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
 
-            <fieldset class="fieldset"><legend>底部四个分栏文字</legend>
-              <label class="field"><span>对话</span><input name="navLabelChat" value="${escapeAttr(s.navLabelChat || '对话')}" maxlength="6"></label>
-              <label class="field"><span>收藏</span><input name="navLabelBookmarks" value="${escapeAttr(s.navLabelBookmarks || '收藏')}" maxlength="6"></label>
-              <label class="field"><span>心情</span><input name="navLabelMood" value="${escapeAttr(s.navLabelMood || '心情')}" maxlength="6"></label>
-              <label class="field"><span>更多</span><input name="navLabelMore" value="${escapeAttr(s.navLabelMore || '更多')}" maxlength="6"></label>
-            </fieldset>
-
-            <div class="seg-row">
-              <label class="seg-option"><input type="radio" name="theme" value="light" ${s.theme !== 'soft-dark' ? 'checked' : ''}><span>浅色</span></label>
-              <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${s.theme === 'soft-dark' ? 'checked' : ''}><span>柔和深色</span></label>
-            </div>
-
-            <div class="field"><span>快捷配色（点一下直接套用对应强调色）</span>
-              <div class="swatch-row">
-                ${Wizard.COLOR_THEMES.map((c) => `
-                  <label class="swatch-option">
-                    <input type="radio" name="colorTheme" value="${c.id}" ${(s.colorTheme || 'duskpink') === c.id ? 'checked' : ''}>
-                    <span class="swatch" style="background:${c.swatch}"></span><span class="swatch-label">${c.label}</span>
-                  </label>`).join('')}
+            <div class="field"><span>基础模式</span>
+              <div class="seg-row">
+                <label class="seg-option"><input type="radio" name="theme" value="light" ${s.theme !== 'soft-dark' ? 'checked' : ''}><span>白金</span></label>
+                <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${s.theme === 'soft-dark' ? 'checked' : ''}><span>黑银</span></label>
               </div>
             </div>
 
-            <fieldset class="fieldset"><legend>自定义颜色（覆盖上面的快捷配色）</legend>
-              <p class="section-hint">柔和深色模式的"呼吸感"氛围（近黑背景/光斑/水波）是固定的，这里的自定义只影响强调色；气泡颜色和聊天背景色只在浅色模式下生效，深色模式会自动保留原本的氛围效果。</p>
-              <label class="field-inline"><input type="checkbox" name="useCustomColors" id="use-custom-colors" ${s.customAccent ? 'checked' : ''}><span>启用自定义颜色</span></label>
-              <label class="field"><span>强调色</span><input type="color" name="customAccent" value="${s.customAccent || '#e8a0b4'}" ${s.customAccent ? '' : 'disabled'}></label>
-              <label class="field"><span>我的消息气泡颜色（浅色模式）</span><input type="color" name="customBubbleColor" value="${s.customBubbleColor || '#f5d2d6'}" ${s.customAccent ? '' : 'disabled'}></label>
-              <label class="field"><span>聊天背景色（浅色模式）</span><input type="color" name="customChatBg" value="${s.customChatBg || '#f8eeee'}" ${s.customAccent ? '' : 'disabled'}></label>
+            <fieldset class="fieldset"><legend>点按时的光辉颜色</legend>
+              <p class="section-hint">整体配色固定为白金/黑银这两种呼吸感玻璃质感，不再有其他配色方案；这里只能调"点击卡片/按钮时散开的那圈光晕"用什么颜色。</p>
+              <label class="field-inline"><input type="checkbox" name="useCustomColors" id="use-custom-colors" ${s.customAccent ? 'checked' : ''}><span>自定义光辉颜色</span></label>
+              <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || (s.theme === 'soft-dark' ? '#c7ccd1' : '#b8965a')}" ${s.customAccent ? '' : 'disabled'}></label>
             </fieldset>
 
             <label class="field-inline"><input type="checkbox" name="aiEnabled" ${s.aiEnabled !== false ? 'checked' : ''}><span>启用 AI 对话功能</span></label>
@@ -123,8 +106,7 @@ const More = (() => {
   function bindEvents() {
     const useCustomCb = container.querySelector('#use-custom-colors');
     useCustomCb.addEventListener('change', (e) => {
-      container.querySelectorAll('input[name=customAccent], input[name=customBubbleColor], input[name=customChatBg]')
-        .forEach((el) => { el.disabled = !e.target.checked; });
+      container.querySelector('input[name=customAccent]').disabled = !e.target.checked;
     });
 
     container.querySelector('#settings-form').addEventListener('submit', async (e) => {
@@ -136,24 +118,15 @@ const More = (() => {
         workspaceName: fd.get('workspaceName') || '拾光',
         subtitle: fd.get('subtitle') || '',
         nickname: fd.get('nickname') || '',
-        navLabelChat: fd.get('navLabelChat') || '对话',
-        navLabelBookmarks: fd.get('navLabelBookmarks') || '收藏',
-        navLabelMood: fd.get('navLabelMood') || '心情',
-        navLabelMore: fd.get('navLabelMore') || '更多',
-        colorTheme: fd.get('colorTheme') || 'duskpink',
         theme: fd.get('theme') || 'light',
         customAccent: useCustom ? fd.get('customAccent') : null,
-        customBubbleColor: useCustom ? fd.get('customBubbleColor') : null,
-        customChatBg: useCustom ? fd.get('customChatBg') : null,
         aiEnabled: fd.get('aiEnabled') === 'on',
         proactiveMessagesEnabled: fd.get('proactiveMessagesEnabled') === 'on',
       };
       for (const [k, v] of Object.entries(updated)) await DB.setSetting(k, v);
       App.settings = updated;
       App.applyTheme(updated);
-      document.getElementById('app-title').textContent = updated.workspaceName;
-      document.getElementById('app-subtitle').textContent = updated.subtitle;
-      if (App.applyNavLabels) App.applyNavLabels(updated);
+      document.title = updated.workspaceName || '拾光';
       toast('已保存');
     });
 

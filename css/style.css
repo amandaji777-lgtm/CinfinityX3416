@@ -1,14 +1,15 @@
-/* ---------- 基础与主题变量（玻璃拟态 + 高级感配色） ---------- */
+/* ---------- 基础与主题变量（玻璃拟态 · 白金 / 黑银 两种基础模式） ---------- */
 :root {
-  --accent: #fcd1db;
-  --accent-strong: #e8a0b4;
-  --bg: #f7eef1;
+  /* 白金：暖白底 + 香槟金强调色 */
+  --accent: #e8d9b3;
+  --accent-strong: #b8965a;
+  --bg: #faf7f0;
   --surface: #ffffff;
-  --surface-2: #f3ede6;
-  --text: #443a42;
-  --text-muted: #8b7d85;
-  --border: #ece3da;
-  --danger: #e2685a;
+  --surface-2: #f2ecdd;
+  --text: #3a3428;
+  --text-muted: #8a8070;
+  --border: #e5dcc6;
+  --danger: #c0553f;
   --radius-lg: clamp(18px, 5vw, 24px);
   --radius-md: clamp(13px, 3.5vw, 17px);
   --radius-sm: clamp(9px, 2.5vw, 11px);
@@ -20,77 +21,59 @@
   /* 玻璃拟态：半透明卡片 + 模糊 + 微光边框 */
   --glass-bg: rgba(255, 255, 255, 0.5);
   --glass-bg-strong: rgba(255, 255, 255, 0.68);
-  --glass-border: rgba(255, 255, 255, 0.55);
-  --glass-shadow: 0 14px 34px rgba(120, 90, 100, 0.12);
-  --glass-blur: blur(16px) saturate(1.4);
+  --glass-border: rgba(184, 150, 90, 0.28);
+  --glass-shadow: 0 14px 34px rgba(120, 100, 60, 0.12);
+  --glass-blur: blur(16px) saturate(1.3);
 
-  /* 背景漂浮光斑（呼应参考图里的柔光圆球） */
-  --orb-1: #fcaec1;
-  --orb-2: #b7a8d6;
-  --orb-3: #add9f3;
+  /* 背景漂浮光斑：金色调，呼吸感贯穿全站，不分深浅色模式 */
+  --orb-1: #e8d9b3;
+  --orb-2: #d4b876;
+  --orb-3: #c9a961;
+  --orb-opacity-low: 0.38;
+  --orb-opacity-high: 0.58;
 
-  /* 用户消息气泡：浅色模式下直接用主题色（配深色字够清楚）*/
   --user-bubble-bg: var(--accent);
+  --ripple-glow: var(--accent-strong);
+  --ripple-color: color-mix(in srgb, var(--ripple-glow) 65%, transparent);
 }
 
-html[data-color-theme="duskpink"] {
-  --accent: #f5d2d6; --accent-strong: #9a8398;
-  --orb-1: #ecb8c0; --orb-2: #d6a2ad; --orb-3: #e5d7d6;
-  --bg: #f8eeee;
-}
-html[data-color-theme="sage"] {
-  --accent: #cfe3de; --accent-strong: #6f8f89;
-  --orb-1: #bad6cf; --orb-2: #a1c3ba; --orb-3: #9ab8ba;
-  --bg: #eef4f2;
-}
-html[data-color-theme="mistpine"] {
-  --accent: #d7e8d5; --accent-strong: #6f9382;
-  --orb-1: #c8d5dd; --orb-2: #afc7b4; --orb-3: #96b3a2;
-  --bg: #edf3ee;
-}
-html[data-color-theme="candy"] {
-  --accent: #fcd1db; --accent-strong: #b7a8d6;
-  --orb-1: #fcaec1; --orb-2: #add9f3; --orb-3: #b7a8d6;
-  --bg: #f7eef7;
-}
-
-/* 柔和深色模式：近黑深蓝的"呼吸感"夜间氛围——深海微光、星云流动。 */
+/* 黑银：近黑底 + 铂银强调色。深色模式下自定义强调色只影响点按光辉，
+   不改变这套底色，保持"深邃呼吸感"的整体氛围结构不被打乱。 */
 html[data-theme="soft-dark"] {
-  --bg: #05060f;
-  --surface: #0d0f1e;
-  --surface-2: #141729;
-  --text: #eceafb;
-  --text-muted: #8890b8;
-  --border: rgba(255, 255, 255, 0.08);
-  --glass-bg: rgba(18, 20, 38, 0.5);
-  --glass-bg-strong: rgba(22, 24, 44, 0.68);
-  --glass-border: rgba(255, 255, 255, 0.09);
+  --accent: #2c2e33;
+  --accent-strong: #c7ccd1;
+  --bg: #08090c;
+  --surface: #121317;
+  --surface-2: #1a1c21;
+  --text: #eef0f2;
+  --text-muted: #9aa0a8;
+  --border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(18, 19, 23, 0.55);
+  --glass-bg-strong: rgba(22, 24, 28, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 20px 54px rgba(0, 0, 0, 0.55);
-  --ripple-color: rgba(255, 255, 255, 0.5);
+  --orb-1: #d4d8dc; --orb-2: #9aa4ac; --orb-3: #6e7680;
+  --orb-opacity-low: 0.2; --orb-opacity-high: 0.38;
 
-  /* 深色模式下用户气泡改用更深的强调色，避免浅色系主题（薄荷/雾松）配浅色字看不清 */
-  --user-bubble-bg: var(--accent-strong);
-  --user-bubble-bg: color-mix(in srgb, var(--accent-strong) 50%, var(--surface-2));
+  --user-bubble-bg: color-mix(in srgb, var(--accent-strong) 42%, var(--surface-2));
+  --ripple-glow: var(--accent-strong);
+  --ripple-color: color-mix(in srgb, var(--ripple-glow) 70%, transparent);
 }
 
-html[data-theme="soft-dark"] .bg-orbs span {
-  opacity: 0.32;
-  filter: blur(80px);
-  animation-name: orb-breathe;
-}
+/* 呼吸感光斑：浅/深两种模式都启用，只是强弱不同——这是全站的氛围底色，不是深色模式专属。 */
 @keyframes orb-breathe {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.24; }
-  50% { transform: translate(3vw, -4vw) scale(1.12); opacity: 0.4; }
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: var(--orb-opacity-low); }
+  50% { transform: translate(3vw, -4vw) scale(1.1); opacity: var(--orb-opacity-high); }
 }
 
-/* 点击水波光晕：只在柔和深色模式下出现，呼应"深海里明灭的微光"。 */
+/* 点击水波光晕：浅/深两种模式都会出现，颜色跟随强调色（可在设置里自定义）。 */
 .ripple-wave {
   position: fixed;
   border-radius: 50%;
   pointer-events: none;
   z-index: 400;
-  border: 1px solid var(--ripple-color, rgba(255,255,255,0.5));
-  background: radial-gradient(circle, rgba(255,255,255,0.12), transparent 70%);
+  border: 1px solid var(--ripple-color);
+  background: radial-gradient(circle, color-mix(in srgb, var(--ripple-glow) 18%, transparent), transparent 70%);
   transform: translate(-50%, -50%) scale(0);
   animation: ripple-expand 0.7s ease-out forwards;
 }
@@ -162,19 +145,14 @@ button { cursor: pointer; }
 .bg-orbs span {
   position: absolute;
   border-radius: 50%;
-  filter: blur(50px);
-  opacity: 0.55;
-  animation: orb-float 16s ease-in-out infinite;
+  filter: blur(60px);
+  animation: orb-breathe 9s ease-in-out infinite;
 }
 .bg-orbs span:nth-child(1) { width: 46vw; height: 46vw; top: -12vw; left: -10vw; background: var(--orb-1); animation-delay: 0s; }
-.bg-orbs span:nth-child(2) { width: 40vw; height: 40vw; top: 30vh; right: -14vw; background: var(--orb-2); animation-delay: -5s; animation-duration: 19s; }
-.bg-orbs span:nth-child(3) { width: 50vw; height: 50vw; bottom: -16vw; left: 6vw; background: var(--orb-3); animation-delay: -10s; animation-duration: 22s; }
-@keyframes orb-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(3vw, -4vw) scale(1.08); }
-}
+.bg-orbs span:nth-child(2) { width: 40vw; height: 40vw; top: 30vh; right: -14vw; background: var(--orb-2); animation-delay: -3s; animation-duration: 11s; }
+.bg-orbs span:nth-child(3) { width: 50vw; height: 50vw; bottom: -16vw; left: 6vw; background: var(--orb-3); animation-delay: -6s; animation-duration: 13s; }
 @media (prefers-reduced-motion: reduce) {
-  .bg-orbs span { animation: none; }
+  .bg-orbs span { animation: none; opacity: var(--orb-opacity-low); }
 }
 
 /* ---------- App Shell ---------- */
@@ -182,22 +160,12 @@ button { cursor: pointer; }
   display: none;
   flex-direction: column;
   height: 100dvh;
+  padding-top: var(--safe-top);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
   position: relative;
   z-index: 1;
 }
-.app-header {
-  padding: calc(var(--safe-top) + 14px) 18px 12px;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--glass-border);
-  flex-shrink: 0;
-}
-.app-header h1 { margin: 0; font-size: 20px; }
-.app-header p { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
-
 .offline-banner {
   display: none;
   background: #fff3cd;
@@ -211,12 +179,14 @@ button { cursor: pointer; }
 .view { display: none; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .view.active { display: flex; flex-direction: column; }
 
-/* 悬浮玻璃胶囊导航条：脱离屏幕边缘，四周留白，圆角磨砂玻璃条。 */
+/* 悬浮玻璃胶囊导航条：脱离屏幕边缘，四周留白，圆角磨砂玻璃条，纯图标、间距拉开。 */
 .bottom-nav {
   display: flex;
   flex-shrink: 0;
-  margin: 0 16px calc(var(--safe-bottom) + 12px);
-  padding: 5px;
+  justify-content: space-evenly;
+  align-items: center;
+  margin: 0 24px calc(var(--safe-bottom) + 14px);
+  padding: 8px 10px;
   border-radius: 999px;
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
@@ -225,30 +195,29 @@ button { cursor: pointer; }
   box-shadow: var(--glass-shadow);
 }
 .nav-btn {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
   background: none;
   border: none;
-  padding: 8px 0 7px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  font-size: 10.5px;
-  border-radius: 999px;
+  justify-content: center;
+  border-radius: 50%;
   color: var(--text-muted);
   transition: background 0.25s, color 0.25s;
 }
-.nav-btn.active { color: var(--text); font-weight: 600; background: var(--accent); }
+.nav-btn.active { color: var(--text); background: var(--accent); }
 html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1); color: var(--text); }
 .nav-icon { display: flex; }
-.nav-icon svg { width: 21px; height: 21px; }
+.nav-icon svg { width: 22px; height: 22px; }
 
 /* ---------- 通用组件 ---------- */
 .view-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px 8px;
+  padding: 22px 18px 10px;
 }
 .view-header h2 { margin: 0; font-size: 18px; }
 .btn-icon {
@@ -297,6 +266,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .empty-title { font-size: 15px; margin-bottom: 4px; color: var(--text); }
 .empty-sub { font-size: 13px; }
 .rose-flourish { color: var(--accent-strong); opacity: 0.55; margin-bottom: 10px; }
+.btn-icon .rose-flourish { width: 18px; height: 18px; margin-bottom: 0; opacity: 0.85; }
 
 /* ---------- 表单 ---------- */
 .field { display: block; margin-bottom: 12px; }
@@ -314,11 +284,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .fieldset { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px; }
 .fieldset legend { padding: 0 6px; font-size: 12.5px; color: var(--text-muted); }
 
-.swatch-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.swatch-option { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
-.swatch-option input { position: absolute; opacity: 0; width: 0; height: 0; }
-.swatch { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; display: block; }
-.swatch-option input:checked + .swatch { border-color: var(--accent-strong); }
+.field-color input[type="color"] { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; background: var(--surface-2); cursor: pointer; }
 
 .seg-row { display: flex; gap: 8px; margin-bottom: 12px; }
 .seg-option { flex: 1; text-align: center; }
@@ -372,24 +338,28 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(20,15,25,0.35);
-  display: flex; align-items: flex-end; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px calc(var(--safe-left) + 20px) calc(var(--safe-bottom) + 24px) calc(var(--safe-right) + 20px);
   z-index: 200;
+  animation: modal-overlay-in 0.25s ease;
 }
 .modal-card {
   background: var(--glass-bg-strong);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  border-bottom: none;
   width: 100%;
   max-width: 480px;
-  max-height: 88vh;
+  max-height: 84vh;
   overflow-y: auto;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: 20px 18px calc(var(--safe-bottom) + 18px);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
   box-shadow: var(--glass-shadow);
+  animation: modal-card-in 0.3s cubic-bezier(0.25, 0.8, 0.35, 1);
 }
-.modal-card h3 { margin: 0 0 12px; }
+.modal-card h3 { margin: 0 0 14px; }
+@keyframes modal-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-card-in { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .risk-note { font-size: 12px; color: var(--text-muted); background: var(--surface-2); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 14px; }
 
@@ -549,9 +519,11 @@ html[data-theme="soft-dark"] .msg-bubble {
 
 .hm-title { font-weight: 600; margin: 4px 0 10px; }
 .hm-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.hm-cell { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: flex-end; justify-content: flex-end; padding: 3px; cursor: pointer; }
+.hm-cell { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--surface-2); cursor: pointer; }
 .hm-cell.is-today { box-shadow: 0 0 0 2px var(--accent-strong) inset; }
-.hm-cell-label { font-size: 9px; color: rgba(0,0,0,0.35); }
+.hm-stripes { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.hm-stripe { flex: 1; }
+.hm-cell-label { position: absolute; right: 3px; bottom: 2px; font-size: 9px; color: rgba(0,0,0,0.35); text-shadow: 0 0 3px rgba(255,255,255,0.6); }
 .hm-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
 .year-month-block { margin-bottom: 14px; }
 .year-month-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }

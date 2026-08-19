@@ -25,64 +25,28 @@ const App = (() => {
 
   async function loadSettings() {
     const keys = [
-      'workspaceName', 'subtitle', 'nickname', 'theme', 'colorTheme', 'clockFormat',
+      'workspaceName', 'subtitle', 'nickname', 'theme', 'clockFormat',
       'aiEnabled', 'proactiveMessagesEnabled', 'wizardCompleted', 'storageMode', 'createdAt',
-      'customAccent', 'customBubbleColor', 'customChatBg',
-      'navLabelChat', 'navLabelBookmarks', 'navLabelMood', 'navLabelMore',
+      'customAccent',
     ];
     const entries = await Promise.all(keys.map(async (k) => [k, await DB.getSetting(k)]));
     return Object.fromEntries(entries);
   }
 
-  function lightenHex(hex, amount) {
-    const h = (hex || '').replace('#', '');
-    if (h.length !== 6) return hex;
-    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-    const mix = (c) => Math.round(c + (255 - c) * amount);
-    return `#${[mix(r), mix(g), mix(b)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-  }
-
-  // 深色模式的"呼吸感"氛围是结构性的、不开放自定义；自定义强调色/气泡色/聊天
-  // 背景色只在浅色模式下生效，切到深色模式时自动清除内联覆盖，交回样式表管理。
+  // 白金/黑银两套固定底色不开放自定义；customAccent 只覆盖"点按时的光辉颜色"这一件事
+  // （--ripple-glow），不会影响其他任何 UI 元素的配色，保证整体氛围不会被自定义弄乱。
   function applyTheme(s) {
     const isDark = s.theme === 'soft-dark';
     document.documentElement.dataset.theme = isDark ? 'soft-dark' : 'light';
-    document.documentElement.dataset.colorTheme = s.colorTheme || 'duskpink';
     const root = document.documentElement.style;
 
-    if (s.customAccent) {
-      root.setProperty('--accent-strong', s.customAccent);
-      root.setProperty('--accent', lightenHex(s.customAccent, 0.55));
-    } else {
-      root.removeProperty('--accent-strong');
-      root.removeProperty('--accent');
-    }
-
-    if (!isDark && s.customBubbleColor) root.setProperty('--user-bubble-bg', s.customBubbleColor);
-    else root.removeProperty('--user-bubble-bg');
-
-    if (!isDark && s.customChatBg) root.setProperty('--bg', s.customChatBg);
-    else root.removeProperty('--bg');
-  }
-
-  function applyNavLabels(s) {
-    const map = {
-      chat: s.navLabelChat || '对话',
-      bookmarks: s.navLabelBookmarks || '收藏',
-      mood: s.navLabelMood || '心情',
-      more: s.navLabelMore || '更多',
-    };
-    document.querySelectorAll('.nav-btn').forEach((btn) => {
-      const label = btn.querySelector('.nav-label');
-      if (label && map[btn.dataset.tab]) label.textContent = map[btn.dataset.tab];
-    });
+    if (s.customAccent) root.setProperty('--ripple-glow', s.customAccent);
+    else root.removeProperty('--ripple-glow');
   }
 
   async function startMainApp() {
     document.getElementById('app-shell').style.display = 'flex';
-    document.getElementById('app-title').textContent = settings.workspaceName || '拾光';
-    document.getElementById('app-subtitle').textContent = settings.subtitle || '';
-    applyNavLabels(settings);
+    document.title = settings.workspaceName || '拾光';
 
     window.addEventListener('online', updateOfflineBanner);
     window.addEventListener('offline', updateOfflineBanner);
@@ -135,7 +99,7 @@ const App = (() => {
     if (window.__chatOpenConversation) window.__chatOpenConversation(conversationId, messageId);
   }
 
-  return { boot, switchTab, goToChat, get settings() { return settings; }, set settings(v) { settings = v; }, applyTheme, applyNavLabels };
+  return { boot, switchTab, goToChat, get settings() { return settings; }, set settings(v) { settings = v; }, applyTheme };
 })();
 window.App = App;
 

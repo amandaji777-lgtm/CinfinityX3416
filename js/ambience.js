@@ -3,7 +3,6 @@
 const Ambience = (() => {
   function initRipple() {
     document.addEventListener('pointerdown', (e) => {
-      if (document.documentElement.dataset.theme !== 'soft-dark') return;
       const target = e.target.closest('button, .conv-row, .res-card, .bm-card, .mem-row, .ls-row, .mood-entry-row, .conn-row');
       if (!target) return;
       const wave = document.createElement('div');

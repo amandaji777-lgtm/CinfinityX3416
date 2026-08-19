@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="拾光">
-  <meta name="theme-color" content="#f5d2d6">
+  <meta name="theme-color" content="#faf7f0">
   <meta name="description" content="AI 对话、记忆收藏与心情能量波动记录的个人小工作台">
   <title>拾光</title>
   <link rel="manifest" href="manifest.json">
@@ -108,13 +108,6 @@
   <div id="wizard-root"></div>
 
   <div id="app-shell" class="app-shell">
-    <header class="app-header">
-      <div class="app-header-text">
-        <h1 id="app-title">拾光</h1>
-        <p id="app-subtitle"></p>
-      </div>
-    </header>
-
     <div id="offline-banner" class="offline-banner">当前处于离线状态，本地记录仍可正常查看和编辑，AI 对话需要联网。</div>
 
     <main class="app-main">
@@ -126,37 +119,29 @@
     </main>
 
     <nav class="bottom-nav">
-      <button class="nav-btn" data-tab="chat">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 9 L4 4 L9 7"/><path d="M18 9 L20 4 L15 7"/>
-          <circle cx="12" cy="13" r="7"/>
-          <circle cx="9.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/>
-          <circle cx="14.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/>
-          <path d="M11 15.5 Q12 16.5 13 15.5"/>
+      <button class="nav-btn" data-tab="chat" title="对话" aria-label="对话">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="7.5"/>
         </svg></span>
-        <span class="nav-label">对话</span>
       </button>
-      <button class="nav-btn" data-tab="bookmarks">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="7.6" r="2.5"/><circle cx="16.2" cy="10.5" r="2.5"/>
-          <circle cx="14.6" cy="15.3" r="2.5"/><circle cx="9.4" cy="15.3" r="2.5"/>
-          <circle cx="7.8" cy="10.5" r="2.5"/>
-          <circle cx="12" cy="11.2" r="1.5" fill="currentColor" stroke="none"/>
+      <button class="nav-btn" data-tab="bookmarks" title="收藏" aria-label="收藏">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg></span>
-        <span class="nav-label">收藏</span>
       </button>
-      <button class="nav-btn" data-tab="mood">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5.5"/>
-          <ellipse cx="12" cy="12" rx="10" ry="3.2" transform="rotate(-18 12 12)"/>
+      <button class="nav-btn" data-tab="mood" title="心情" aria-label="心情">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="7.5" fill="currentColor" opacity="0.12" stroke="none"/>
+          <circle cx="12" cy="12" r="7.5"/>
+          <circle cx="9.2" cy="9.4" r="0.9" opacity="0.55"/>
+          <circle cx="14.6" cy="13.1" r="0.6" opacity="0.45"/>
+          <circle cx="10.4" cy="14.6" r="0.45" opacity="0.45"/>
         </svg></span>
-        <span class="nav-label">心情</span>
       </button>
-      <button class="nav-btn" data-tab="more">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M7 9c-2.2 0-4 1.6-4 3.5S4.8 16 7 16c2.5 0 3.7-1.8 5-3.5C13.3 10.8 14.5 9 17 9c2.2 0 4 1.6 4 3.5S19.2 16 17 16c-2.5 0-3.7-1.8-5-3.5C10.7 10.8 9.5 9 7 9Z"/>
+      <button class="nav-btn" data-tab="more" title="更多" aria-label="更多">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <g transform="scale(-1,1) translate(-24,0)"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></g>
         </svg></span>
-        <span class="nav-label">更多</span>
       </button>
     </nav>
   </div>

@@ -1,12 +1,5 @@
 // 首次启动向导：只在设置为空时展示一次，之后可在"更多-设置"里随时修改。
 const Wizard = (() => {
-  const COLOR_THEMES = [
-    { id: 'duskpink', label: '暮粉', swatch: 'linear-gradient(135deg, #f5d2d6, #9a8398)' },
-    { id: 'sage', label: '鼠尾草', swatch: 'linear-gradient(135deg, #cfe3de, #6f8f89)' },
-    { id: 'mistpine', label: '雾松', swatch: 'linear-gradient(135deg, #d7e8d5, #6f9382)' },
-    { id: 'candy', label: '糖果', swatch: 'linear-gradient(135deg, #fcaec1, #b7a8d6)' },
-  ];
-
   function render(container, existing, onComplete) {
     const v = existing || {};
     container.innerHTML = `
@@ -30,23 +23,10 @@ const Wizard = (() => {
           </label>
 
           <div class="field">
-            <span>配色</span>
-            <div class="swatch-row" id="swatch-row">
-              ${COLOR_THEMES.map((c) => `
-                <label class="swatch-option">
-                  <input type="radio" name="colorTheme" value="${c.id}" ${(v.colorTheme || 'duskpink') === c.id ? 'checked' : ''}>
-                  <span class="swatch" style="background:${c.swatch}"></span>
-                  <span class="swatch-label">${c.label}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
-
-          <div class="field">
-            <span>深色模式</span>
+            <span>基础配色</span>
             <div class="seg-row">
-              <label class="seg-option"><input type="radio" name="theme" value="light" ${(v.theme || 'light') === 'light' ? 'checked' : ''}><span>浅色</span></label>
-              <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${v.theme === 'soft-dark' ? 'checked' : ''}><span>柔和深色</span></label>
+              <label class="seg-option"><input type="radio" name="theme" value="light" ${(v.theme || 'light') === 'light' ? 'checked' : ''}><span>白金</span></label>
+              <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${v.theme === 'soft-dark' ? 'checked' : ''}><span>黑银</span></label>
             </div>
           </div>
 
@@ -84,7 +64,6 @@ const Wizard = (() => {
         workspaceName: fd.get('workspaceName') || '拾光',
         subtitle: fd.get('subtitle') || '',
         nickname: fd.get('nickname') || '',
-        colorTheme: fd.get('colorTheme') || 'duskpink',
         theme: fd.get('theme') || 'light',
         clockFormat: Number(fd.get('clockFormat')) || 24,
         aiEnabled: fd.get('aiEnabled') === 'on',
@@ -106,5 +85,5 @@ const Wizard = (() => {
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   }
 
-  return { render, COLOR_THEMES };
+  return { render };
 })();
