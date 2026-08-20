@@ -713,10 +713,10 @@ const Chat = (() => {
 window.Chat = Chat;
 
 function emptyState(title, sub) {
-  return `<div class="empty-state">${roseFlourish(30)}<div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
+  return `<div class="empty-state">${flowerSpray(90)}<div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
 }
 
-// 简约线稿玫瑰花饰，用作空状态/引导页的点缀。
+// 简约线稿玫瑰花饰，用在很小的空间里（比如按钮）。
 function roseFlourish(size) {
   const petal = 'M0,0 C-3,-3 -2,-7 0,-9 C2,-7 3,-3 0,0 Z';
   return `
@@ -729,6 +729,41 @@ function roseFlourish(size) {
       <path d="M0,7 V13"/>
       <path d="M0,9c-2 0-3.5 1.3-4 3"/>
       <path d="M0,11.5c1.8 0 3.2 1 3.6 2.6"/>
+    </svg>
+  `;
+}
+
+// 多花线稿花束，用在空状态这种有足够空间的地方。
+function flowerSpray(width) {
+  const height = Math.round(width * 60 / 140);
+  return `
+    <svg class="flower-spray" width="${width}" height="${height}" viewBox="0 0 140 60" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M108,32 Q124,28 138,14" stroke-width="0.8"/>
+      <path d="M118,26 Q122,20 130,18"/>
+      <path d="M122,22 Q126,15 133,12"/>
+      <path d="M30,34 Q18,42 10,50"/>
+      <path d="M20,44 Q14,50 8,54"/>
+      <path d="M70,26 Q66,42 62,50"/>
+      <path d="M62,44 Q56,50 50,54"/>
+      <path d="M30.0,34.0 C23.0,30.0 24.6,24.2 31.7,22.1 C37.9,26.0 37.8,32.1 30.0,34.0"/>
+      <path d="M30.0,34.0 C31.7,26.2 37.7,25.8 41.8,31.9 C40.0,39.0 34.2,40.8 30.0,34.0"/>
+      <path d="M30.0,34.0 C38.0,33.2 40.1,38.8 35.6,44.6 C28.3,45.1 24.8,40.1 30.0,34.0"/>
+      <path d="M30.0,34.0 C33.3,41.3 28.6,45.1 21.7,42.6 C18.9,35.8 22.6,31.0 30.0,34.0"/>
+      <path d="M30.0,34.0 C24.0,39.4 19.0,36.1 19.2,28.7 C24.8,24.0 30.6,26.0 30.0,34.0"/>
+      <circle cx="30" cy="34" r="1.1" fill="currentColor" stroke="none"/>
+      <path d="M70.0,26.0 C62.0,18.8 65.7,11.7 75.5,11.0 C82.5,17.8 80.7,25.6 70.0,26.0"/>
+      <path d="M70.0,26.0 C74.3,16.2 82.3,17.5 86.0,26.6 C81.7,35.3 73.7,36.1 70.0,26.0"/>
+      <path d="M70.0,26.0 C80.6,27.1 81.9,35.1 74.4,41.4 C64.7,40.0 61.6,32.6 70.0,26.0"/>
+      <path d="M70.0,26.0 C72.2,36.5 65.0,40.1 56.7,34.9 C55.1,25.3 61.1,20.0 70.0,26.0"/>
+      <path d="M70.0,26.0 C60.7,31.4 55.0,25.6 57.4,16.1 C66.0,11.6 73.0,15.7 70.0,26.0"/>
+      <circle cx="70" cy="26" r="1.4" fill="currentColor" stroke="none"/>
+      <path d="M108.0,32.0 C105.7,25.0 110.4,22.0 116.4,24.9 C118.3,31.4 114.5,35.5 108.0,32.0"/>
+      <path d="M108.0,32.0 C113.9,27.7 118.2,31.2 117.3,37.8 C111.7,41.6 106.7,39.2 108.0,32.0"/>
+      <path d="M108.0,32.0 C114.0,36.3 112.0,41.5 105.3,42.7 C100.0,38.5 100.7,33.0 108.0,32.0"/>
+      <path d="M108.0,32.0 C105.7,39.0 100.2,38.7 97.0,32.8 C99.3,26.5 104.8,25.4 108.0,32.0"/>
+      <path d="M108.0,32.0 C100.6,32.0 99.2,26.7 103.9,21.8 C110.6,22.1 113.3,26.9 108.0,32.0"/>
+      <circle cx="108" cy="32" r="1" fill="currentColor" stroke="none"/>
+      <ellipse cx="62" cy="52" rx="2.2" ry="3.2" transform="rotate(20 62 52)"/>
     </svg>
   `;
 }

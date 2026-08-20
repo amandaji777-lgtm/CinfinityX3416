@@ -305,6 +305,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .empty-sub { font-size: 13px; }
 .rose-flourish { color: var(--accent-strong); opacity: 0.55; margin-bottom: 10px; }
 .btn-icon .rose-flourish { width: 18px; height: 18px; margin-bottom: 0; opacity: 0.85; }
+.flower-spray { color: var(--text-muted); opacity: 0.6; margin-bottom: 14px; }
 
 /* ---------- 表单 ---------- */
 .field { display: block; margin-bottom: 12px; }
@@ -737,15 +738,40 @@ html[data-theme="soft-dark"] .msg-bubble {
   0%, 89%, 100% { opacity: 0.55; filter: none; }
   4% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255,255,255,0.85)) brightness(1.25); }
 }
+.splash-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkle-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
 .splash-welcome {
   font-family: "Pinyon Script", "Brush Script MT", cursive;
   font-size: clamp(34px, 11vw, 50px);
   line-height: 1;
   color: #fdfaf3;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28);
+  animation: welcome-bob 2.4s ease-in-out infinite;
+}
+@keyframes welcome-bob {
+  0%, 100% { transform: translateY(0); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
+  50% { transform: translateY(-4px); text-shadow: 0 0 26px rgba(255, 255, 255, 0.65), 0 0 58px rgba(255, 255, 255, 0.38); }
+}
+.splash-welcome.is-complete {
+  animation: welcome-complete-glow 0.7s ease-out 1;
+}
+@keyframes welcome-complete-glow {
+  0% { transform: translateY(0) scale(1); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
+  45% { transform: translateY(-7px) scale(1.06); text-shadow: 0 0 34px rgba(255, 255, 255, 0.9), 0 0 78px rgba(255, 255, 255, 0.55); }
+  100% { transform: translateY(0) scale(1); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
 }
 @media (prefers-reduced-motion: reduce) {
   .chase-moon { animation: none; opacity: 0.85; }
+  .splash-sparkle { animation: none; opacity: 0.7; }
+  .splash-welcome { animation: none; }
+  .splash-welcome.is-complete { animation: none; }
 }
 @keyframes splash-fade-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }

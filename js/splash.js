@@ -4,6 +4,7 @@
   const root = document.getElementById('splash-screen');
   const canvas = document.getElementById('splash-canvas');
   const skipBtn = document.getElementById('splash-skip');
+  const welcomeEl = document.getElementById('splash-welcome');
   if (!root || !canvas) return;
 
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -114,13 +115,20 @@
     setTimeout(() => root.remove(), 500);
   }
 
+  // 加载完成的一瞬间，"Welcome Home" 花体字先跳动发光一下，再淡出整个开屏。
+  function finish() {
+    if (dismissed) return;
+    welcomeEl?.classList.add('is-complete');
+    setTimeout(dismiss, reduceMotion ? 0 : 380);
+  }
+
   if (reduceMotion) {
     // 减少动效偏好：只画一次静态星空，缩短停留时间。
     draw(0);
-    setTimeout(dismiss, 900);
+    setTimeout(finish, 900);
   } else {
     rafId = requestAnimationFrame(loop);
-    setTimeout(dismiss, 3000);
+    setTimeout(finish, 2650);
   }
 
   skipBtn?.addEventListener('click', dismiss);
