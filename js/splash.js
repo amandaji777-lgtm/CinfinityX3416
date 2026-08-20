@@ -61,17 +61,28 @@
       ctx.fill();
     });
 
-    // 流光雨滴
+    // 流星：不是单一细线，是"头亮尾淡"的锥形光迹 + 柔光头部。
     drops.forEach((d) => {
-      const grad = ctx.createLinearGradient(d.x, d.y, d.x + d.drift * d.len * 0.3, d.y + d.len);
-      grad.addColorStop(0, 'rgba(255,255,255,0)');
-      grad.addColorStop(1, hexToRgba(accent, d.opacity));
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 1.4;
+      const tailX = d.x - d.drift * d.len * 0.3;
+      const tailY = d.y - d.len;
+      const segments = 6;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < segments; i++) {
+        const t0 = i / segments, t1 = (i + 1) / segments;
+        ctx.beginPath();
+        ctx.moveTo(tailX + (d.x - tailX) * t0, tailY + (d.y - tailY) * t0);
+        ctx.lineTo(tailX + (d.x - tailX) * t1, tailY + (d.y - tailY) * t1);
+        ctx.lineWidth = 0.3 + t1 * t1 * 1.8;
+        ctx.strokeStyle = t1 > 0.65 ? hexToRgba('#ffffff', d.opacity * (0.3 + t1 * 0.8)) : hexToRgba(accent, d.opacity * t1 * 0.9);
+        ctx.stroke();
+      }
+      const glow = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, 4.5);
+      glow.addColorStop(0, hexToRgba('#ffffff', Math.min(0.95, d.opacity * 2.2)));
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.moveTo(d.x, d.y);
-      ctx.lineTo(d.x + d.drift * d.len * 0.3, d.y + d.len);
-      ctx.stroke();
+      ctx.arc(d.x, d.y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
 
       d.y += d.speed;
       d.x += d.drift;

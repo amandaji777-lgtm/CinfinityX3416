@@ -9,16 +9,9 @@ const App = (() => {
     }
 
     settings = await loadSettings();
-    if (!settings.wizardCompleted) {
-      const wizardRoot = document.getElementById('wizard-root');
-      Wizard.render(wizardRoot, settings, async (newSettings) => {
-        settings = newSettings;
-        wizardRoot.innerHTML = '';
-        applyTheme(settings);
-        await startMainApp();
-      });
-      return;
-    }
+    // 不再有强制的首次设置向导：直接用默认值进入，想改名字/主题随时去
+    // "更多 → 工作台设置"，避免每次打开都要先过一遍表单。
+    if (!settings.wizardCompleted) settings = await applyDefaultSettings(settings);
     applyTheme(settings);
     await startMainApp();
   }
@@ -31,6 +24,22 @@ const App = (() => {
     ];
     const entries = await Promise.all(keys.map(async (k) => [k, await DB.getSetting(k)]));
     return Object.fromEntries(entries);
+  }
+
+  async function applyDefaultSettings(existing) {
+    const defaults = {
+      workspaceName: '拾光', subtitle: '对话 · 收藏 · 心情', nickname: '',
+      theme: 'light', clockFormat: 24, aiEnabled: true, proactiveMessagesEnabled: false,
+      storageMode: 'local-only', wizardCompleted: true, createdAt: nowISO(),
+    };
+    const merged = { ...existing };
+    for (const [key, value] of Object.entries(defaults)) {
+      if (merged[key] === undefined || merged[key] === null) merged[key] = value;
+    }
+    for (const [key, value] of Object.entries(merged)) await DB.setSetting(key, value);
+    const persist = await DB.requestPersistentStorage();
+    await DB.setSetting('persistentStorage', persist);
+    return merged;
   }
 
   // 白金/黑银两套固定底色不开放自定义；customAccent 只覆盖"点按时的光辉颜色"这一件事

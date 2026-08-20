@@ -1,19 +1,28 @@
 // 柔和深色模式的氛围感：点击水波光晕 + 留白角落（随最近一次心情记录的颜色变化）。
 // "感知到你累了/开心"没有真实的生理感应能力，这里诚实地接到你自己在"心情"里记的最新颜色上。
 const Ambience = (() => {
+  // 点哪里都会有水波光辉，不限于特定组件——氛围感覆盖整个页面。
   function initRipple() {
     document.addEventListener('pointerdown', (e) => {
-      const target = e.target.closest('button, .conv-row, .res-card, .bm-card, .mem-row, .ls-row, .mood-entry-row, .conn-row');
-      if (!target) return;
+      if (e.button !== undefined && e.button !== 0) return;
+      const target = e.target.closest('button, a, input, textarea, select, [role="button"]') || e.target;
+      const size = Math.max(target?.offsetWidth || 0, target?.offsetHeight || 0, 90) * 1.5;
+
       const wave = document.createElement('div');
       wave.className = 'ripple-wave';
-      const size = Math.max(target.offsetWidth, target.offsetHeight, 60) * 1.6;
       wave.style.width = size + 'px';
       wave.style.height = size + 'px';
       wave.style.left = e.clientX + 'px';
       wave.style.top = e.clientY + 'px';
       document.body.appendChild(wave);
       wave.addEventListener('animationend', () => wave.remove());
+
+      const spark = document.createElement('div');
+      spark.className = 'ripple-spark';
+      spark.style.left = e.clientX + 'px';
+      spark.style.top = e.clientY + 'px';
+      document.body.appendChild(spark);
+      spark.addEventListener('animationend', () => spark.remove());
     });
   }
 

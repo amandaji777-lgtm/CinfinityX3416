@@ -26,86 +26,56 @@
     <canvas id="splash-canvas"></canvas>
     <div class="splash-content">
       <div class="splash-badge">
-        <svg class="splash-ring" viewBox="0 0 300 300" aria-hidden="true">
+        <svg class="splash-scene" viewBox="0 0 300 300" aria-hidden="true">
           <defs>
-            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#f2a7c4"/>
-              <stop offset="100%" stop-color="#b7a8d6"/>
-            </linearGradient>
-            <path id="loopL" d="M174,150 A82,82 0 1,1 10,150 A82,82 0 1,1 174,150"/>
-            <path id="loopR" d="M290,150 A82,82 0 1,1 126,150 A82,82 0 1,1 290,150"/>
-            <path d="M0,-5 C1,-1.2 1.2,-1 5,0 C1.2,1 1,1.2 0,5 C-1,1.2 -1.2,1 -5,0 C-1.2,-1 -1,-1.2 0,-5 Z" id="sparkleShape"/>
-          </defs>
-          <circle cx="92" cy="150" r="82" fill="none" stroke="url(#ringGrad)" stroke-width="2" opacity="0.4"/>
-          <circle cx="208" cy="150" r="82" fill="none" stroke="url(#ringGrad)" stroke-width="2" opacity="0.4"/>
-          <use href="#sparkleShape" fill="#fff" opacity="0.95">
-            <animateMotion dur="4.5s" repeatCount="indefinite" rotate="auto">
-              <mpath href="#loopL"/>
-            </animateMotion>
-          </use>
-          <use href="#sparkleShape" fill="#f2a7c4" opacity="0.9">
-            <animateMotion dur="4.5s" repeatCount="indefinite" rotate="auto">
-              <mpath href="#loopR"/>
-            </animateMotion>
-          </use>
-        </svg>
-        <svg class="splash-scene" viewBox="0 0 300 300">
-          <defs>
-            <radialGradient id="skyGrad" cx="42%" cy="35%" r="75%">
-              <stop offset="0%" stop-color="#2c2657"/>
-              <stop offset="100%" stop-color="#15122c"/>
-            </radialGradient>
-            <linearGradient id="planetGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stop-color="#d9c2ea"/>
-              <stop offset="100%" stop-color="#7d6a9e"/>
-            </linearGradient>
-            <clipPath id="frameClip"><circle cx="110" cy="110" r="88"/></clipPath>
+            <path id="infinityPath" d="M 150.0,150.0 L 154.3,155.7 L 158.5,161.4 L 162.8,167.1 L 167.0,172.5 L 171.1,177.8 L 175.3,182.9 L 179.4,187.7 L 183.4,192.2 L 187.3,196.3 L 191.2,200.1 L 195.0,203.5 L 198.7,206.5 L 202.3,209.0 L 205.8,211.0 L 209.2,212.5 L 212.5,213.5 L 215.7,214.1 L 218.7,214.1 L 221.5,213.5 L 224.3,212.5 L 226.9,211.0 L 229.3,209.0 L 231.6,206.5 L 233.7,203.5 L 235.6,200.1 L 237.4,196.3 L 238.9,192.2 L 240.4,187.7 L 241.6,182.9 L 242.6,177.8 L 243.5,172.5 L 244.1,167.1 L 244.6,161.4 L 244.9,155.7 L 245.0,150.0 L 244.9,144.3 L 244.6,138.6 L 244.1,132.9 L 243.5,127.5 L 242.6,122.2 L 241.6,117.1 L 240.4,112.3 L 238.9,107.8 L 237.4,103.7 L 235.6,99.9 L 233.7,96.5 L 231.6,93.5 L 229.3,91.0 L 226.9,89.0 L 224.3,87.5 L 221.5,86.5 L 218.7,85.9 L 215.7,85.9 L 212.5,86.5 L 209.2,87.5 L 205.8,89.0 L 202.3,91.0 L 198.7,93.5 L 195.0,96.5 L 191.2,99.9 L 187.3,103.7 L 183.4,107.8 L 179.4,112.3 L 175.3,117.1 L 171.1,122.2 L 167.0,127.5 L 162.8,132.9 L 158.5,138.6 L 154.3,144.3 L 150.0,150.0 L 145.7,155.7 L 141.5,161.4 L 137.2,167.1 L 133.0,172.5 L 128.9,177.8 L 124.7,182.9 L 120.6,187.7 L 116.6,192.2 L 112.7,196.3 L 108.8,200.1 L 105.0,203.5 L 101.3,206.5 L 97.7,209.0 L 94.2,211.0 L 90.8,212.5 L 87.5,213.5 L 84.3,214.1 L 81.3,214.1 L 78.5,213.5 L 75.7,212.5 L 73.1,211.0 L 70.7,209.0 L 68.4,206.5 L 66.3,203.5 L 64.4,200.1 L 62.6,196.3 L 61.1,192.2 L 59.6,187.7 L 58.4,182.9 L 57.4,177.8 L 56.5,172.5 L 55.9,167.1 L 55.4,161.4 L 55.1,155.7 L 55.0,150.0 L 55.1,144.3 L 55.4,138.6 L 55.9,132.9 L 56.5,127.5 L 57.4,122.2 L 58.4,117.1 L 59.6,112.3 L 61.1,107.8 L 62.6,103.7 L 64.4,99.9 L 66.3,96.5 L 68.4,93.5 L 70.7,91.0 L 73.1,89.0 L 75.7,87.5 L 78.5,86.5 L 81.3,85.9 L 84.3,85.9 L 87.5,86.5 L 90.8,87.5 L 94.2,89.0 L 97.7,91.0 L 101.3,93.5 L 105.0,96.5 L 108.8,99.9 L 112.7,103.7 L 116.6,107.8 L 120.6,112.3 L 124.7,117.1 L 128.9,122.2 L 133.0,127.5 L 137.2,132.9 L 141.5,138.6 L 145.7,144.3 L 150.0,150.0"/>
+            <g id="moonNew">
+              <circle r="7.5" fill="#fff" fill-opacity="0.14" stroke="#fff" stroke-opacity="0.5" stroke-width="0.9"/>
+            </g>
+            <g id="moonWax">
+              <circle r="7.5" fill="#fff" fill-opacity="0.14"/>
+              <path d="M0,-7.5 A7.5,7.5 0 1,1 0,7.5 A3.2,7.5 0 1,0 0,-7.5 Z" fill="#fff"/>
+            </g>
+            <g id="moonFull">
+              <circle r="7.5" fill="#fdf6e8" fill-opacity="0.95" stroke="#fff" stroke-opacity="0.4" stroke-width="0.6"/>
+            </g>
+            <g id="moonWane">
+              <circle r="7.5" fill="#fff" fill-opacity="0.14"/>
+              <g transform="scale(-1,1)"><path d="M0,-7.5 A7.5,7.5 0 1,1 0,7.5 A3.2,7.5 0 1,0 0,-7.5 Z" fill="#fff"/></g>
+            </g>
+            <path id="sparkleShape" d="M0,-5 C1,-1.2 1.2,-1 5,0 C1.2,1 1,1.2 0,5 C-1,1.2 -1.2,1 -5,0 C-1.2,-1 -1,-1.2 0,-5 Z"/>
           </defs>
 
-          <g transform="translate(40,40)">
-          <circle cx="110" cy="110" r="88" fill="url(#skyGrad)"/>
-          <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+          <use href="#infinityPath" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="1"/>
 
-          <g clip-path="url(#frameClip)">
-            <circle cx="50" cy="52" r="1.3" fill="#fff" opacity="0.8"/>
-            <circle cx="150" cy="40" r="1" fill="#fff" opacity="0.6"/>
-            <circle cx="168" cy="70" r="1.4" fill="#fff" opacity="0.7"/>
-            <circle cx="40" cy="86" r="1" fill="#fff" opacity="0.5"/>
-            <circle cx="128" cy="34" r="0.9" fill="#fff" opacity="0.6"/>
-            <circle cx="76" cy="30" r="1.1" fill="#fff" opacity="0.5"/>
+          <use href="#moonNew" transform="translate(162.8,167.1) scale(0.85)"/>
+          <use href="#moonWax" transform="translate(195.0,203.5) scale(1.00)"/>
+          <use href="#moonFull" transform="translate(235.6,200.1) scale(1.15)"/>
+          <use href="#moonWane" transform="translate(245.0,150.0) scale(0.92)"/>
+          <use href="#moonNew" transform="translate(237.4,103.7) scale(1.07)"/>
+          <use href="#moonWax" transform="translate(198.7,93.5) scale(0.85)"/>
+          <use href="#moonFull" transform="translate(167.0,127.5) scale(1.00)"/>
+          <use href="#moonWane" transform="translate(137.2,167.1) scale(1.15)"/>
+          <use href="#moonNew" transform="translate(105.0,203.5) scale(0.92)"/>
+          <use href="#moonWax" transform="translate(64.4,200.1) scale(1.07)"/>
+          <use href="#moonFull" transform="translate(55.1,155.7) scale(0.85)"/>
+          <use href="#moonWane" transform="translate(62.6,103.7) scale(1.00)"/>
+          <use href="#moonNew" transform="translate(101.3,93.5) scale(1.15)"/>
+          <use href="#moonWax" transform="translate(133.0,127.5) scale(0.92)"/>
 
-            <ellipse cx="112" cy="196" rx="98" ry="16" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5" transform="rotate(-7 112 196)"/>
-            <circle cx="110" cy="207" r="74" fill="url(#planetGrad)"/>
-            <path d="M 46,190 Q 90,178 110,182 Q 96,192 46,190 Z" fill="rgba(255,255,255,0.12)"/>
-
-            <g transform="translate(86,150) rotate(4)">
-              <path d="M -14,21 C -15,3 -10,-15 0,-17 C 10,-15 15,3 14,21 C 14,27 -14,27 -14,21 Z" fill="#20202e" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-              <polygon points="-9,-14 -13,-25 -3,-16" fill="#20202e"/>
-              <polygon points="9,-14 13,-25 3,-16" fill="#20202e"/>
-              <path d="M 13,17 C 24,16 27,6 20,-1 C 17,-4 15,1 17,7" fill="none" stroke="#20202e" stroke-width="4" stroke-linecap="round"/>
-              <path d="M -7,-3 Q -5,0 -3,-3" fill="none" stroke="#f4eefa" stroke-width="1.3" stroke-linecap="round"/>
-              <path d="M 3,-3 Q 5,0 7,-3" fill="none" stroke="#f4eefa" stroke-width="1.3" stroke-linecap="round"/>
-            </g>
-
-            <g transform="translate(129,153) rotate(-6) scale(0.92)">
-              <path d="M -14,21 C -15,3 -10,-15 0,-17 C 10,-15 15,3 14,21 C 14,27 -14,27 -14,21 Z" fill="#f6f1e9" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
-              <polygon points="-9,-14 -13,-25 -3,-16" fill="#f6f1e9" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
-              <polygon points="9,-14 13,-25 3,-16" fill="#f6f1e9" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
-              <path d="M -13,17 C -24,16 -27,6 -20,-1 C -17,-4 -15,1 -17,7" fill="none" stroke="#f6f1e9" stroke-width="4" stroke-linecap="round"/>
-              <path d="M -7,-3 Q -5,0 -3,-3" fill="none" stroke="#2a2430" stroke-width="1.3" stroke-linecap="round"/>
-              <path d="M 3,-3 Q 5,0 7,-3" fill="none" stroke="#2a2430" stroke-width="1.3" stroke-linecap="round"/>
-            </g>
-          </g>
-          </g>
+          <use href="#sparkleShape" fill="#fff" opacity="0.95" class="splash-sparkle">
+            <animateMotion dur="7s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#infinityPath"/>
+            </animateMotion>
+          </use>
         </svg>
       </div>
       <div class="splash-welcome">Welcome back</div>
-      <div class="splash-sub">拾光 · 对话 · 收藏 · 心情</div>
     </div>
     <button id="splash-skip" class="splash-skip">跳过</button>
   </div>
 
-  <div id="wizard-root"></div>
+  <div id="page-stack" class="page-stack"></div>
 
   <div id="app-shell" class="app-shell">
     <div id="offline-banner" class="offline-banner">当前处于离线状态，本地记录仍可正常查看和编辑，AI 对话需要联网。</div>
@@ -120,27 +90,27 @@
 
     <nav class="bottom-nav">
       <button class="nav-btn" data-tab="chat" title="对话" aria-label="对话">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="7.5"/>
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-opacity="0.5" stroke-width="1"/>
         </svg></span>
       </button>
       <button class="nav-btn" data-tab="bookmarks" title="收藏" aria-label="收藏">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.15"/>
+          <path d="M12,4 A8,8 0 1,1 12,20 A3.4,8 0 1,0 12,4 Z" fill="currentColor"/>
         </svg></span>
       </button>
       <button class="nav-btn" data-tab="mood" title="心情" aria-label="心情">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="7.5" fill="currentColor" opacity="0.12" stroke="none"/>
-          <circle cx="12" cy="12" r="7.5"/>
-          <circle cx="9.2" cy="9.4" r="0.9" opacity="0.55"/>
-          <circle cx="14.6" cy="13.1" r="0.6" opacity="0.45"/>
-          <circle cx="10.4" cy="14.6" r="0.45" opacity="0.45"/>
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.92" stroke="currentColor" stroke-opacity="0.3" stroke-width="0.6"/>
         </svg></span>
       </button>
       <button class="nav-btn" data-tab="more" title="更多" aria-label="更多">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <g transform="scale(-1,1) translate(-24,0)"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></g>
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.15"/>
+          <g transform="translate(24,0) scale(-1,1)">
+            <path d="M12,4 A8,8 0 1,1 12,20 A3.4,8 0 1,0 12,4 Z" fill="currentColor"/>
+          </g>
         </svg></span>
       </button>
     </nav>
@@ -150,7 +120,7 @@
   <script src="js/crypto-utils.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/backup.js"></script>
-  <script src="js/wizard.js"></script>
+  <script src="js/pages.js"></script>
   <script src="js/resources.js"></script>
   <script src="js/chat.js"></script>
   <script src="js/memory.js"></script>
@@ -158,6 +128,7 @@
   <script src="js/linkstatus.js"></script>
   <script src="js/bookmarks.js"></script>
   <script src="js/mood.js"></script>
+  <script src="js/cycle.js"></script>
   <script src="js/more.js"></script>
   <script src="js/ambience.js"></script>
   <script src="js/splash.js"></script>

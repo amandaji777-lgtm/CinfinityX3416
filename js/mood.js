@@ -7,6 +7,7 @@ const Mood = (() => {
   let range = 'day'; // day | week | month | year
   let anchorDate = todayStr();
   let dayCursor = todayStr();
+  let subview = 'emotion'; // emotion | cycle
 
   async function init(rootEl) {
     container = rootEl;
@@ -16,26 +17,50 @@ const Mood = (() => {
 
   async function refresh() {
     entries = await DB.getAll('moods');
-    entries.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    entries.sort(byTimeThenCreated);
+  }
+
+  // "time" 精确到分钟（来自 datetime-local 输入），短时间内连续添加多条记录时
+  // 可能撞在同一分钟——用创建时间（毫秒精度）兜底，保证顺序确定、不随机跳动。
+  function byTimeThenCreated(a, b) {
+    return (a.time || '').localeCompare(b.time || '') || (a.createdAt || '').localeCompare(b.createdAt || '');
   }
 
   function render() {
     container.innerHTML = `
       <div class="mood-view">
-        <div class="view-header">
-          <h2>能量波动</h2>
-          <button class="btn-icon" id="btn-add-mood" title="记录此刻">＋</button>
+        <div class="view-header"><h2>能量波动</h2></div>
+        <div class="seg-row sub-tabs">
+          <label class="seg-option"><input type="radio" name="subview" value="emotion" ${subview === 'emotion' ? 'checked' : ''}><span>情绪</span></label>
+          <label class="seg-option"><input type="radio" name="subview" value="cycle" ${subview === 'cycle' ? 'checked' : ''}><span>潮汐</span></label>
         </div>
-        <div class="seg-row range-tabs">
-          ${['day', 'week', 'month', 'year'].map((r) => `
-            <label class="seg-option"><input type="radio" name="range" value="${r}" ${range === r ? 'checked' : ''}><span>${rangeLabel(r)}</span></label>
-          `).join('')}
-        </div>
-        <div id="mood-body">${renderBody()}</div>
+        <div id="mood-sub-body"></div>
       </div>
     `;
-    container.querySelector('#btn-add-mood').addEventListener('click', () => openEntryEditor(null));
-    container.querySelectorAll('input[name=range]').forEach((el) => {
+    container.querySelectorAll('input[name=subview]').forEach((el) => {
+      el.addEventListener('change', (e) => { subview = e.target.value; render(); });
+    });
+
+    const subBody = container.querySelector('#mood-sub-body');
+    if (subview === 'cycle') {
+      if (window.Cycle) Cycle.init(subBody);
+      return;
+    }
+    renderEmotion(subBody);
+  }
+
+  function renderEmotion(subBody) {
+    subBody.innerHTML = `
+      <div class="mood-add-row"><button class="btn-secondary" id="btn-add-mood">＋ 记录此刻</button></div>
+      <div class="seg-row range-tabs">
+        ${['day', 'week', 'month', 'year'].map((r) => `
+          <label class="seg-option"><input type="radio" name="range" value="${r}" ${range === r ? 'checked' : ''}><span>${rangeLabel(r)}</span></label>
+        `).join('')}
+      </div>
+      <div id="mood-body">${renderBody()}</div>
+    `;
+    subBody.querySelector('#btn-add-mood').addEventListener('click', () => openEntryEditor(null));
+    subBody.querySelectorAll('input[name=range]').forEach((el) => {
       el.addEventListener('change', (e) => { range = e.target.value; render(); });
     });
     bindBodyEvents();
@@ -72,7 +97,7 @@ const Mood = (() => {
   }
 
   function renderDay(dateStr) {
-    const dayEntries = entriesForDate(dateStr).sort((a, b) => a.time.localeCompare(b.time));
+    const dayEntries = entriesForDate(dateStr).sort(byTimeThenCreated);
     const gradient = buildDayGradient(dayEntries);
     return `
       <div class="day-nav">
@@ -180,7 +205,9 @@ const Mood = (() => {
       const iso = new Date(timeLocal).toISOString();
       const record = {
         id: item?.id || uuid(),
-        date: iso.slice(0, 10),
+        // 用输入框里的本地日期直接分桶，不经过 toISOString()（那会按 UTC 折算，
+        // 在 UTC+8 这类时区里午夜到早上这段时间会被错误地划到前一天）。
+        date: timeLocal.slice(0, 10),
         time: iso,
         color: fd.get('colorPicker'),
         label: fd.get('label')?.trim() || '',
@@ -206,11 +233,17 @@ const Mood = (() => {
   }
 
   // ---- 工具函数 ----
-  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  // 本地日历日期（年-月-日），不用 toISOString()：那是 UTC 折算，在东八区这类
+  // UTC+ 时区里，本地午夜到早晨这段时间会被错误地划到前一天。
+  function toDateStr(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function todayStr() { return toDateStr(new Date()); }
   function shiftDate(dateStr, days) {
     const d = new Date(dateStr + 'T00:00:00');
     d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
+    return toDateStr(d);
   }
   function weekDates(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -220,17 +253,14 @@ const Mood = (() => {
     return Array.from({ length: 7 }, (_, i) => {
       const x = new Date(monday);
       x.setDate(monday.getDate() + i);
-      return x.toISOString().slice(0, 10);
+      return toDateStr(x);
     });
   }
   function monthDates(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     const year = d.getFullYear(), month = d.getMonth();
     const last = new Date(year, month + 1, 0).getDate();
-    return Array.from({ length: last }, (_, i) => {
-      const x = new Date(year, month, i + 1);
-      return x.toISOString().slice(0, 10);
-    });
+    return Array.from({ length: last }, (_, i) => toDateStr(new Date(year, month, i + 1)));
   }
   function minutesOfDay(iso) {
     const d = new Date(iso);

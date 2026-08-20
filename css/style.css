@@ -34,7 +34,6 @@
 
   --user-bubble-bg: var(--accent);
   --ripple-glow: var(--accent-strong);
-  --ripple-color: color-mix(in srgb, var(--ripple-glow) 65%, transparent);
 }
 
 /* 黑银：近黑底 + 铂银强调色。深色模式下自定义强调色只影响点按光辉，
@@ -57,7 +56,6 @@ html[data-theme="soft-dark"] {
 
   --user-bubble-bg: color-mix(in srgb, var(--accent-strong) 42%, var(--surface-2));
   --ripple-glow: var(--accent-strong);
-  --ripple-color: color-mix(in srgb, var(--ripple-glow) 70%, transparent);
 }
 
 /* 呼吸感光斑：浅/深两种模式都启用，只是强弱不同——这是全站的氛围底色，不是深色模式专属。 */
@@ -66,20 +64,39 @@ html[data-theme="soft-dark"] {
   50% { transform: translate(3vw, -4vw) scale(1.1); opacity: var(--orb-opacity-high); }
 }
 
-/* 点击水波光晕：浅/深两种模式都会出现，颜色跟随强调色（可在设置里自定义）。 */
+/* 点击水波光晕：浅/深两种模式都会出现、点哪里都触发，颜色跟随强调色（可在设置里自定义）。 */
 .ripple-wave {
   position: fixed;
   border-radius: 50%;
   pointer-events: none;
   z-index: 400;
-  border: 1px solid var(--ripple-color);
-  background: radial-gradient(circle, color-mix(in srgb, var(--ripple-glow) 18%, transparent), transparent 70%);
+  border: 1.5px solid var(--ripple-glow);
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--ripple-glow) 45%, transparent) 0%,
+    color-mix(in srgb, var(--ripple-glow) 20%, transparent) 40%,
+    transparent 72%);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ripple-glow) 55%, transparent);
   transform: translate(-50%, -50%) scale(0);
-  animation: ripple-expand 0.7s ease-out forwards;
+  animation: ripple-expand 0.65s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+}
+.ripple-spark {
+  position: fixed;
+  width: 10px; height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 401;
+  background: var(--ripple-glow);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--ripple-glow) 80%, transparent);
+  animation: spark-pop 0.4s ease-out forwards;
 }
 @keyframes ripple-expand {
-  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.9; }
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.95; }
   100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+@keyframes spark-pop {
+  0% { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
 }
 
 /* 留白角落：纯光影小圆点，随你最近一次心情记录的颜色变化，只在柔和深色模式显示。 */
@@ -210,7 +227,7 @@ button { cursor: pointer; }
 .nav-btn.active { color: var(--text); background: var(--accent); }
 html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1); color: var(--text); }
 .nav-icon { display: flex; }
-.nav-icon svg { width: 22px; height: 22px; }
+.nav-icon svg { width: 23px; height: 23px; }
 
 /* ---------- 通用组件 ---------- */
 .view-header {
@@ -299,40 +316,40 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 }
 .seg-option input:checked + span { background: var(--accent); color: var(--text); font-weight: 600; }
 
-/* ---------- 首次向导 ---------- */
-.wizard-overlay {
-  position: fixed; inset: 0;
-  background: linear-gradient(160deg, var(--orb-1) 0%, var(--bg) 55%, var(--orb-3) 120%);
-  display: flex; align-items: flex-start; justify-content: center;
-  overflow-y: auto;
-  padding: calc(var(--safe-top) + 24px) 16px calc(var(--safe-bottom) + 24px);
-  z-index: 100;
+/* ---------- 整页表单：字段特别多的表单(API连接/资料库编辑/对话设置)用，
+   从右侧滑入盖住当前视图、带返回按钮，内容区正常滚动，不再是局促的半截弹窗。
+   z-index 比 modal-overlay 低，这样表单内弹出的小确认框仍会盖在整页表单之上。 ---------- */
+.page-stack { position: fixed; inset: 0; z-index: 150; pointer-events: none; }
+.page-view {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.32, 1);
+  pointer-events: auto;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
-.wizard-card {
-  position: relative;
+.page-view.is-active { transform: translateX(0); }
+.page-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(var(--safe-top) + 14px) 16px 12px;
   background: var(--glass-bg-strong);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 26px 22px;
-  max-width: 420px;
-  width: 100%;
-  box-shadow: var(--glass-shadow);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
-.wizard-rose { position: absolute; top: 16px; right: 18px; color: var(--accent-strong); opacity: 0.5; transform: rotate(12deg); }
-.wizard-card h1 { font-size: 22px; margin: 0 0 4px; }
-.wizard-sub { color: var(--text-muted); font-size: 13px; margin: 0 0 20px; }
-.wizard-note {
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  line-height: 1.6;
-  margin-bottom: 18px;
+.page-back {
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: var(--surface-2); color: var(--text);
+  font-size: 21px; line-height: 1; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
 }
-.wizard-card .btn-primary { width: 100%; }
+.page-header h2 { flex: 1; min-width: 0; margin: 0; font-size: 16.5px; }
+.page-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.page-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 18px calc(var(--safe-bottom) + 32px); }
+.page-body .modal-actions { margin-top: 18px; }
 
 /* ---------- 弹窗 ---------- */
 .modal-overlay {
@@ -503,6 +520,9 @@ html[data-theme="soft-dark"] .msg-bubble {
 .bm-time { font-size: 10.5px; color: var(--text-muted); margin-right: auto; }
 
 /* ---------- 心情能量波动 ---------- */
+.sub-tabs { padding: 0 16px 12px; flex-shrink: 0; }
+.mood-add-row { padding: 0 16px 12px; }
+.mood-add-row .btn-secondary { width: 100%; }
 .range-tabs { padding: 0 16px 10px; flex-shrink: 0; }
 #mood-body { padding: 0 16px 24px; }
 .day-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -530,9 +550,56 @@ html[data-theme="soft-dark"] .msg-bubble {
 .hm-grid-compact { grid-template-columns: repeat(10, 1fr); gap: 4px; }
 .hm-cell-sm { border-radius: 4px; }
 
+/* ---------- 潮汐（生理周期记录） ---------- */
+.cycle-view { padding: 0 16px 24px; }
+.cycle-card {
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px; box-shadow: var(--glass-shadow);
+}
+.cycle-card-empty { text-align: center; }
+.cycle-phase { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.cycle-sub { font-size: 12.5px; color: var(--text-muted); }
+.cycle-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+.cycle-actions .btn-secondary, .cycle-actions .btn-primary { flex: 1; }
+.cycle-progress { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 20px; }
+.cycle-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-2); flex-shrink: 0; }
+.cycle-dot.is-period { background: #c2597a; }
+.cycle-dot.is-follicular { background: #e0c98f; }
+.cycle-dot.is-ovulation { background: #6fa89a; }
+.cycle-dot.is-luteal { background: color-mix(in srgb, var(--accent-strong) 55%, var(--surface-2)); }
+.cycle-dot.is-today { box-shadow: 0 0 0 2px var(--text) inset, 0 0 0 1px var(--bg); transform: scale(1.25); }
+.cycle-history { margin-bottom: 18px; }
+.cycle-history-title { font-weight: 600; font-size: 13.5px; margin-bottom: 8px; }
+.cycle-log-row { display: flex; align-items: center; gap: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }
+.cycle-log-date { font-size: 12.5px; color: var(--text-muted); flex-shrink: 0; width: 52px; }
+.cycle-log-body { flex: 1; min-width: 0; }
+.cycle-log-meta { font-size: 13px; }
+.cycle-log-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.btn-scale { display: flex; gap: 8px; }
+.btn-scale-opt {
+  flex: 1; padding: 9px 0; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted); font-weight: 600;
+}
+.btn-scale-opt.active { background: var(--accent); color: var(--text); border-color: var(--accent-strong); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-opt {
+  padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted); font-size: 13px;
+}
+.chip-opt.active { background: color-mix(in srgb, var(--chip-color) 30%, var(--surface)); color: var(--text); border-color: var(--chip-color); }
+.range-value { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
 /* ---------- 更多/设置 ---------- */
-.more-section { padding: 8px 16px 18px; border-bottom: 1px solid var(--border); }
-.more-section h3 { margin: 4px 0 12px; font-size: 15px; }
+.more-section {
+  margin: 0 16px 16px;
+  padding: 18px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+}
+.more-section h3 { margin: 0 0 14px; font-size: 15px; }
 .section-hint { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
 .conn-list { margin-bottom: 10px; }
 .conn-row { display: flex; align-items: center; justify-content: space-between; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }
@@ -586,13 +653,13 @@ html[data-theme="soft-dark"] .msg-bubble {
 /* ---------- 每日链接状态 ---------- */
 .ls-row { display: flex; align-items: flex-start; gap: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }
 
-/* ---------- 开屏动画 ---------- */
+/* ---------- 开屏动画：黑色毛玻璃 + 月相无限符号链 + 流星 ---------- */
 .splash-screen {
   position: fixed; inset: 0;
   z-index: 999;
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.08), transparent 55%),
-    linear-gradient(165deg, #0f0c1a 0%, #201a33 45%, #171326 100%);
+    radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.05), transparent 55%),
+    linear-gradient(165deg, #050506 0%, #0b0c10 55%, #030304 100%);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.5s ease, visibility 0.5s;
   overflow: hidden;
@@ -611,34 +678,33 @@ html[data-theme="soft-dark"] .msg-bubble {
   height: clamp(240px, 74vw, 300px);
   margin: 0 auto 18px;
 }
-.splash-ring, .splash-scene {
+.splash-badge::before {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.09);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 0 60px rgba(255,255,255,0.05) inset;
+}
+.splash-scene {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-}
-.splash-ring {
-  filter: drop-shadow(0 0 6px rgba(242, 167, 196, 0.45));
-}
-.splash-scene {
-  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.4));
+  filter: drop-shadow(0 10px 34px rgba(0,0,0,0.5));
 }
 .splash-welcome {
   font-family: "Pinyon Script", "Brush Script MT", cursive;
   font-size: clamp(34px, 11vw, 50px);
   line-height: 1;
-  color: #fbeef6;
-  text-shadow: 0 0 20px rgba(232, 160, 180, 0.6), 0 0 50px rgba(183, 168, 214, 0.4);
-}
-.splash-sub {
-  margin-top: 8px;
-  font-family: "Noto Serif SC", serif;
-  font-size: 12.5px;
-  letter-spacing: 0.28em;
-  color: rgba(245, 238, 251, 0.55);
+  color: #fdfaf3;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.45), 0 0 46px rgba(200, 180, 140, 0.3);
 }
 @media (prefers-reduced-motion: reduce) {
-  .splash-ring use { display: none; }
+  .splash-sparkle { display: none; }
 }
 @keyframes splash-fade-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }

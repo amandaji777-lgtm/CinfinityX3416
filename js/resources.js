@@ -146,32 +146,26 @@ const Resources = (() => {
   // ---- 编辑器：逐项填写 / 粘贴文本 两种模式，确认前都会有 JSON 预览 ----
   function openEditor(kind, item) {
     const isNew = !item;
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-overlay';
-    dialog.innerHTML = `
-      <div class="modal-card res-editor">
-        <h3>${isNew ? '新建' : '编辑'}${KIND_META[kind].label}</h3>
-        <div class="seg-row" id="mode-row">
-          <label class="seg-option"><input type="radio" name="mode" value="fields" checked><span>逐项填写</span></label>
-          <label class="seg-option"><input type="radio" name="mode" value="paste"><span>整段粘贴</span></label>
-        </div>
-        <label class="field"><span>资源名称</span><input id="res-name" value="${escapeAttr(item?.name || '')}" maxlength="30" required></label>
-        <div id="fields-mode">
-          ${kind === 'lorebook' ? lorebookEntriesEditor(item) : fieldsForm(kind, item?.data || {})}
-        </div>
-        <div id="paste-mode" style="display:none">
-          <label class="field"><span>粘贴自然语言描述（缺项就空着，系统不会编造）</span>
-            <textarea id="paste-text" rows="8" placeholder="把你已有的设定原文粘贴进来...">${escapeHtml(item?.source?.originalText || '')}</textarea>
-          </label>
-        </div>
-        <div class="modal-actions">
-          ${!isNew ? '<button type="button" class="btn-danger" id="res-delete">删除</button>' : ''}
-          <button type="button" class="btn-secondary" id="res-cancel">取消</button>
-          <button type="button" class="btn-primary" id="res-preview">预览并保存</button>
-        </div>
+    const dialog = Pages.open(`${isNew ? '新建' : '编辑'}${KIND_META[kind].label}`, `
+      <div class="seg-row" id="mode-row">
+        <label class="seg-option"><input type="radio" name="mode" value="fields" checked><span>逐项填写</span></label>
+        <label class="seg-option"><input type="radio" name="mode" value="paste"><span>整段粘贴</span></label>
       </div>
-    `;
-    document.body.appendChild(dialog);
+      <label class="field"><span>资源名称</span><input id="res-name" value="${escapeAttr(item?.name || '')}" maxlength="30" required></label>
+      <div id="fields-mode">
+        ${kind === 'lorebook' ? lorebookEntriesEditor(item) : fieldsForm(kind, item?.data || {})}
+      </div>
+      <div id="paste-mode" style="display:none">
+        <label class="field"><span>粘贴自然语言描述（缺项就空着，系统不会编造）</span>
+          <textarea id="paste-text" rows="8" placeholder="把你已有的设定原文粘贴进来...">${escapeHtml(item?.source?.originalText || '')}</textarea>
+        </label>
+      </div>
+      <div class="modal-actions">
+        ${!isNew ? '<button type="button" class="btn-danger" id="res-delete">删除</button>' : ''}
+        <button type="button" class="btn-secondary" id="res-cancel">取消</button>
+        <button type="button" class="btn-primary" id="res-preview">预览并保存</button>
+      </div>
+    `);
 
     dialog.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', (e) => {
       dialog.querySelector('#fields-mode').style.display = e.target.value === 'fields' ? '' : 'none';
@@ -179,8 +173,8 @@ const Resources = (() => {
     }));
     if (kind === 'lorebook') bindLorebookEntryEvents(dialog);
 
-    dialog.querySelector('#res-cancel').addEventListener('click', () => dialog.remove());
-    dialog.querySelector('#res-delete')?.addEventListener('click', () => { dialog.remove(); deleteResource(item); });
+    dialog.querySelector('#res-cancel').addEventListener('click', () => Pages.close(dialog));
+    dialog.querySelector('#res-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteResource(item); });
     dialog.querySelector('#res-preview').addEventListener('click', () => {
       const name = dialog.querySelector('#res-name').value.trim();
       if (!name) { alert('请填写资源名称'); return; }
@@ -321,7 +315,7 @@ const Resources = (() => {
     previewDialog.querySelector('#pv-confirm').addEventListener('click', async () => {
       await DB.put('ai_resources', resource);
       previewDialog.remove();
-      dialog.remove();
+      Pages.close(dialog);
       await refresh();
       render();
       toast('已保存');

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shiguang-shell-v4';
+const CACHE_NAME = 'shiguang-shell-v6';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   './js/db.js',
   './js/crypto-utils.js',
   './js/ai.js',
-  './js/wizard.js',
+  './js/pages.js',
   './js/resources.js',
   './js/chat.js',
   './js/memory.js',
@@ -16,6 +16,7 @@ const APP_SHELL = [
   './js/linkstatus.js',
   './js/bookmarks.js',
   './js/mood.js',
+  './js/cycle.js',
   './js/backup.js',
   './js/more.js',
   './js/ambience.js',

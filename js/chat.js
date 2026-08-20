@@ -148,23 +148,17 @@ const Chat = (() => {
 
   async function openNewConversationDialog() {
     await Resources.refresh();
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-overlay';
-    dialog.innerHTML = `
-      <div class="modal-card">
-        <h3>新建对话</h3>
-        <form id="new-conv-form">
-          <label class="field"><span>对话标题</span><input name="title" maxlength="24" placeholder="例如：晚安聊天"></label>
-          ${bindingFieldsHTML(null)}
-          <div class="modal-actions">
-            <button type="button" class="btn-secondary" id="cancel-new-conv">取消</button>
-            <button type="submit" class="btn-primary">创建并进入</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(dialog);
-    dialog.querySelector('#cancel-new-conv').addEventListener('click', () => dialog.remove());
+    const dialog = Pages.open('新建对话', `
+      <form id="new-conv-form">
+        <label class="field"><span>对话标题</span><input name="title" maxlength="24" placeholder="例如：晚安聊天"></label>
+        ${bindingFieldsHTML(null)}
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancel-new-conv">取消</button>
+          <button type="submit" class="btn-primary">创建并进入</button>
+        </div>
+      </form>
+    `);
+    dialog.querySelector('#cancel-new-conv').addEventListener('click', () => Pages.close(dialog));
     dialog.querySelector('#new-conv-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fields = collectBindingFields(dialog);
@@ -194,7 +188,7 @@ const Chat = (() => {
           isGreeting: true,
         });
       }
-      dialog.remove();
+      Pages.close(dialog);
       await refreshConversations();
       openConversation(id);
     });
@@ -592,63 +586,57 @@ const Chat = (() => {
   }
 
   function openRoomSettings(conv) {
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-overlay';
     const lm = conv.longMemory || {};
     const pr = conv.proactive || {};
     const summaryConnOptions = state.connections.map((cn) =>
       `<option value="${cn.id}" ${lm.summaryConnectionId === cn.id ? 'selected' : ''}>${escapeHtml(cn.name)}</option>`).join('');
-    dialog.innerHTML = `
-      <div class="modal-card">
-        <h3>对话设置</h3>
-        <form id="room-settings-form">
-          <label class="field"><span>标题</span><input name="title" value="${escapeAttr(conv.title)}" maxlength="24"></label>
-          ${bindingFieldsHTML(conv)}
+    const dialog = Pages.open('对话设置', `
+      <form id="room-settings-form">
+        <label class="field"><span>标题</span><input name="title" value="${escapeAttr(conv.title)}" maxlength="24"></label>
+        ${bindingFieldsHTML(conv)}
 
-          <fieldset class="fieldset"><legend>独立长记忆（第8部分）</legend>
-            <label class="field-inline"><input type="checkbox" name="lmEnabled" ${lm.enabled ? 'checked' : ''}><span>启用自动总结长记忆</span></label>
-            <label class="field"><span>总结连接（不选则用聊天连接）</span><select name="lmSummaryConnectionId"><option value="">（同聊天连接）</option>${summaryConnOptions}</select></label>
-            <label class="field"><span>每 N 条消息自动总结一次（0 为关闭）</span><input type="number" name="lmEveryN" value="${lm.summarizeEveryN || 0}" min="0"></label>
-            <label class="field"><span>最大记忆条数</span><input type="number" name="lmMaxCount" value="${lm.maxCount || 200}" min="1"></label>
-            <label class="field"><span>注入上限（每轮最多注入几条）</span><input type="number" name="lmInjectionCap" value="${lm.injectionCap ?? 6}" min="0"></label>
-            <label class="field"><span>总结提示词</span><textarea name="lmSummaryPrompt" rows="2">${escapeHtml(lm.summaryPrompt || '')}</textarea></label>
-            <label class="field"><span>注入提示词</span><textarea name="lmInjectionPrompt" rows="2">${escapeHtml(lm.injectionPrompt || '')}</textarea></label>
-            <div class="modal-actions" style="justify-content:flex-start">
-              <button type="button" class="btn-secondary" id="btn-summarize-now">立即总结</button>
-              <button type="button" class="btn-secondary" id="btn-open-memories">查看/管理长记忆</button>
-            </div>
-          </fieldset>
-
-          <fieldset class="fieldset"><legend>角色主动消息（第9部分）</legend>
-            <p class="section-hint">没有独立后台/推送服务：只会在你打开、回到前台、或应用保持打开期间定时检查生成，应用被完全关闭后不会收到新消息推送。</p>
-            <label class="field"><span>模式</span>
-              <select name="pMode">
-                <option value="off" ${pr.mode !== 'draft' && pr.mode !== 'auto' ? 'selected' : ''}>关闭</option>
-                <option value="draft" ${pr.mode === 'draft' ? 'selected' : ''}>仅草稿（生成后等你确认发送）</option>
-                <option value="auto" ${pr.mode === 'auto' ? 'selected' : ''}>允许自动发送</option>
-              </select>
-            </label>
-            <label class="field"><span>安静时段（开始-结束，24 小时制）</span>
-              <div style="display:flex;gap:8px">
-                <input type="time" name="pQuietStart" value="${pr.quietStart || '23:00'}">
-                <input type="time" name="pQuietEnd" value="${pr.quietEnd || '08:00'}">
-              </div>
-            </label>
-            <label class="field"><span>最短冷却（分钟）</span><input type="number" name="pMinCooldown" value="${pr.minCooldownMinutes ?? 120}" min="1"></label>
-            <label class="field"><span>每日上限（条）</span><input type="number" name="pDailyCap" value="${pr.dailyCap ?? 3}" min="0"></label>
-            <label class="field-inline"><input type="checkbox" name="pPaused" ${pr.paused ? 'checked' : ''}><span>一键暂停</span></label>
-          </fieldset>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-danger" id="btn-delete-conv">删除对话</button>
-            <button type="button" class="btn-secondary" id="cancel-room-settings">取消</button>
-            <button type="submit" class="btn-primary">保存</button>
+        <fieldset class="fieldset"><legend>独立长记忆（第8部分）</legend>
+          <label class="field-inline"><input type="checkbox" name="lmEnabled" ${lm.enabled ? 'checked' : ''}><span>启用自动总结长记忆</span></label>
+          <label class="field"><span>总结连接（不选则用聊天连接）</span><select name="lmSummaryConnectionId"><option value="">（同聊天连接）</option>${summaryConnOptions}</select></label>
+          <label class="field"><span>每 N 条消息自动总结一次（0 为关闭）</span><input type="number" name="lmEveryN" value="${lm.summarizeEveryN || 0}" min="0"></label>
+          <label class="field"><span>最大记忆条数</span><input type="number" name="lmMaxCount" value="${lm.maxCount || 200}" min="1"></label>
+          <label class="field"><span>注入上限（每轮最多注入几条）</span><input type="number" name="lmInjectionCap" value="${lm.injectionCap ?? 6}" min="0"></label>
+          <label class="field"><span>总结提示词</span><textarea name="lmSummaryPrompt" rows="2">${escapeHtml(lm.summaryPrompt || '')}</textarea></label>
+          <label class="field"><span>注入提示词</span><textarea name="lmInjectionPrompt" rows="2">${escapeHtml(lm.injectionPrompt || '')}</textarea></label>
+          <div class="modal-actions" style="justify-content:flex-start">
+            <button type="button" class="btn-secondary" id="btn-summarize-now">立即总结</button>
+            <button type="button" class="btn-secondary" id="btn-open-memories">查看/管理长记忆</button>
           </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(dialog);
-    dialog.querySelector('#cancel-room-settings').addEventListener('click', () => dialog.remove());
+        </fieldset>
+
+        <fieldset class="fieldset"><legend>角色主动消息（第9部分）</legend>
+          <p class="section-hint">没有独立后台/推送服务：只会在你打开、回到前台、或应用保持打开期间定时检查生成，应用被完全关闭后不会收到新消息推送。</p>
+          <label class="field"><span>模式</span>
+            <select name="pMode">
+              <option value="off" ${pr.mode !== 'draft' && pr.mode !== 'auto' ? 'selected' : ''}>关闭</option>
+              <option value="draft" ${pr.mode === 'draft' ? 'selected' : ''}>仅草稿（生成后等你确认发送）</option>
+              <option value="auto" ${pr.mode === 'auto' ? 'selected' : ''}>允许自动发送</option>
+            </select>
+          </label>
+          <label class="field"><span>安静时段（开始-结束，24 小时制）</span>
+            <div style="display:flex;gap:8px">
+              <input type="time" name="pQuietStart" value="${pr.quietStart || '23:00'}">
+              <input type="time" name="pQuietEnd" value="${pr.quietEnd || '08:00'}">
+            </div>
+          </label>
+          <label class="field"><span>最短冷却（分钟）</span><input type="number" name="pMinCooldown" value="${pr.minCooldownMinutes ?? 120}" min="1"></label>
+          <label class="field"><span>每日上限（条）</span><input type="number" name="pDailyCap" value="${pr.dailyCap ?? 3}" min="0"></label>
+          <label class="field-inline"><input type="checkbox" name="pPaused" ${pr.paused ? 'checked' : ''}><span>一键暂停</span></label>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-danger" id="btn-delete-conv">删除对话</button>
+          <button type="button" class="btn-secondary" id="cancel-room-settings">取消</button>
+          <button type="submit" class="btn-primary">保存</button>
+        </div>
+      </form>
+    `);
+    dialog.querySelector('#cancel-room-settings').addEventListener('click', () => Pages.close(dialog));
     dialog.querySelector('#btn-summarize-now').addEventListener('click', async () => {
       if (!window.Memory) return;
       toast('总结中…');
@@ -669,7 +657,7 @@ const Chat = (() => {
       const bookmarks = await DB.getAllByIndex('bookmarks', 'conversationId', conv.id);
       for (const b of bookmarks) { b.stale = true; b.sourceDeleted = true; await DB.put('bookmarks', b); }
       await DB.delete('conversations', conv.id);
-      dialog.remove();
+      Pages.close(dialog);
       state.view = 'list';
       await refreshConversations();
       render();
@@ -702,7 +690,7 @@ const Chat = (() => {
       };
       conv.updatedAt = nowISO();
       await DB.put('conversations', conv);
-      dialog.remove();
+      Pages.close(dialog);
       await refreshConversations();
       render();
     });

@@ -182,59 +182,53 @@ const More = (() => {
 
   function openConnEditor(item) {
     const isNew = !item;
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-overlay';
-    dialog.innerHTML = `
-      <div class="modal-card">
-        <h3>${isNew ? '添加连接' : '编辑连接'}</h3>
-        <div class="risk-note">浏览器前端无法真正隐藏 API Key，密钥会用 Web Crypto 加密存在本机，但仍建议优先使用你自己的安全后端/Relay 转发请求。</div>
-        <form id="conn-form">
-          <label class="field"><span>预设</span>
-            <select id="preset-select">
-              <option value="">自定义</option>
-              ${PROVIDER_PRESETS.map((p) => `<option value="${p.id}">${p.name}</option>`).join('')}
+    const dialog = Pages.open(isNew ? '添加连接' : '编辑连接', `
+      <div class="risk-note">浏览器前端无法真正隐藏 API Key，密钥会用 Web Crypto 加密存在本机，但仍建议优先使用你自己的安全后端/Relay 转发请求。</div>
+      <form id="conn-form">
+        <label class="field"><span>预设</span>
+          <select id="preset-select">
+            <option value="">自定义</option>
+            ${PROVIDER_PRESETS.map((p) => `<option value="${p.id}">${p.name}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field"><span>名称</span><input name="name" required value="${escapeAttr(item?.name || '')}" maxlength="20"></label>
+        <label class="field"><span>协议</span>
+          <select name="provider" id="provider-select">
+            ${Object.entries(PROVIDER_LABELS).map(([id, label]) => `<option value="${id}" ${item?.provider === id ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </label>
+        <div id="standard-fields">
+          <label class="field"><span>Base URL</span><input name="baseUrl" value="${escapeAttr(item?.baseUrl || '')}" placeholder="https://api.openai.com/v1"></label>
+          <label class="field"><span>模型</span><input name="model" value="${escapeAttr(item?.model || '')}" placeholder="例如 gpt-4o-mini"></label>
+        </div>
+        <label class="field"><span>API Key ${item ? '（留空则不修改）' : ''}</span><input name="apiKey" type="password" placeholder="sk-..." autocomplete="off"></label>
+        <fieldset class="fieldset" id="custom-fields" style="display:none">
+          <legend>自定义协议映射</legend>
+          <p class="section-hint">仅做声明式模板替换，不会执行任何脚本。占位符：{{model}} {{apiKey}} {{system}} {{messagesJSON}} {{temperature}} {{maxTokens}}</p>
+          <label class="field"><span>请求方法</span>
+            <select name="customMethod"><option value="POST" ${item?.customMethod !== 'GET' ? 'selected' : ''}>POST</option><option value="GET" ${item?.customMethod === 'GET' ? 'selected' : ''}>GET</option></select>
+          </label>
+          <label class="field"><span>请求 URL</span><input name="customUrl" value="${escapeAttr(item?.customUrl || '')}" placeholder="https://example.com/v1/chat?model={{model}}"></label>
+          <label class="field"><span>鉴权请求头名称</span><input name="customAuthHeaderName" value="${escapeAttr(item?.customAuthHeaderName || 'Authorization')}"></label>
+          <label class="field"><span>鉴权请求头模板</span><input name="customAuthHeaderTemplate" value="${escapeAttr(item?.customAuthHeaderTemplate || 'Bearer {{apiKey}}')}"></label>
+          <label class="field"><span>其他请求头（JSON，可选）</span><textarea name="customHeaders" rows="2">${escapeHtml(item?.customHeaders || '')}</textarea></label>
+          <label class="field"><span>请求体模板（JSON）</span><textarea name="customBodyTemplate" rows="3" placeholder='{"model":"{{model}}","messages":{{messagesJSON}},"stream":true}'>${escapeHtml(item?.customBodyTemplate || '')}</textarea></label>
+          <label class="field"><span>响应文本路径</span><input name="customResponseTextPath" value="${escapeAttr(item?.customResponseTextPath || '')}" placeholder="choices.0.delta.content"></label>
+          <label class="field"><span>流式格式</span>
+            <select name="customStreamFormat">
+              <option value="none" ${(item?.customStreamFormat || 'none') === 'none' ? 'selected' : ''}>不支持流式（一次性返回）</option>
+              <option value="sse-json-path" ${item?.customStreamFormat === 'sse-json-path' ? 'selected' : ''}>SSE（data: 前缀的 JSON 行）</option>
+              <option value="ndjson-json-path" ${item?.customStreamFormat === 'ndjson-json-path' ? 'selected' : ''}>NDJSON（每行一个 JSON）</option>
             </select>
           </label>
-          <label class="field"><span>名称</span><input name="name" required value="${escapeAttr(item?.name || '')}" maxlength="20"></label>
-          <label class="field"><span>协议</span>
-            <select name="provider" id="provider-select">
-              ${Object.entries(PROVIDER_LABELS).map(([id, label]) => `<option value="${id}" ${item?.provider === id ? 'selected' : ''}>${label}</option>`).join('')}
-            </select>
-          </label>
-          <div id="standard-fields">
-            <label class="field"><span>Base URL</span><input name="baseUrl" value="${escapeAttr(item?.baseUrl || '')}" placeholder="https://api.openai.com/v1"></label>
-            <label class="field"><span>模型</span><input name="model" value="${escapeAttr(item?.model || '')}" placeholder="例如 gpt-4o-mini"></label>
-          </div>
-          <label class="field"><span>API Key ${item ? '（留空则不修改）' : ''}</span><input name="apiKey" type="password" placeholder="sk-..." autocomplete="off"></label>
-          <fieldset class="fieldset" id="custom-fields" style="display:none">
-            <legend>自定义协议映射</legend>
-            <p class="section-hint">仅做声明式模板替换，不会执行任何脚本。占位符：{{model}} {{apiKey}} {{system}} {{messagesJSON}} {{temperature}} {{maxTokens}}</p>
-            <label class="field"><span>请求方法</span>
-              <select name="customMethod"><option value="POST" ${item?.customMethod !== 'GET' ? 'selected' : ''}>POST</option><option value="GET" ${item?.customMethod === 'GET' ? 'selected' : ''}>GET</option></select>
-            </label>
-            <label class="field"><span>请求 URL</span><input name="customUrl" value="${escapeAttr(item?.customUrl || '')}" placeholder="https://example.com/v1/chat?model={{model}}"></label>
-            <label class="field"><span>鉴权请求头名称</span><input name="customAuthHeaderName" value="${escapeAttr(item?.customAuthHeaderName || 'Authorization')}"></label>
-            <label class="field"><span>鉴权请求头模板</span><input name="customAuthHeaderTemplate" value="${escapeAttr(item?.customAuthHeaderTemplate || 'Bearer {{apiKey}}')}"></label>
-            <label class="field"><span>其他请求头（JSON，可选）</span><textarea name="customHeaders" rows="2">${escapeHtml(item?.customHeaders || '')}</textarea></label>
-            <label class="field"><span>请求体模板（JSON）</span><textarea name="customBodyTemplate" rows="3" placeholder='{"model":"{{model}}","messages":{{messagesJSON}},"stream":true}'>${escapeHtml(item?.customBodyTemplate || '')}</textarea></label>
-            <label class="field"><span>响应文本路径</span><input name="customResponseTextPath" value="${escapeAttr(item?.customResponseTextPath || '')}" placeholder="choices.0.delta.content"></label>
-            <label class="field"><span>流式格式</span>
-              <select name="customStreamFormat">
-                <option value="none" ${(item?.customStreamFormat || 'none') === 'none' ? 'selected' : ''}>不支持流式（一次性返回）</option>
-                <option value="sse-json-path" ${item?.customStreamFormat === 'sse-json-path' ? 'selected' : ''}>SSE（data: 前缀的 JSON 行）</option>
-                <option value="ndjson-json-path" ${item?.customStreamFormat === 'ndjson-json-path' ? 'selected' : ''}>NDJSON（每行一个 JSON）</option>
-              </select>
-            </label>
-          </fieldset>
-          <div class="modal-actions">
-            ${!isNew ? '<button type="button" class="btn-danger" id="conn-delete">删除</button>' : ''}
-            <button type="button" class="btn-secondary" id="conn-cancel">取消</button>
-            <button type="submit" class="btn-primary">保存</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(dialog);
+        </fieldset>
+        <div class="modal-actions">
+          ${!isNew ? '<button type="button" class="btn-danger" id="conn-delete">删除</button>' : ''}
+          <button type="button" class="btn-secondary" id="conn-cancel">取消</button>
+          <button type="submit" class="btn-primary">保存</button>
+        </div>
+      </form>
+    `);
 
     function toggleProviderFields() {
       const provider = dialog.querySelector('#provider-select').value;
@@ -254,8 +248,8 @@ const More = (() => {
       f.model.value = preset.model;
       toggleProviderFields();
     });
-    dialog.querySelector('#conn-cancel').addEventListener('click', () => dialog.remove());
-    dialog.querySelector('#conn-delete')?.addEventListener('click', () => { dialog.remove(); deleteConn(item); });
+    dialog.querySelector('#conn-cancel').addEventListener('click', () => Pages.close(dialog));
+    dialog.querySelector('#conn-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteConn(item); });
     dialog.querySelector('#conn-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -286,7 +280,7 @@ const More = (() => {
         createdAt: item?.createdAt || nowISO(),
       };
       await DB.put('connections', conn);
-      dialog.remove();
+      Pages.close(dialog);
       connections = await DB.getAll('connections');
       await Chat.refreshConnections();
       render();

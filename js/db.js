@@ -1,6 +1,6 @@
 // 固定数据库名与版本；升级时只新增/迁移，不删除已有数据。
 const DB_NAME = 'shiguang-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise = null;
 
@@ -58,6 +58,12 @@ function openDB() {
         const proactiveLog = db.createObjectStore('proactive_log', { keyPath: 'id' });
         proactiveLog.createIndex('conversationId', 'conversationId');
         proactiveLog.createIndex('triggeredAt', 'triggeredAt');
+      }
+
+      if (oldVersion < 3) {
+        // 潮汐：例假/生理周期每日记录（流量/疼痛/心情标签/欲望），按日期查询。
+        const cycleLogs = db.createObjectStore('cycle_logs', { keyPath: 'id' });
+        cycleLogs.createIndex('date', 'date');
       }
     };
 
@@ -142,7 +148,7 @@ const DB = {
 
   STORE_NAMES: [
     'settings', 'connections', 'conversations', 'messages', 'bookmarks', 'moods',
-    'ai_resources', 'ai_memories', 'link_daily_status', 'proactive_log',
+    'ai_resources', 'ai_memories', 'link_daily_status', 'proactive_log', 'cycle_logs',
   ],
 };
 

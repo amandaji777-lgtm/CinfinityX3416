@@ -7,7 +7,12 @@ const LinkStatus = (() => {
     weak: { label: '偏弱', color: '#e0a1a1' },
   };
 
-  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  // 本地日历日期，不用 toISOString()：UTC+ 时区里午夜到早晨这段会被错误折算成前一天。
+  function todayStr() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
 
   async function openManager(character) {
     const dialog = document.createElement('div');
