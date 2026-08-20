@@ -58,6 +58,7 @@ const Resources = (() => {
   let container;
   let all = [];
   let activeKind = 'character';
+  let avatarUrls = {};
 
   async function init(rootEl) {
     container = rootEl;
@@ -67,6 +68,7 @@ const Resources = (() => {
 
   async function refresh() {
     all = await DB.getAll('ai_resources');
+    avatarUrls = await Avatars.preload(all.filter((r) => r.kind === 'character').map((r) => r.id));
   }
 
   function byKind(kind) {
@@ -116,10 +118,14 @@ const Resources = (() => {
 
   function resCard(r) {
     const preview = summarize(r);
+    const avatarUrl = r.kind === 'character' ? avatarUrls[r.id] : null;
     return `
       <div class="res-card" data-id="${r.id}">
         <div class="res-card-top">
-          <b>${escapeHtml(r.name || '未命名')}</b>
+          <div class="res-card-name-row">
+            ${r.kind === 'character' ? `<div class="conv-avatar res-card-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="">` : escapeHtml((r.name || '角')[0] || '角')}</div>` : ''}
+            <b>${escapeHtml(r.name || '未命名')}</b>
+          </div>
           <span class="res-source-tag">${r.source?.type === 'imported-json' ? 'JSON导入' : '文字创建'}</span>
         </div>
         <div class="res-card-preview">${escapeHtml(truncate(preview, 100))}</div>
@@ -147,6 +153,15 @@ const Resources = (() => {
   function openEditor(kind, item) {
     const isNew = !item;
     const dialog = Pages.open(`${isNew ? '新建' : '编辑'}${KIND_META[kind].label}`, `
+      ${kind === 'character' ? `
+        <div class="avatar-upload-row">
+          <div class="avatar-preview" id="res-avatar-preview">…</div>
+          <div class="avatar-upload-actions">
+            <label class="btn-secondary file-btn">更换头像<input type="file" accept="image/*" id="res-avatar-input" hidden></label>
+            <button type="button" class="msg-act" id="res-avatar-clear" style="display:none">移除头像</button>
+          </div>
+        </div>
+      ` : ''}
       <div class="seg-row" id="mode-row">
         <label class="seg-option"><input type="radio" name="mode" value="fields" checked><span>逐项填写</span></label>
         <label class="seg-option"><input type="radio" name="mode" value="paste"><span>整段粘贴</span></label>
@@ -173,7 +188,51 @@ const Resources = (() => {
     }));
     if (kind === 'lorebook') bindLorebookEntryEvents(dialog);
 
-    dialog.querySelector('#res-cancel').addEventListener('click', () => Pages.close(dialog));
+    let pendingAvatarFile = null;
+    let pendingAvatarClear = false;
+    let tempAvatarUrl = null;
+    if (kind === 'character') {
+      const previewEl = dialog.querySelector('#res-avatar-preview');
+      const clearBtn = dialog.querySelector('#res-avatar-clear');
+      const fallbackLetter = () => escapeHtml(((dialog.querySelector('#res-name').value || item?.name || '角').trim())[0] || '角');
+      const refreshAvatarPreview = async () => {
+        if (tempAvatarUrl) { URL.revokeObjectURL(tempAvatarUrl); tempAvatarUrl = null; }
+        if (pendingAvatarClear) {
+          previewEl.innerHTML = fallbackLetter();
+          clearBtn.style.display = 'none';
+          return;
+        }
+        if (pendingAvatarFile) {
+          tempAvatarUrl = URL.createObjectURL(pendingAvatarFile);
+          previewEl.innerHTML = `<img src="${tempAvatarUrl}" alt="">`;
+          clearBtn.style.display = '';
+          return;
+        }
+        const url = item ? await Avatars.urlFor(item.id) : null;
+        previewEl.innerHTML = url ? `<img src="${url}" alt="">` : fallbackLetter();
+        clearBtn.style.display = url ? '' : 'none';
+      };
+      refreshAvatarPreview();
+      dialog.querySelector('#res-avatar-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+        pendingAvatarFile = file;
+        pendingAvatarClear = false;
+        refreshAvatarPreview();
+      });
+      clearBtn.addEventListener('click', () => {
+        pendingAvatarFile = null;
+        pendingAvatarClear = true;
+        refreshAvatarPreview();
+      });
+    }
+
+    dialog.querySelector('#res-cancel').addEventListener('click', () => {
+      if (tempAvatarUrl) URL.revokeObjectURL(tempAvatarUrl);
+      Pages.close(dialog);
+    });
     dialog.querySelector('#res-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteResource(item); });
     dialog.querySelector('#res-preview').addEventListener('click', () => {
       const name = dialog.querySelector('#res-name').value.trim();
@@ -189,11 +248,13 @@ const Resources = (() => {
         sourceType = item?.source?.type === 'imported-json' ? 'imported-json' : 'manual-text';
         originalText = item?.source?.originalText || '';
       }
+      const avatarChange = kind === 'character' && (pendingAvatarFile || pendingAvatarClear)
+        ? { file: pendingAvatarFile, clear: pendingAvatarClear } : null;
       showPreviewThenSave(dialog, {
         id: item?.id || uuid(),
         kind, name, data, sourceType, originalText,
         createdAt: item?.source?.createdAt || nowISO(),
-      });
+      }, avatarChange);
     });
   }
 
@@ -287,7 +348,7 @@ const Resources = (() => {
     });
   }
 
-  function showPreviewThenSave(dialog, draft) {
+  function showPreviewThenSave(dialog, draft, avatarChange) {
     const resource = {
       $schema: RESOURCE_SCHEMA,
       kind: draft.kind,
@@ -314,10 +375,15 @@ const Resources = (() => {
     previewDialog.querySelector('#pv-cancel').addEventListener('click', () => previewDialog.remove());
     previewDialog.querySelector('#pv-confirm').addEventListener('click', async () => {
       await DB.put('ai_resources', resource);
+      if (avatarChange) {
+        if (avatarChange.clear) await Avatars.clear(resource.id);
+        else if (avatarChange.file) await Avatars.set(resource.id, avatarChange.file);
+      }
       previewDialog.remove();
       Pages.close(dialog);
       await refresh();
       render();
+      if (window.Chat) await window.Chat.refreshAvatars();
       toast('已保存');
     });
   }
@@ -344,8 +410,10 @@ const Resources = (() => {
   async function deleteResource(item) {
     if (!confirm(`删除"${item.name}"？正在使用它的对话不会自动清空绑定，只是会读取不到内容。`)) return;
     await DB.delete('ai_resources', item.id);
+    if (item.kind === 'character') await Avatars.clear(item.id);
     await refresh();
     render();
+    if (window.Chat) await window.Chat.refreshAvatars();
   }
 
   async function handleImportFile(e) {

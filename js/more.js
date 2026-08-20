@@ -5,18 +5,30 @@ const More = (() => {
   let storageInfo = null;
   let wallpaperBlobs = { light: null, 'soft-dark': null };
   let wallpaperPreviewUrls = { light: null, 'soft-dark': null };
+  let userAvatarBlob = null;
+  let userAvatarPreviewUrl = null;
 
   async function init(rootEl) {
     container = rootEl;
     connections = await DB.getAll('connections');
     storageInfo = await DB.estimateUsage();
     await refreshWallpaperBlobs();
+    await refreshUserAvatarBlob();
     render();
   }
 
   async function refreshWallpaperBlobs() {
     wallpaperBlobs.light = await DB.getSetting('wallpaperLight');
     wallpaperBlobs['soft-dark'] = await DB.getSetting('wallpaperDark');
+  }
+
+  async function refreshUserAvatarBlob() {
+    userAvatarBlob = await DB.getSetting('userAvatar');
+  }
+
+  function rebuildUserAvatarPreview() {
+    if (userAvatarPreviewUrl) URL.revokeObjectURL(userAvatarPreviewUrl);
+    userAvatarPreviewUrl = userAvatarBlob instanceof Blob ? URL.createObjectURL(userAvatarBlob) : null;
   }
 
   function rebuildWallpaperPreviews() {
@@ -29,6 +41,7 @@ const More = (() => {
   function render() {
     const s = App.settings;
     rebuildWallpaperPreviews();
+    rebuildUserAvatarPreview();
     container.innerHTML = `
       <div class="more-view">
         <div class="view-header"><h2>更多</h2></div>
@@ -36,6 +49,13 @@ const More = (() => {
         <section class="more-section">
           <h3>工作台设置</h3>
           <form id="settings-form">
+            <div class="avatar-upload-row">
+              <div class="avatar-preview">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((s.nickname || '你')[0] || '你')}</div>
+              <div class="avatar-upload-actions">
+                <label class="btn-secondary file-btn">更换我的头像<input type="file" accept="image/*" id="user-avatar-input" hidden></label>
+                ${userAvatarPreviewUrl ? '<button type="button" class="msg-act" id="user-avatar-clear">移除头像</button>' : ''}
+              </div>
+            </div>
             <label class="field"><span>工作台名称</span><input name="workspaceName" value="${escapeAttr(s.workspaceName || '')}" maxlength="20"></label>
             <label class="field"><span>副标题</span><input name="subtitle" value="${escapeAttr(s.subtitle || '')}" maxlength="30"></label>
             <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
@@ -94,7 +114,7 @@ const More = (() => {
               <input type="file" id="btn-import" accept="application/json" hidden>
             </label>
           </div>
-          <p class="section-hint">备份文件不包含 API Key（出于安全考虑）和自定义壁纸（图片不适合塞进纯文本备份），恢复后需要重新填写密钥、重新上传壁纸。</p>
+          <p class="section-hint">备份文件不包含 API Key（出于安全考虑）、自定义壁纸和头像（图片不适合塞进纯文本备份），恢复后需要重新填写密钥、重新上传壁纸和头像。</p>
         </section>
 
         <section class="more-section">
@@ -155,6 +175,9 @@ const More = (() => {
     container.querySelectorAll('[data-wallpaper-clear]').forEach((btn) => {
       btn.addEventListener('click', () => handleWallpaperClear(btn.dataset.wallpaperClear));
     });
+
+    container.querySelector('#user-avatar-input').addEventListener('change', handleUserAvatarUpload);
+    container.querySelector('#user-avatar-clear')?.addEventListener('click', handleUserAvatarClear);
 
     container.querySelector('#settings-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -225,6 +248,26 @@ const More = (() => {
     await refreshWallpaperBlobs();
     render();
     toast('已清除壁纸');
+  }
+
+  async function handleUserAvatarUpload(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+    await Avatars.set(null, file);
+    await refreshUserAvatarBlob();
+    render();
+    if (window.Chat) await window.Chat.refreshAvatars();
+    toast('头像已更新');
+  }
+
+  async function handleUserAvatarClear() {
+    await Avatars.clear(null);
+    await refreshUserAvatarBlob();
+    render();
+    if (window.Chat) await window.Chat.refreshAvatars();
+    toast('已移除头像');
   }
 
   async function updateBackupStatus() {

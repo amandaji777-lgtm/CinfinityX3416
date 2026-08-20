@@ -1,7 +1,10 @@
 // JSON 全量导入导出。API Key 密文/设备密钥不会被导出，避免备份文件泄露密钥。
 const Backup = (() => {
-  // 壁纸是 Blob，JSON.stringify 序列化不了，也没必要塞进纯文本备份里——和不导出 API Key 一个道理。
-  const EXCLUDED_SETTING_KEYS = ['wallpaperLight', 'wallpaperDark'];
+  // 壁纸/头像都是 Blob，JSON.stringify 序列化不了，也没必要塞进纯文本备份里——和不导出 API Key 一个道理。
+  const EXCLUDED_SETTING_KEYS = ['wallpaperLight', 'wallpaperDark', 'userAvatar'];
+  function isExcludedSetting(row) {
+    return EXCLUDED_SETTING_KEYS.includes(row.key) || row.key.startsWith('charAvatar:') || row.value instanceof Blob;
+  }
 
   async function exportAll() {
     const data = {};
@@ -9,7 +12,7 @@ const Backup = (() => {
       data[store] = await DB.getAll(store);
     }
     data.connections = data.connections.map(({ apiKeyCipher, apiKeyIv, ...rest }) => rest);
-    data.settings = data.settings.filter((row) => !EXCLUDED_SETTING_KEYS.includes(row.key));
+    data.settings = data.settings.filter((row) => !isExcludedSetting(row));
 
     return {
       schema: 'shiguang-backup-v1',

@@ -12,12 +12,14 @@ const Chat = (() => {
     showContextPreview: false,
     streaming: false,
     abortController: null,
+    avatarUrls: {}, // 'user' -> url | 角色资源id -> url，同步渲染模板用，靠 refreshAvatarUrls() 预取
   };
 
   async function init(rootEl) {
     container = rootEl;
     await refreshConversations();
     state.connections = await DB.getAll('connections');
+    await refreshAvatarUrls();
     window.__chatOpenConversation = async (conversationId, messageId) => {
       await openConversation(conversationId);
       if (messageId) highlightMessage(messageId);
@@ -39,6 +41,12 @@ const Chat = (() => {
     const all = await DB.getAll('conversations');
     all.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     state.conversations = all;
+  }
+
+  // 预取用户头像 + 当前列表/房间里会用到的所有角色头像，存进 state.avatarUrls 供模板同步读取。
+  async function refreshAvatarUrls() {
+    const charIds = state.conversations.map((c) => c.characterResourceId).filter(Boolean);
+    state.avatarUrls = await Avatars.preload(charIds);
   }
 
   function render() {
@@ -77,12 +85,17 @@ const Chat = (() => {
     return conv.characterResourceId ? Resources.all.find((r) => r.id === conv.characterResourceId) : null;
   }
 
+  function avatarInner(url, letterSource) {
+    return url ? `<img src="${url}" alt="">` : escapeHtml((letterSource || '拾').slice(0, 1));
+  }
+
   function convItem(c) {
     const character = characterOf(c);
     const pendingDraft = window.Proactive?.getPendingDraft(c.id);
+    const avatarUrl = character ? state.avatarUrls[character.id] : null;
     return `
       <div class="conv-row" data-id="${c.id}">
-        <div class="conv-avatar">${escapeHtml((character?.name || c.title || '对')[0])}</div>
+        <div class="conv-avatar">${avatarInner(avatarUrl, character?.name || c.title || '对')}</div>
         <div class="conv-meta">
           <div class="conv-title">${escapeHtml(c.title || character?.name || '未命名对话')} ${pendingDraft ? '<span class="tag draft-tag">主动消息草稿</span>' : ''}</div>
           <div class="conv-sub">${escapeHtml(c.lastMessagePreview || '还没有消息')}</div>
@@ -199,6 +212,7 @@ const Chat = (() => {
     state.view = 'room';
     state.showArchived = false;
     await Resources.refresh();
+    await refreshAvatarUrls();
     if (window.Memory) await window.Memory.refresh(id);
     await loadMessages();
     render();
@@ -303,10 +317,9 @@ const Chat = (() => {
   // 其余在群组中间的消息用方一点的角，视觉上"粘"在一起，参考 Tidal_Echo 的分组气泡。
   function messageBubble(m, isGroupLast, character) {
     const isUser = m.role === 'user';
-    const avatarHtml = !isUser ? `<div class="msg-avatar">${escapeHtml((character?.name || '拾').slice(0, 1))}</div>` : '';
-    return `
-      <div class="msg-row ${isUser ? 'from-user' : 'from-ai'}">
-        ${avatarHtml}
+    const avatarUrl = isUser ? state.avatarUrls.user : (character ? state.avatarUrls[character.id] : null);
+    const avatarHtml = `<div class="msg-avatar">${avatarInner(avatarUrl, isUser ? '你' : character?.name)}</div>`;
+    const bubbleHtml = `
         <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''} ${isGroupLast ? 'is-group-last' : 'is-group-mid'}" data-id="${m.id}">
           <div class="msg-content">${renderMarkdownish(m.content)}</div>
           <div class="msg-meta">
@@ -319,6 +332,10 @@ const Chat = (() => {
             ${!isUser && !m.archived && !m.isGreeting ? '<button class="msg-act" data-act="retry" title="让他重说">让他重说</button>' : ''}
           </div>
         </div>
+    `;
+    return `
+      <div class="msg-row ${isUser ? 'from-user' : 'from-ai'}">
+        ${isUser ? bubbleHtml + avatarHtml : avatarHtml + bubbleHtml}
       </div>
     `;
   }
@@ -708,6 +725,7 @@ const Chat = (() => {
     async reloadIfCurrent(conversationId) {
       if (state.currentConversationId === conversationId) { await loadMessages(); render(); }
     },
+    async refreshAvatars() { await refreshAvatarUrls(); render(); },
   };
 })();
 window.Chat = Chat;
