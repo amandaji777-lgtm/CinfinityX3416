@@ -3,16 +3,32 @@ const More = (() => {
   let container;
   let connections = [];
   let storageInfo = null;
+  let wallpaperBlobs = { light: null, 'soft-dark': null };
+  let wallpaperPreviewUrls = { light: null, 'soft-dark': null };
 
   async function init(rootEl) {
     container = rootEl;
     connections = await DB.getAll('connections');
     storageInfo = await DB.estimateUsage();
+    await refreshWallpaperBlobs();
     render();
+  }
+
+  async function refreshWallpaperBlobs() {
+    wallpaperBlobs.light = await DB.getSetting('wallpaperLight');
+    wallpaperBlobs['soft-dark'] = await DB.getSetting('wallpaperDark');
+  }
+
+  function rebuildWallpaperPreviews() {
+    for (const t of ['light', 'soft-dark']) {
+      if (wallpaperPreviewUrls[t]) URL.revokeObjectURL(wallpaperPreviewUrls[t]);
+      wallpaperPreviewUrls[t] = wallpaperBlobs[t] instanceof Blob ? URL.createObjectURL(wallpaperBlobs[t]) : null;
+    }
   }
 
   function render() {
     const s = App.settings;
+    rebuildWallpaperPreviews();
     container.innerHTML = `
       <div class="more-view">
         <div class="view-header"><h2>更多</h2></div>
@@ -34,13 +50,22 @@ const More = (() => {
             <fieldset class="fieldset"><legend>点按时的光辉颜色</legend>
               <p class="section-hint">整体配色固定为白金/黑银这两种呼吸感玻璃质感，不再有其他配色方案；这里只能调"点击卡片/按钮时散开的那圈光晕"用什么颜色。</p>
               <label class="field-inline"><input type="checkbox" name="useCustomColors" id="use-custom-colors" ${s.customAccent ? 'checked' : ''}><span>自定义光辉颜色</span></label>
-              <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || (s.theme === 'soft-dark' ? '#c7ccd1' : '#b8965a')}" ${s.customAccent ? '' : 'disabled'}></label>
+              <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || (s.theme === 'soft-dark' ? '#ececeb' : '#232320')}" ${s.customAccent ? '' : 'disabled'}></label>
             </fieldset>
 
             <label class="field-inline"><input type="checkbox" name="aiEnabled" ${s.aiEnabled !== false ? 'checked' : ''}><span>启用 AI 对话功能</span></label>
             <label class="field-inline"><input type="checkbox" name="proactiveMessagesEnabled" ${s.proactiveMessagesEnabled ? 'checked' : ''}><span>启用角色主动消息（总开关，具体每个角色还要单独在对话设置里打开）</span></label>
             <button type="submit" class="btn-primary">保存设置</button>
           </form>
+        </section>
+
+        <section class="more-section">
+          <h3>外观 · 自定义壁纸</h3>
+          <p class="section-hint">白金和黑银可以各自设一张背景照片，毛玻璃卡片盖在上面（不会存进备份文件，换设备后需要重新上传）。</p>
+          <div class="wallpaper-row">
+            ${wallpaperItem('light', '白金')}
+            ${wallpaperItem('soft-dark', '黑银')}
+          </div>
         </section>
 
         <section class="more-section">
@@ -69,7 +94,7 @@ const More = (() => {
               <input type="file" id="btn-import" accept="application/json" hidden>
             </label>
           </div>
-          <p class="section-hint">备份文件不包含 API Key（出于安全考虑），恢复后请重新填写连接密钥。</p>
+          <p class="section-hint">备份文件不包含 API Key（出于安全考虑）和自定义壁纸（图片不适合塞进纯文本备份），恢复后需要重新填写密钥、重新上传壁纸。</p>
         </section>
 
         <section class="more-section">
@@ -85,6 +110,21 @@ const More = (() => {
 
     bindEvents();
     refreshCounts();
+  }
+
+  function wallpaperItem(theme, label) {
+    const url = wallpaperPreviewUrls[theme];
+    const idSafe = theme.replace(/[^a-z]/g, '');
+    return `
+      <div class="wallpaper-item">
+        <div class="wallpaper-preview" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '未设置'}</div>
+        <span class="wallpaper-label">${label}</span>
+        <div class="wallpaper-actions">
+          <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-wallpaper-input="${theme}" id="wallpaper-${idSafe}-input" hidden></label>
+          ${url ? `<button type="button" class="msg-act" data-wallpaper-clear="${theme}">清除</button>` : ''}
+        </div>
+      </div>
+    `;
   }
 
   function connRow(c) {
@@ -107,6 +147,13 @@ const More = (() => {
     const useCustomCb = container.querySelector('#use-custom-colors');
     useCustomCb.addEventListener('change', (e) => {
       container.querySelector('input[name=customAccent]').disabled = !e.target.checked;
+    });
+
+    container.querySelectorAll('[data-wallpaper-input]').forEach((input) => {
+      input.addEventListener('change', (e) => handleWallpaperUpload(input.dataset.wallpaperInput, e));
+    });
+    container.querySelectorAll('[data-wallpaper-clear]').forEach((btn) => {
+      btn.addEventListener('click', () => handleWallpaperClear(btn.dataset.wallpaperClear));
     });
 
     container.querySelector('#settings-form').addEventListener('submit', async (e) => {
@@ -160,6 +207,24 @@ const More = (() => {
     });
 
     updateBackupStatus();
+  }
+
+  async function handleWallpaperUpload(theme, e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+    await Wallpaper.set(theme, file);
+    await refreshWallpaperBlobs();
+    render();
+    toast('壁纸已更新');
+  }
+
+  async function handleWallpaperClear(theme) {
+    await Wallpaper.clear(theme);
+    await refreshWallpaperBlobs();
+    render();
+    toast('已清除壁纸');
   }
 
   async function updateBackupStatus() {

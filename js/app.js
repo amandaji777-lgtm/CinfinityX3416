@@ -51,6 +51,8 @@ const App = (() => {
 
     if (s.customAccent) root.setProperty('--ripple-glow', s.customAccent);
     else root.removeProperty('--ripple-glow');
+
+    if (window.Wallpaper) Wallpaper.apply(isDark ? 'soft-dark' : 'light');
   }
 
   async function startMainApp() {

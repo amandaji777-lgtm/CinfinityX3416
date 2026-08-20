@@ -1,14 +1,16 @@
-/* ---------- 基础与主题变量（玻璃拟态 · 白金 / 黑银 两种基础模式） ---------- */
+/* ---------- 基础与主题变量（玻璃拟态 · 白金 / 黑银 两种基础模式，中性黑白灰为主，
+   颜色只出现在"点击光辉"和"自定义壁纸"这两个地方，不再有暖金色调） ---------- */
 :root {
-  /* 白金：暖白底 + 香槟金强调色 */
-  --accent: #e8d9b3;
-  --accent-strong: #b8965a;
-  --bg: #faf7f0;
+  /* 白金：中性近白底 + 近黑强调色 */
+  --accent: #ececea;
+  --accent-strong: #232320;
+  --on-accent-strong: #ffffff;
+  --bg: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f2ecdd;
-  --text: #3a3428;
-  --text-muted: #8a8070;
-  --border: #e5dcc6;
+  --surface-2: #f0f0ee;
+  --text: #1a1a18;
+  --text-muted: #85857f;
+  --border: #e2e2df;
   --danger: #c0553f;
   --radius-lg: clamp(18px, 5vw, 24px);
   --radius-md: clamp(13px, 3.5vw, 17px);
@@ -21,40 +23,43 @@
   /* 玻璃拟态：半透明卡片 + 模糊 + 微光边框 */
   --glass-bg: rgba(255, 255, 255, 0.5);
   --glass-bg-strong: rgba(255, 255, 255, 0.68);
-  --glass-border: rgba(184, 150, 90, 0.28);
-  --glass-shadow: 0 14px 34px rgba(120, 100, 60, 0.12);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 14px 34px rgba(0, 0, 0, 0.08);
   --glass-blur: blur(16px) saturate(1.3);
 
-  /* 背景漂浮光斑：金色调，呼吸感贯穿全站，不分深浅色模式 */
-  --orb-1: #e8d9b3;
-  --orb-2: #d4b876;
-  --orb-3: #c9a961;
+  /* 背景漂浮光斑：中性灰白，呼吸感贯穿全站，不分深浅色模式 */
+  --orb-1: #e9e9e6;
+  --orb-2: #dcdcd8;
+  --orb-3: #cfcfca;
   --orb-opacity-low: 0.38;
   --orb-opacity-high: 0.58;
 
-  --user-bubble-bg: var(--accent);
+  --user-bubble-bg: var(--accent-strong);
+  --user-bubble-text: var(--on-accent-strong);
   --ripple-glow: var(--accent-strong);
 }
 
-/* 黑银：近黑底 + 铂银强调色。深色模式下自定义强调色只影响点按光辉，
+/* 黑银：近黑底 + 近白强调色。深色模式下自定义强调色只影响点按光辉/壁纸，
    不改变这套底色，保持"深邃呼吸感"的整体氛围结构不被打乱。 */
 html[data-theme="soft-dark"] {
-  --accent: #2c2e33;
-  --accent-strong: #c7ccd1;
-  --bg: #08090c;
-  --surface: #121317;
-  --surface-2: #1a1c21;
-  --text: #eef0f2;
-  --text-muted: #9aa0a8;
+  --accent: #262626;
+  --accent-strong: #ececeb;
+  --on-accent-strong: #16161a;
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-2: #1c1c1c;
+  --text: #f0f0ee;
+  --text-muted: #969692;
   --border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(18, 19, 23, 0.55);
-  --glass-bg-strong: rgba(22, 24, 28, 0.72);
+  --glass-bg: rgba(20, 20, 20, 0.55);
+  --glass-bg-strong: rgba(24, 24, 24, 0.72);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 20px 54px rgba(0, 0, 0, 0.55);
-  --orb-1: #d4d8dc; --orb-2: #9aa4ac; --orb-3: #6e7680;
+  --orb-1: #d8d8d6; --orb-2: #a0a09c; --orb-3: #707068;
   --orb-opacity-low: 0.2; --orb-opacity-high: 0.38;
 
-  --user-bubble-bg: color-mix(in srgb, var(--accent-strong) 42%, var(--surface-2));
+  --user-bubble-bg: var(--accent-strong);
+  --user-bubble-text: var(--on-accent-strong);
   --ripple-glow: var(--accent-strong);
 }
 
@@ -75,20 +80,20 @@ html[data-theme="soft-dark"] {
     color-mix(in srgb, var(--ripple-glow) 45%, transparent) 0%,
     color-mix(in srgb, var(--ripple-glow) 20%, transparent) 40%,
     transparent 72%);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--ripple-glow) 55%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ripple-glow) 45%, transparent);
   transform: translate(-50%, -50%) scale(0);
-  animation: ripple-expand 0.65s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+  animation: ripple-expand 0.55s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
 }
 .ripple-spark {
   position: fixed;
-  width: 10px; height: 10px;
-  margin: -5px 0 0 -5px;
+  width: 6px; height: 6px;
+  margin: -3px 0 0 -3px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 401;
   background: var(--ripple-glow);
-  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--ripple-glow) 80%, transparent);
-  animation: spark-pop 0.4s ease-out forwards;
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ripple-glow) 70%, transparent);
+  animation: spark-pop 0.35s ease-out forwards;
 }
 @keyframes ripple-expand {
   0% { transform: translate(-50%, -50%) scale(0); opacity: 0.95; }
@@ -150,6 +155,22 @@ body {
 }
 button, input, textarea, select { font-family: inherit; font-size: 15px; color: inherit; }
 button { cursor: pointer; }
+
+/* ---------- 自定义壁纸：设置了就顶替漂浮光斑，毛玻璃卡片盖在照片上 ---------- */
+#wallpaper-layer {
+  position: fixed; inset: 0; z-index: 0;
+  background-size: cover; background-position: center;
+  opacity: 0; transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+#wallpaper-layer.is-active { opacity: 1; }
+#wallpaper-layer::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+html[data-theme="soft-dark"] #wallpaper-layer::after { background: rgba(0, 0, 0, 0.4); }
+html.has-wallpaper .bg-orbs { display: none; }
 
 /* ---------- 漂浮光斑背景（玻璃拟态的模糊对象） ---------- */
 .bg-orbs {
@@ -247,7 +268,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 }
 .btn-primary {
   background: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent-strong);
   border: none;
   border-radius: var(--radius-sm);
   padding: 11px 18px;
@@ -443,7 +464,8 @@ html[data-theme="soft-dark"] .msg-bubble {
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
 }
-.msg-bubble.from-user { margin-left: auto; background: var(--user-bubble-bg); }
+.msg-bubble.from-user { margin-left: auto; background: var(--user-bubble-bg); color: var(--user-bubble-text); }
+.msg-bubble.from-user .msg-meta, .msg-bubble.from-user .msg-act { color: color-mix(in srgb, var(--user-bubble-text) 65%, transparent); }
 .msg-bubble.from-ai { margin-right: auto; }
 .msg-bubble.is-archived { opacity: 0.5; }
 
@@ -601,6 +623,17 @@ html[data-theme="soft-dark"] .msg-bubble {
 }
 .more-section h3 { margin: 0 0 14px; font-size: 15px; }
 .section-hint { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
+.wallpaper-row { display: flex; gap: 12px; }
+.wallpaper-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.wallpaper-preview {
+  width: 100%; aspect-ratio: 3/4; border-radius: var(--radius-md);
+  background: var(--surface-2); background-size: cover; background-position: center;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--text-muted);
+}
+.wallpaper-label { font-size: 12.5px; font-weight: 600; }
+.wallpaper-actions { display: flex; align-items: center; gap: 10px; }
 .conn-list { margin-bottom: 10px; }
 .conn-row { display: flex; align-items: center; justify-content: space-between; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }
 .conn-name { font-weight: 600; font-size: 13.5px; }
@@ -639,7 +672,7 @@ html[data-theme="soft-dark"] .msg-bubble {
 .context-preview-body { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px; font-size: 11px; max-height: 30vh; overflow: auto; white-space: pre-wrap; margin-bottom: 6px; }
 
 /* ---------- 主动消息草稿 ---------- */
-.draft-tag { font-size: 9.5px; background: var(--accent-strong); color: #fff; padding: 1px 6px; border-radius: 6px; font-weight: 400; }
+.draft-tag { font-size: 9.5px; background: var(--accent-strong); color: var(--on-accent-strong); padding: 1px 6px; border-radius: 6px; font-weight: 400; }
 .draft-banner { display: flex; flex-direction: column; gap: 6px; }
 .draft-actions { display: flex; gap: 10px; }
 
@@ -701,7 +734,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   font-size: clamp(34px, 11vw, 50px);
   line-height: 1;
   color: #fdfaf3;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.45), 0 0 46px rgba(200, 180, 140, 0.3);
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28);
 }
 @media (prefers-reduced-motion: reduce) {
   .splash-sparkle { display: none; }

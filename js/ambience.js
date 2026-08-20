@@ -6,7 +6,7 @@ const Ambience = (() => {
     document.addEventListener('pointerdown', (e) => {
       if (e.button !== undefined && e.button !== 0) return;
       const target = e.target.closest('button, a, input, textarea, select, [role="button"]') || e.target;
-      const size = Math.max(target?.offsetWidth || 0, target?.offsetHeight || 0, 90) * 1.5;
+      const size = Math.max(target?.offsetWidth || 0, target?.offsetHeight || 0, 46) * 0.95;
 
       const wave = document.createElement('div');
       wave.className = 'ripple-wave';

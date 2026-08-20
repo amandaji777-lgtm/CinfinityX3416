@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div id="wallpaper-layer" aria-hidden="true"></div>
   <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
   <div id="ambient-corner" class="ambient-corner" aria-hidden="true"></div>
 
@@ -37,7 +38,7 @@
               <path d="M0,-7.5 A7.5,7.5 0 1,1 0,7.5 A3.2,7.5 0 1,0 0,-7.5 Z" fill="#fff"/>
             </g>
             <g id="moonFull">
-              <circle r="7.5" fill="#fdf6e8" fill-opacity="0.95" stroke="#fff" stroke-opacity="0.4" stroke-width="0.6"/>
+              <circle r="7.5" fill="#ffffff" fill-opacity="0.95" stroke="#fff" stroke-opacity="0.4" stroke-width="0.6"/>
             </g>
             <g id="moonWane">
               <circle r="7.5" fill="#fff" fill-opacity="0.14"/>
@@ -89,28 +90,33 @@
     </main>
 
     <nav class="bottom-nav">
-      <button class="nav-btn" data-tab="chat" title="对话" aria-label="对话">
-        <span class="nav-icon"><svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-opacity="0.5" stroke-width="1"/>
+      <button class="nav-btn" data-tab="chat" title="Home" aria-label="Home">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 6.5V4M12 20v-2.5M17.5 12H20M4 12h2.5M8.6 8.6L6.9 6.9M17.1 17.1l-1.7-1.7M8.6 15.4l-1.7 1.7M17.1 6.9l-1.7 1.7"/>
+          <path d="M4.3 8a5.2 5.2 0 0 0 0 8"/>
+          <path d="M19.7 8a5.2 5.2 0 0 1 0 8"/>
         </svg></span>
       </button>
-      <button class="nav-btn" data-tab="bookmarks" title="收藏" aria-label="收藏">
-        <span class="nav-icon"><svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.15"/>
-          <path d="M12,4 A8,8 0 1,1 12,20 A3.4,8 0 1,0 12,4 Z" fill="currentColor"/>
+      <button class="nav-btn" data-tab="bookmarks" title="Keepsakes" aria-label="Keepsakes">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 4c.3 3 .7 4.7 4 5-3.3.3-3.7 2-4 5-.3-3-.7-4.7-4-5 3.3-.3 3.7-2 4-5Z"/>
+          <g transform="translate(6.5,16.5) scale(0.55)"><path d="M0,-7.5 A7.5,7.5 0 1,1 0,7.5 A3.2,7.5 0 1,0 0,-7.5 Z" fill="currentColor" stroke="none"/></g>
         </svg></span>
       </button>
-      <button class="nav-btn" data-tab="mood" title="心情" aria-label="心情">
-        <span class="nav-icon"><svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.92" stroke="currentColor" stroke-opacity="0.3" stroke-width="0.6"/>
+      <button class="nav-btn" data-tab="mood" title="Glow" aria-label="Glow">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round">
+          <g transform="translate(11,12) scale(0.72) rotate(20)"><path d="M0,-7.5 A7.5,7.5 0 1,1 0,7.5 A3.2,7.5 0 1,0 0,-7.5 Z" fill="currentColor" stroke="none"/></g>
+          <circle cx="19" cy="7" r="0.6" fill="currentColor" stroke="none"/>
+          <circle cx="20.5" cy="10.5" r="0.4" fill="currentColor" stroke="none"/>
+          <circle cx="18" cy="12.5" r="0.5" fill="currentColor" stroke="none"/>
         </svg></span>
       </button>
-      <button class="nav-btn" data-tab="more" title="更多" aria-label="更多">
-        <span class="nav-icon"><svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.15"/>
-          <g transform="translate(24,0) scale(-1,1)">
-            <path d="M12,4 A8,8 0 1,1 12,20 A3.4,8 0 1,0 12,4 Z" fill="currentColor"/>
-          </g>
+      <button class="nav-btn" data-tab="more" title="Settings" aria-label="Settings">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+          <path d="M9 9l6 6M15 9l-6 6"/>
+          <circle cx="18.5" cy="6" r="0.7" fill="currentColor" stroke="none"/>
+          <circle cx="6" cy="18" r="0.7" fill="currentColor" stroke="none"/>
         </svg></span>
       </button>
     </nav>
@@ -121,6 +127,7 @@
   <script src="js/ai.js"></script>
   <script src="js/backup.js"></script>
   <script src="js/pages.js"></script>
+  <script src="js/wallpaper.js"></script>
   <script src="js/resources.js"></script>
   <script src="js/chat.js"></script>
   <script src="js/memory.js"></script>
