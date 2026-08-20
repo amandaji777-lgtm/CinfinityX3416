@@ -7,7 +7,6 @@ const Mood = (() => {
   let range = 'day'; // day | week | month | year
   let anchorDate = todayStr();
   let dayCursor = todayStr();
-  let subview = 'emotion'; // emotion | cycle
 
   async function init(rootEl) {
     container = rootEl;
@@ -30,37 +29,17 @@ const Mood = (() => {
     container.innerHTML = `
       <div class="mood-view">
         <div class="view-header"><h2>能量波动</h2></div>
-        <div class="seg-row sub-tabs">
-          <label class="seg-option"><input type="radio" name="subview" value="emotion" ${subview === 'emotion' ? 'checked' : ''}><span>情绪</span></label>
-          <label class="seg-option"><input type="radio" name="subview" value="cycle" ${subview === 'cycle' ? 'checked' : ''}><span>潮汐</span></label>
+        <div class="mood-add-row"><button class="btn-secondary" id="btn-add-mood">＋ 记录此刻</button></div>
+        <div class="seg-row range-tabs">
+          ${['day', 'week', 'month', 'year'].map((r) => `
+            <label class="seg-option"><input type="radio" name="range" value="${r}" ${range === r ? 'checked' : ''}><span>${rangeLabel(r)}</span></label>
+          `).join('')}
         </div>
-        <div id="mood-sub-body"></div>
+        <div id="mood-body">${renderBody()}</div>
       </div>
     `;
-    container.querySelectorAll('input[name=subview]').forEach((el) => {
-      el.addEventListener('change', (e) => { subview = e.target.value; render(); });
-    });
-
-    const subBody = container.querySelector('#mood-sub-body');
-    if (subview === 'cycle') {
-      if (window.Cycle) Cycle.init(subBody);
-      return;
-    }
-    renderEmotion(subBody);
-  }
-
-  function renderEmotion(subBody) {
-    subBody.innerHTML = `
-      <div class="mood-add-row"><button class="btn-secondary" id="btn-add-mood">＋ 记录此刻</button></div>
-      <div class="seg-row range-tabs">
-        ${['day', 'week', 'month', 'year'].map((r) => `
-          <label class="seg-option"><input type="radio" name="range" value="${r}" ${range === r ? 'checked' : ''}><span>${rangeLabel(r)}</span></label>
-        `).join('')}
-      </div>
-      <div id="mood-body">${renderBody()}</div>
-    `;
-    subBody.querySelector('#btn-add-mood').addEventListener('click', () => openEntryEditor(null));
-    subBody.querySelectorAll('input[name=range]').forEach((el) => {
+    container.querySelector('#btn-add-mood').addEventListener('click', () => openEntryEditor(null));
+    container.querySelectorAll('input[name=range]').forEach((el) => {
       el.addEventListener('change', (e) => { range = e.target.value; render(); });
     });
     bindBodyEvents();
@@ -112,12 +91,18 @@ const Mood = (() => {
     `;
   }
 
+  // 分层显示：每条记录占等宽的一段，而不是按时间点在 24 小时轴上定位——
+  // 后者在记录时间挨得很近（比如测试时几分钟内连续加了好几条）时，色块会被挤成
+  // 几乎看不见的窄条，超过两三条颜色就"消失"了。等宽分层保证每种颜色都占得到看得见的宽度。
   function buildDayGradient(dayEntries) {
     if (dayEntries.length === 0) return 'var(--surface-2)';
     if (dayEntries.length === 1) return dayEntries[0].color;
-    const stops = dayEntries.map((e) => {
-      const pct = minutesOfDay(e.time) / 1440 * 100;
-      return `${e.color} ${pct.toFixed(1)}%`;
+    const n = dayEntries.length;
+    const stops = [];
+    dayEntries.forEach((e, i) => {
+      const from = (i / n * 100).toFixed(2);
+      const to = ((i + 1) / n * 100).toFixed(2);
+      stops.push(`${e.color} ${from}%`, `${e.color} ${to}%`);
     });
     return `linear-gradient(90deg, ${stops.join(', ')})`;
   }
@@ -225,7 +210,7 @@ const Mood = (() => {
   }
 
   async function removeEntry(item) {
-    if (!confirm('删除这条心情记录？')) return;
+    if (!await UIDialog.confirm('删除这条心情记录？', { danger: true, okLabel: '删除' })) return;
     await DB.delete('moods', item.id);
     await refresh();
     if (window.Ambience) Ambience.refreshCorner();
@@ -261,10 +246,6 @@ const Mood = (() => {
     const year = d.getFullYear(), month = d.getMonth();
     const last = new Date(year, month + 1, 0).getDate();
     return Array.from({ length: last }, (_, i) => toDateStr(new Date(year, month, i + 1)));
-  }
-  function minutesOfDay(iso) {
-    const d = new Date(iso);
-    return d.getHours() * 60 + d.getMinutes();
   }
   function formatDateHuman(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');

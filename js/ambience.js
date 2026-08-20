@@ -6,7 +6,8 @@ const Ambience = (() => {
     document.addEventListener('pointerdown', (e) => {
       if (e.button !== undefined && e.button !== 0) return;
       const target = e.target.closest('button, a, input, textarea, select, [role="button"]') || e.target;
-      const size = Math.max(target?.offsetWidth || 0, target?.offsetHeight || 0, 46) * 0.95;
+      // 大卡片/整行按钮点下去时不该让水波盖住整块——先把参与尺寸计算的边长封顶，再缩小比例。
+      const size = Math.min(Math.max(target?.offsetWidth || 0, target?.offsetHeight || 0, 34), 70) * 0.6;
 
       const wave = document.createElement('div');
       wave.className = 'ripple-wave';

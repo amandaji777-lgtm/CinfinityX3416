@@ -93,12 +93,15 @@ const App = (() => {
 
   async function switchTab(tab) {
     currentTab = tab;
-    document.querySelectorAll('.nav-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+    // AI 资料库不在底部导航里（从"更多"点进去），视觉上把它归在"更多"的高亮状态下。
+    const highlightTab = tab === 'resources' ? 'more' : tab;
+    document.querySelectorAll('.nav-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === highlightTab));
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     const view = document.getElementById(`view-${tab}`);
     view.classList.add('active');
     if (tab === 'bookmarks') await Bookmarks.init(view);
     if (tab === 'mood') await Mood.init(view);
+    if (tab === 'cycle') await Cycle.init(view);
     if (tab === 'more') await More.init(view);
     if (tab === 'resources') await Resources.init(view);
     if (tab === 'chat' && Chat.refreshList) await Chat.refreshList();

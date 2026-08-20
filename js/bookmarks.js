@@ -128,7 +128,7 @@ const Bookmarks = (() => {
   }
 
   async function removeBookmark(item) {
-    if (!confirm('删除这条收藏？')) return;
+    if (!await UIDialog.confirm('删除这条收藏？', { danger: true, okLabel: '删除' })) return;
     await DB.delete('bookmarks', item.id);
     if (item.type === 'message' && item.messageId) {
       const msg = await DB.get('messages', item.messageId);

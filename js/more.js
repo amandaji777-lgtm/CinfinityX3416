@@ -1,4 +1,5 @@
-// "更多"页：工作台设置、API 连接管理、数据备份与说明。
+// "更多"页：一屏列表，每一行点开才是详细设置的整页表单——工作台设置、头像、
+// 自定义壁纸、AI 资料库入口、API 连接管理、数据备份与说明。
 const More = (() => {
   let container;
   let connections = [];
@@ -38,148 +39,143 @@ const More = (() => {
     }
   }
 
+  // ---------------- 顶层列表 ----------------
   function render() {
     const s = App.settings;
     rebuildWallpaperPreviews();
     rebuildUserAvatarPreview();
+    const hasWallpaper = wallpaperBlobs.light instanceof Blob || wallpaperBlobs['soft-dark'] instanceof Blob;
     container.innerHTML = `
       <div class="more-view">
         <div class="view-header"><h2>更多</h2></div>
-
-        <section class="more-section">
-          <h3>工作台设置</h3>
-          <form id="settings-form">
-            <div class="avatar-upload-row">
-              <div class="avatar-preview">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((s.nickname || '你')[0] || '你')}</div>
-              <div class="avatar-upload-actions">
-                <label class="btn-secondary file-btn">更换我的头像<input type="file" accept="image/*" id="user-avatar-input" hidden></label>
-                ${userAvatarPreviewUrl ? '<button type="button" class="msg-act" id="user-avatar-clear">移除头像</button>' : ''}
-              </div>
-            </div>
-            <label class="field"><span>工作台名称</span><input name="workspaceName" value="${escapeAttr(s.workspaceName || '')}" maxlength="20"></label>
-            <label class="field"><span>副标题</span><input name="subtitle" value="${escapeAttr(s.subtitle || '')}" maxlength="30"></label>
-            <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
-
-            <div class="field"><span>基础模式</span>
-              <div class="seg-row">
-                <label class="seg-option"><input type="radio" name="theme" value="light" ${s.theme !== 'soft-dark' ? 'checked' : ''}><span>白金</span></label>
-                <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${s.theme === 'soft-dark' ? 'checked' : ''}><span>黑银</span></label>
-              </div>
-            </div>
-
-            <fieldset class="fieldset"><legend>点按时的光辉颜色</legend>
-              <p class="section-hint">整体配色固定为白金/黑银这两种呼吸感玻璃质感，不再有其他配色方案；这里只能调"点击卡片/按钮时散开的那圈光晕"用什么颜色。</p>
-              <label class="field-inline"><input type="checkbox" name="useCustomColors" id="use-custom-colors" ${s.customAccent ? 'checked' : ''}><span>自定义光辉颜色</span></label>
-              <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || (s.theme === 'soft-dark' ? '#ececeb' : '#232320')}" ${s.customAccent ? '' : 'disabled'}></label>
-            </fieldset>
-
-            <label class="field-inline"><input type="checkbox" name="aiEnabled" ${s.aiEnabled !== false ? 'checked' : ''}><span>启用 AI 对话功能</span></label>
-            <label class="field-inline"><input type="checkbox" name="proactiveMessagesEnabled" ${s.proactiveMessagesEnabled ? 'checked' : ''}><span>启用角色主动消息（总开关，具体每个角色还要单独在对话设置里打开）</span></label>
-            <button type="submit" class="btn-primary">保存设置</button>
-          </form>
-        </section>
-
-        <section class="more-section">
-          <h3>外观 · 自定义壁纸</h3>
-          <p class="section-hint">白金和黑银可以各自设一张背景照片，毛玻璃卡片盖在上面（不会存进备份文件，换设备后需要重新上传）。</p>
-          <div class="wallpaper-row">
-            ${wallpaperItem('light', '白金')}
-            ${wallpaperItem('soft-dark', '黑银')}
-          </div>
-        </section>
-
-        <section class="more-section">
-          <h3>API 连接</h3>
-          <p class="section-hint">网页会员（ChatGPT Plus / Claude Pro / Gemini Advanced 等）通常不等于 API Key，需要用各家开发者平台生成的密钥。</p>
-          <div class="conn-list">
-            ${connections.length === 0 ? '<div class="empty-sub">还没有连接，点下面按钮添加一个</div>' : connections.map(connRow).join('')}
-          </div>
-          <button class="btn-secondary" id="btn-add-conn">＋ 添加连接</button>
-        </section>
-
-        <section class="more-section">
-          <h3>数据与备份</h3>
-          <div class="storage-info">
-            <div>数据库：shiguang-db（v${DB_VERSION}）</div>
-            <div>存储模式：仅本机（不上传云端）</div>
-            <div>最后备份：<span id="last-backup-at">读取中…</span></div>
-            <div>持久化存储权限：<span id="persist-status">读取中…</span></div>
-            ${storageInfo ? `<div>预计占用：约 ${formatBytes(storageInfo.usage)} / ${formatBytes(storageInfo.quota)}</div>` : ''}
-          </div>
-          <div class="record-counts" id="record-counts">统计中…</div>
-          <div class="backup-actions">
-            <button class="btn-secondary" id="btn-export">立即备份（导出 JSON）</button>
-            <label class="btn-secondary file-btn">
-              导入备份恢复
-              <input type="file" id="btn-import" accept="application/json" hidden>
-            </label>
-          </div>
-          <p class="section-hint">备份文件不包含 API Key（出于安全考虑）、自定义壁纸和头像（图片不适合塞进纯文本备份），恢复后需要重新填写密钥、重新上传壁纸和头像。</p>
-        </section>
-
-        <section class="more-section">
-          <h3>关于 · 使用说明</h3>
-          <div class="about-text">
-            <p><b>预览地址不是永久存储。</b>请把本应用"添加到主屏幕"安装为 PWA，并定期在上方导出 JSON 备份——更换浏览器、清理网站数据或卸载应用都可能导致本地数据无法访问。</p>
-            <p><b>AI 消息都会标注为"AI 生成"</b>，不代表真实人物，请理性看待对话内容。</p>
-            <p>更完整的教程见仓库根目录的 <code>README.md</code>。</p>
-          </div>
-        </section>
-      </div>
-    `;
-
-    bindEvents();
-    refreshCounts();
-  }
-
-  function wallpaperItem(theme, label) {
-    const url = wallpaperPreviewUrls[theme];
-    const idSafe = theme.replace(/[^a-z]/g, '');
-    return `
-      <div class="wallpaper-item">
-        <div class="wallpaper-preview" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '未设置'}</div>
-        <span class="wallpaper-label">${label}</span>
-        <div class="wallpaper-actions">
-          <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-wallpaper-input="${theme}" id="wallpaper-${idSafe}-input" hidden></label>
-          ${url ? `<button type="button" class="msg-act" data-wallpaper-clear="${theme}">清除</button>` : ''}
+        <div class="more-list">
+          <button type="button" class="more-row" id="row-avatar">
+            <span class="more-row-icon avatar-preview-sm">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((s.nickname || '你')[0] || '你')}</span>
+            <span class="more-row-body"><div class="more-row-label">头像</div><div class="more-row-sub">我的头像 · 角色头像</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
+          <button type="button" class="more-row" id="row-workspace">
+            <span class="more-row-body"><div class="more-row-label">工作台设置</div><div class="more-row-sub">${escapeHtml(s.workspaceName || '拾光')} · ${s.theme === 'soft-dark' ? '黑银' : '白金'}</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
+          <button type="button" class="more-row" id="row-wallpaper">
+            <span class="more-row-body"><div class="more-row-label">外观 · 自定义壁纸</div><div class="more-row-sub">${hasWallpaper ? '已设置' : '未设置，用默认光斑背景'}</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
+          <button type="button" class="more-row" id="row-resources">
+            <span class="more-row-body"><div class="more-row-label">AI 资料库</div><div class="more-row-sub">对方卡 · 我的卡 · 预设 · 世界书 · 长记忆</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
+          <button type="button" class="more-row" id="row-connections">
+            <span class="more-row-body"><div class="more-row-label">API 连接</div><div class="more-row-sub">${connections.length === 0 ? '还没有连接' : `${connections.length} 个连接`}</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
+          <button type="button" class="more-row" id="row-backup">
+            <span class="more-row-body"><div class="more-row-label">数据与备份</div><div class="more-row-sub" id="row-backup-sub">读取中…</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
+          <button type="button" class="more-row" id="row-about">
+            <span class="more-row-body"><div class="more-row-label">关于 · 使用说明</div></span>
+            <span class="more-row-chevron">›</span>
+          </button>
         </div>
       </div>
     `;
+    container.querySelector('#row-avatar').addEventListener('click', openAvatarPage);
+    container.querySelector('#row-workspace').addEventListener('click', openWorkspacePage);
+    container.querySelector('#row-wallpaper').addEventListener('click', openWallpaperPage);
+    container.querySelector('#row-resources').addEventListener('click', () => window.App.switchTab('resources'));
+    container.querySelector('#row-connections').addEventListener('click', openConnectionsPage);
+    container.querySelector('#row-backup').addEventListener('click', openBackupPage);
+    container.querySelector('#row-about').addEventListener('click', openAboutPage);
+    updateBackupRowSub();
   }
 
-  function connRow(c) {
-    return `
-      <div class="conn-row" data-id="${c.id}">
-        <div class="conn-info">
-          <div class="conn-name">${escapeHtml(c.name)}</div>
-          <div class="conn-sub">${PROVIDER_LABELS[c.provider] || c.provider} · ${escapeHtml(c.model || c.customUrl || '')}</div>
+  async function updateBackupRowSub() {
+    const lastBackupAt = await DB.getSetting('lastBackupAt');
+    const el = container.querySelector('#row-backup-sub');
+    if (el) el.textContent = lastBackupAt ? `最后备份 ${formatRelativeTime(lastBackupAt)}` : '还没有备份过';
+  }
+
+  // ---------------- 头像 ----------------
+  function openAvatarPage() {
+    const dialog = Pages.open('头像', `
+      <div class="more-section">
+        <h3>我的头像</h3>
+        <div class="avatar-upload-row">
+          <div class="avatar-preview">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((App.settings.nickname || '你')[0] || '你')}</div>
+          <div class="avatar-upload-actions">
+            <label class="btn-secondary file-btn">更换我的头像<input type="file" accept="image/*" id="user-avatar-input" hidden></label>
+            ${userAvatarPreviewUrl ? '<button type="button" class="msg-act" id="user-avatar-clear">移除头像</button>' : ''}
+          </div>
         </div>
-        <div class="conn-actions">
-          <button class="msg-act" data-act="test">测试</button>
-          <button class="msg-act" data-act="edit">编辑</button>
-          <button class="msg-act" data-act="delete">删除</button>
-        </div>
+        <p class="section-hint">会显示在你自己发的每条消息旁边。</p>
       </div>
-    `;
+      <div class="more-section">
+        <h3>角色头像</h3>
+        <p class="section-hint">每个"对方角色卡"的头像单独在 AI 资料库里设置——编辑一张角色卡，顶部就能上传专属头像。</p>
+        <button type="button" class="btn-secondary" id="avatar-goto-resources">去 AI 资料库设置角色头像</button>
+      </div>
+    `);
+    dialog.querySelector('#user-avatar-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
+      await Avatars.set(null, file);
+      await refreshUserAvatarBlob();
+      if (window.Chat) await window.Chat.refreshAvatars();
+      Pages.close(dialog);
+      render();
+      openAvatarPage();
+      toast('头像已更新');
+    });
+    dialog.querySelector('#user-avatar-clear')?.addEventListener('click', async () => {
+      await Avatars.clear(null);
+      await refreshUserAvatarBlob();
+      if (window.Chat) await window.Chat.refreshAvatars();
+      Pages.close(dialog);
+      render();
+      openAvatarPage();
+      toast('已移除头像');
+    });
+    dialog.querySelector('#avatar-goto-resources').addEventListener('click', () => {
+      Pages.close(dialog);
+      window.App.switchTab('resources');
+    });
   }
 
-  function bindEvents() {
-    const useCustomCb = container.querySelector('#use-custom-colors');
-    useCustomCb.addEventListener('change', (e) => {
-      container.querySelector('input[name=customAccent]').disabled = !e.target.checked;
-    });
+  // ---------------- 工作台设置 ----------------
+  function openWorkspacePage() {
+    const s = App.settings;
+    const dialog = Pages.open('工作台设置', `
+      <form id="settings-form">
+        <label class="field"><span>工作台名称</span><input name="workspaceName" value="${escapeAttr(s.workspaceName || '')}" maxlength="20"></label>
+        <label class="field"><span>副标题</span><input name="subtitle" value="${escapeAttr(s.subtitle || '')}" maxlength="30"></label>
+        <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
 
-    container.querySelectorAll('[data-wallpaper-input]').forEach((input) => {
-      input.addEventListener('change', (e) => handleWallpaperUpload(input.dataset.wallpaperInput, e));
-    });
-    container.querySelectorAll('[data-wallpaper-clear]').forEach((btn) => {
-      btn.addEventListener('click', () => handleWallpaperClear(btn.dataset.wallpaperClear));
-    });
+        <div class="field"><span>基础模式</span>
+          <div class="seg-row">
+            <label class="seg-option"><input type="radio" name="theme" value="light" ${s.theme !== 'soft-dark' ? 'checked' : ''}><span>白金</span></label>
+            <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${s.theme === 'soft-dark' ? 'checked' : ''}><span>黑银</span></label>
+          </div>
+        </div>
 
-    container.querySelector('#user-avatar-input').addEventListener('change', handleUserAvatarUpload);
-    container.querySelector('#user-avatar-clear')?.addEventListener('click', handleUserAvatarClear);
+        <fieldset class="fieldset"><legend>点按时的光辉颜色</legend>
+          <p class="section-hint">整体配色固定为白金/黑银这两种呼吸感玻璃质感，不再有其他配色方案；这里只能调"点击卡片/按钮时散开的那圈光晕"用什么颜色。</p>
+          <label class="field-inline"><input type="checkbox" name="useCustomColors" id="use-custom-colors" ${s.customAccent ? 'checked' : ''}><span>自定义光辉颜色</span></label>
+          <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || (s.theme === 'soft-dark' ? '#ececeb' : '#232320')}" ${s.customAccent ? '' : 'disabled'}></label>
+        </fieldset>
 
-    container.querySelector('#settings-form').addEventListener('submit', async (e) => {
+        <label class="field-inline"><input type="checkbox" name="aiEnabled" ${s.aiEnabled !== false ? 'checked' : ''}><span>启用 AI 对话功能</span></label>
+        <label class="field-inline"><input type="checkbox" name="proactiveMessagesEnabled" ${s.proactiveMessagesEnabled ? 'checked' : ''}><span>启用角色主动消息（总开关，具体每个角色还要单独在对话设置里打开）</span></label>
+        <div class="modal-actions"><button type="submit" class="btn-primary">保存设置</button></div>
+      </form>
+    `);
+    dialog.querySelector('#use-custom-colors').addEventListener('change', (e) => {
+      dialog.querySelector('input[name=customAccent]').disabled = !e.target.checked;
+    });
+    dialog.querySelector('#settings-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const useCustom = fd.get('useCustomColors') === 'on';
@@ -198,97 +194,199 @@ const More = (() => {
       App.applyTheme(updated);
       document.title = updated.workspaceName || '拾光';
       toast('已保存');
+      Pages.close(dialog);
+      render();
     });
+  }
 
-    container.querySelector('#btn-add-conn').addEventListener('click', () => openConnEditor(null));
-    container.querySelectorAll('.conn-row').forEach((el) => {
+  // ---------------- 自定义壁纸 ----------------
+  function openWallpaperPage() {
+    const dialog = Pages.open('外观 · 自定义壁纸', `
+      <div class="more-section">
+        <p class="section-hint">白金和黑银可以各自设一张背景照片，毛玻璃卡片盖在上面（不会存进备份文件，换设备后需要重新上传）。</p>
+        <div class="wallpaper-row">
+          ${wallpaperItem('light', '白金')}
+          ${wallpaperItem('soft-dark', '黑银')}
+        </div>
+      </div>
+    `);
+    bindWallpaperEvents(dialog);
+  }
+
+  function wallpaperItem(theme, label) {
+    const url = wallpaperPreviewUrls[theme];
+    const idSafe = theme.replace(/[^a-z]/g, '');
+    return `
+      <div class="wallpaper-item">
+        <div class="wallpaper-preview" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '未设置'}</div>
+        <span class="wallpaper-label">${label}</span>
+        <div class="wallpaper-actions">
+          <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-wallpaper-input="${theme}" id="wallpaper-${idSafe}-input" hidden></label>
+          ${url ? `<button type="button" class="msg-act" data-wallpaper-clear="${theme}">清除</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindWallpaperEvents(dialog) {
+    dialog.querySelectorAll('[data-wallpaper-input]').forEach((input) => {
+      input.addEventListener('change', (e) => handleWallpaperUpload(dialog, input.dataset.wallpaperInput, e));
+    });
+    dialog.querySelectorAll('[data-wallpaper-clear]').forEach((btn) => {
+      btn.addEventListener('click', () => handleWallpaperClear(dialog, btn.dataset.wallpaperClear));
+    });
+  }
+
+  async function handleWallpaperUpload(dialog, theme, e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
+    await Wallpaper.set(theme, file);
+    await refreshWallpaperBlobs();
+    Pages.close(dialog);
+    render();
+    openWallpaperPage();
+    toast('壁纸已更新');
+  }
+
+  async function handleWallpaperClear(dialog, theme) {
+    await Wallpaper.clear(theme);
+    await refreshWallpaperBlobs();
+    Pages.close(dialog);
+    render();
+    openWallpaperPage();
+    toast('已清除壁纸');
+  }
+
+  // ---------------- API 连接 ----------------
+  function openConnectionsPage() {
+    const dialog = Pages.open('API 连接', `
+      <div class="more-section">
+        <p class="section-hint">网页会员（ChatGPT Plus / Claude Pro / Gemini Advanced 等）通常不等于 API Key，需要用各家开发者平台生成的密钥。</p>
+        <div class="conn-list" id="conn-list">
+          ${connections.length === 0 ? '<div class="empty-sub">还没有连接，点下面按钮添加一个</div>' : connections.map(connRow).join('')}
+        </div>
+        <button class="btn-secondary" id="btn-add-conn">＋ 添加连接</button>
+      </div>
+    `);
+    bindConnectionsEvents(dialog);
+  }
+
+  function connRow(c) {
+    return `
+      <div class="conn-row" data-id="${c.id}">
+        <div class="conn-info">
+          <div class="conn-name">${escapeHtml(c.name)}</div>
+          <div class="conn-sub">${PROVIDER_LABELS[c.provider] || c.provider} · ${escapeHtml(c.model || c.customUrl || '')}</div>
+        </div>
+        <div class="conn-actions">
+          <button class="msg-act" data-act="test">测试</button>
+          <button class="msg-act" data-act="edit">编辑</button>
+          <button class="msg-act" data-act="delete">删除</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindConnectionsEvents(dialog) {
+    dialog.querySelector('#btn-add-conn').addEventListener('click', () => openConnEditor(null, dialog));
+    dialog.querySelectorAll('.conn-row').forEach((el) => {
       const id = el.dataset.id;
       const conn = connections.find((c) => c.id === id);
-      el.querySelector('[data-act="edit"]').addEventListener('click', () => openConnEditor(conn));
-      el.querySelector('[data-act="delete"]').addEventListener('click', () => deleteConn(conn));
+      el.querySelector('[data-act="edit"]').addEventListener('click', () => openConnEditor(conn, dialog));
+      el.querySelector('[data-act="delete"]').addEventListener('click', () => deleteConn(conn, dialog));
       el.querySelector('[data-act="test"]').addEventListener('click', () => testConn(conn));
     });
+  }
 
-    container.querySelector('#btn-export').addEventListener('click', async () => {
+  function refreshConnectionsListInPlace(dialog) {
+    const list = dialog.querySelector('#conn-list');
+    if (!list) return;
+    list.innerHTML = connections.length === 0 ? '<div class="empty-sub">还没有连接，点下面按钮添加一个</div>' : connections.map(connRow).join('');
+    bindConnectionsEvents(dialog);
+  }
+
+  // ---------------- 数据与备份 ----------------
+  function openBackupPage() {
+    const dialog = Pages.open('数据与备份', `
+      <div class="more-section">
+        <div class="storage-info">
+          <div>数据库：shiguang-db（v${DB_VERSION}）</div>
+          <div>存储模式：仅本机（不上传云端）</div>
+          <div>最后备份：<span id="last-backup-at">读取中…</span></div>
+          <div>持久化存储权限：<span id="persist-status">读取中…</span></div>
+          ${storageInfo ? `<div>预计占用：约 ${formatBytes(storageInfo.usage)} / ${formatBytes(storageInfo.quota)}</div>` : ''}
+        </div>
+        <div class="record-counts" id="record-counts">统计中…</div>
+        <div class="backup-actions">
+          <button class="btn-secondary" id="btn-export">立即备份（导出 JSON）</button>
+          <label class="btn-secondary file-btn">
+            导入备份恢复
+            <input type="file" id="btn-import" accept="application/json" hidden>
+          </label>
+        </div>
+        <p class="section-hint">备份文件不包含 API Key（出于安全考虑）、自定义壁纸和头像（图片不适合塞进纯文本备份），恢复后需要重新填写密钥、重新上传壁纸和头像。</p>
+      </div>
+    `);
+    dialog.querySelector('#btn-export').addEventListener('click', async () => {
       await Backup.exportToFile();
       toast('已导出备份文件');
-      refreshCounts();
+      refreshCountsIn(dialog);
+      updateBackupStatusIn(dialog);
+      updateBackupRowSub();
     });
-    container.querySelector('#btn-import').addEventListener('change', async (e) => {
+    dialog.querySelector('#btn-import').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try {
         const payload = await Backup.readFile(file);
         Backup.validate(payload);
-        if (!confirm('导入会用备份文件里的数据覆盖同 ID 的记录（不会清空其他现有数据）。确定要恢复吗？')) return;
+        if (!await UIDialog.confirm('导入会用备份文件里的数据覆盖同 ID 的记录（不会清空其他现有数据）。确定要恢复吗？')) return;
         const result = await Backup.importFromPayload(payload);
         toast(`恢复完成：设置${result.counts.settings}项、对话${result.counts.conversations}条、消息${result.counts.messages}条`);
         location.reload();
       } catch (err) {
-        alert('导入失败：' + err.message);
+        await UIDialog.alert('导入失败：' + err.message);
       }
     });
-
-    updateBackupStatus();
+    updateBackupStatusIn(dialog);
+    refreshCountsIn(dialog);
   }
 
-  async function handleWallpaperUpload(theme, e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
-    await Wallpaper.set(theme, file);
-    await refreshWallpaperBlobs();
-    render();
-    toast('壁纸已更新');
-  }
-
-  async function handleWallpaperClear(theme) {
-    await Wallpaper.clear(theme);
-    await refreshWallpaperBlobs();
-    render();
-    toast('已清除壁纸');
-  }
-
-  async function handleUserAvatarUpload(e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
-    await Avatars.set(null, file);
-    await refreshUserAvatarBlob();
-    render();
-    if (window.Chat) await window.Chat.refreshAvatars();
-    toast('头像已更新');
-  }
-
-  async function handleUserAvatarClear() {
-    await Avatars.clear(null);
-    await refreshUserAvatarBlob();
-    render();
-    if (window.Chat) await window.Chat.refreshAvatars();
-    toast('已移除头像');
-  }
-
-  async function updateBackupStatus() {
+  async function updateBackupStatusIn(dialog) {
     const lastBackupAt = await DB.getSetting('lastBackupAt');
-    container.querySelector('#last-backup-at').textContent = lastBackupAt ? formatRelativeTime(lastBackupAt) : '还没有备份过';
+    dialog.querySelector('#last-backup-at').textContent = lastBackupAt ? formatRelativeTime(lastBackupAt) : '还没有备份过';
     const persist = await DB.getSetting('persistentStorage');
-    const el = container.querySelector('#persist-status');
+    const el = dialog.querySelector('#persist-status');
     if (!persist) el.textContent = '未知';
     else if (!persist.supported) el.textContent = '浏览器不支持';
     else el.textContent = persist.granted ? '已获得持久化权限' : '未获得（浏览器仍可能在空间不足时清理数据）';
   }
 
-  async function refreshCounts() {
+  async function refreshCountsIn(dialog) {
     const [conv, msg, bm, mood] = await Promise.all([
       DB.count('conversations'), DB.count('messages'), DB.count('bookmarks'), DB.count('moods'),
     ]);
-    const el = container.querySelector('#record-counts');
+    const el = dialog.querySelector('#record-counts');
     if (el) el.textContent = `对话 ${conv} 条 · 消息 ${msg} 条 · 收藏 ${bm} 条 · 心情记录 ${mood} 条`;
   }
 
-  function openConnEditor(item) {
+  // ---------------- 关于 ----------------
+  function openAboutPage() {
+    Pages.open('关于 · 使用说明', `
+      <div class="more-section">
+        <div class="about-text">
+          <p><b>预览地址不是永久存储。</b>请把本应用"添加到主屏幕"安装为 PWA，并定期在"数据与备份"里导出 JSON 备份——更换浏览器、清理网站数据或卸载应用都可能导致本地数据无法访问。</p>
+          <p><b>AI 消息都会标注为"AI 生成"</b>，不代表真实人物，请理性看待对话内容。</p>
+          <p>更完整的教程见仓库根目录的 <code>README.md</code>。</p>
+        </div>
+      </div>
+    `);
+  }
+
+  // ---------------- 连接编辑 ----------------
+  function openConnEditor(item, parentDialog) {
     const isNew = !item;
     const dialog = Pages.open(isNew ? '添加连接' : '编辑连接', `
       <div class="risk-note">浏览器前端无法真正隐藏 API Key，密钥会用 Web Crypto 加密存在本机，但仍建议优先使用你自己的安全后端/Relay 转发请求。</div>
@@ -357,7 +455,7 @@ const More = (() => {
       toggleProviderFields();
     });
     dialog.querySelector('#conn-cancel').addEventListener('click', () => Pages.close(dialog));
-    dialog.querySelector('#conn-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteConn(item); });
+    dialog.querySelector('#conn-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteConn(item, parentDialog); });
     dialog.querySelector('#conn-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -392,15 +490,17 @@ const More = (() => {
       connections = await DB.getAll('connections');
       await Chat.refreshConnections();
       render();
+      if (parentDialog) refreshConnectionsListInPlace(parentDialog);
     });
   }
 
-  async function deleteConn(item) {
-    if (!confirm(`删除连接"${item.name}"？使用它的对话会变成未绑定状态。`)) return;
+  async function deleteConn(item, parentDialog) {
+    if (!await UIDialog.confirm(`删除连接"${item.name}"？使用它的对话会变成未绑定状态。`, { danger: true, okLabel: '删除' })) return;
     await DB.delete('connections', item.id);
     connections = await DB.getAll('connections');
     await Chat.refreshConnections();
     render();
+    if (parentDialog) refreshConnectionsListInPlace(parentDialog);
   }
 
   async function testConn(item) {
@@ -411,7 +511,7 @@ const More = (() => {
       await provider.testConnection(item, apiKey);
       toast('连接成功 ✓');
     } catch (err) {
-      alert('连接测试失败：\n' + (err.message || err));
+      await UIDialog.alert('连接测试失败：\n' + (err.message || err));
     }
   }
 

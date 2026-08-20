@@ -79,7 +79,11 @@ const Resources = (() => {
     const list = byKind(activeKind);
     container.innerHTML = `
       <div class="resources-view">
-        <div class="view-header"><h2>AI 资料库</h2></div>
+        <div class="view-header">
+          <button class="btn-icon" id="res-back">←</button>
+          <h2>AI 资料库</h2>
+          <span></span>
+        </div>
         <div class="res-tabs">
           ${Object.entries(KIND_META).map(([k, m]) => `
             <button class="res-tab ${activeKind === k ? 'active' : ''}" data-kind="${k}">${m.short}</button>
@@ -95,6 +99,7 @@ const Resources = (() => {
         </div>
       </div>
     `;
+    container.querySelector('#res-back').addEventListener('click', () => window.App.switchTab('more'));
     container.querySelectorAll('.res-tab').forEach((btn) => {
       btn.addEventListener('click', () => { activeKind = btn.dataset.kind; render(); });
     });
@@ -208,11 +213,11 @@ const Resources = (() => {
         clearBtn.style.display = url ? '' : 'none';
       };
       refreshAvatarPreview();
-      dialog.querySelector('#res-avatar-input').addEventListener('change', (e) => {
+      dialog.querySelector('#res-avatar-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         e.target.value = '';
         if (!file) return;
-        if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+        if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
         pendingAvatarFile = file;
         pendingAvatarClear = false;
         refreshAvatarPreview();
@@ -229,9 +234,9 @@ const Resources = (() => {
       Pages.close(dialog);
     });
     dialog.querySelector('#res-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteResource(item); });
-    dialog.querySelector('#res-preview').addEventListener('click', () => {
+    dialog.querySelector('#res-preview').addEventListener('click', async () => {
       const name = dialog.querySelector('#res-name').value.trim();
-      if (!name) { alert('请填写资源名称'); return; }
+      if (!name) { await UIDialog.alert('请填写资源名称'); return; }
       const mode = dialog.querySelector('input[name=mode]:checked').value;
       let data, originalText = '', sourceType;
       if (mode === 'paste') {
@@ -403,7 +408,7 @@ const Resources = (() => {
   }
 
   async function deleteResource(item) {
-    if (!confirm(`删除"${item.name}"？正在使用它的对话不会自动清空绑定，只是会读取不到内容。`)) return;
+    if (!await UIDialog.confirm(`删除"${item.name}"？正在使用它的对话不会自动清空绑定，只是会读取不到内容。`, { danger: true, okLabel: '删除' })) return;
     await DB.delete('ai_resources', item.id);
     if (item.kind === 'character') await Avatars.clear(item.id);
     await refresh();
@@ -423,7 +428,7 @@ const Resources = (() => {
       // 导入预览校验，原始文件内容只读保留在 rawImport 里，不覆盖 originalText。
       openImportPreview(json, file.name);
     } catch (err) {
-      alert('导入失败：' + err.message);
+      await UIDialog.alert('导入失败：' + err.message);
     }
     e.target.value = '';
   }

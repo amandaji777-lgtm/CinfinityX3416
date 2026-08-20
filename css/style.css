@@ -28,11 +28,13 @@
   --glass-blur: blur(18px) saturate(1.5);
 
   /* 背景漂浮光斑：中性灰白，呼吸感贯穿全站，不分深浅色模式 */
-  --orb-1: #e9e9e6;
-  --orb-2: #dcdcd8;
-  --orb-3: #cfcfca;
-  --orb-opacity-low: 0.38;
-  --orb-opacity-high: 0.58;
+  /* 之前这三个灰阶跟底色太接近，磨砂玻璃几乎照不出纹理——调深调实一点，
+     液态玻璃卡片盖上去才能真的看出"透"。仍然是纯灰阶，不引入任何色相。 */
+  --orb-1: #d6d6d2;
+  --orb-2: #bcbcb6;
+  --orb-3: #a3a39c;
+  --orb-opacity-low: 0.5;
+  --orb-opacity-high: 0.78;
 
   --user-bubble-bg: var(--accent-strong);
   --user-bubble-text: var(--on-accent-strong);
@@ -75,12 +77,12 @@ html[data-theme="soft-dark"] {
   border-radius: 50%;
   pointer-events: none;
   z-index: 400;
-  border: 1.5px solid var(--ripple-glow);
+  border: 1.2px solid var(--ripple-glow);
   background: radial-gradient(circle,
     color-mix(in srgb, var(--ripple-glow) 45%, transparent) 0%,
     color-mix(in srgb, var(--ripple-glow) 20%, transparent) 40%,
     transparent 72%);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--ripple-glow) 45%, transparent);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--ripple-glow) 40%, transparent);
   transform: translate(-50%, -50%) scale(0);
   animation: ripple-expand 0.55s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
 }
@@ -333,10 +335,17 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .field input, .field textarea, .field select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   color: var(--text);
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  background: var(--glass-bg-strong);
+  outline: none;
+  border-color: var(--accent-strong);
 }
 .field textarea { resize: vertical; }
 .field-inline { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13.5px; }
@@ -417,13 +426,14 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
   animation: modal-card-in 0.3s cubic-bezier(0.25, 0.8, 0.35, 1);
 }
 .modal-card h3 { margin: 0 0 14px; }
+.ui-dialog-message { white-space: pre-wrap; font-size: 14px; line-height: 1.6; margin: 0 0 4px; }
 @keyframes modal-overlay-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-card-in { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .risk-note { font-size: 12px; color: var(--text-muted); background: var(--surface-2); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 14px; }
 
 /* ---------- 对话列表 ---------- */
-.chat-list-view, .bookmarks-view, .mood-view, .more-view { display: flex; flex-direction: column; flex: 1; }
+.chat-list-view, .bookmarks-view, .mood-view, .more-view, .cycle-view, .resources-view { display: flex; flex-direction: column; flex: 1; }
 .conv-list { padding: 4px 12px 16px; }
 .conv-row {
   display: flex; align-items: center; gap: 12px;
@@ -599,7 +609,10 @@ html[data-theme="soft-dark"] .msg-bubble {
 .hm-cell-sm { border-radius: 4px; }
 
 /* ---------- 潮汐（生理周期记录） ---------- */
-.cycle-view { padding: 0 16px 24px; }
+.cycle-body { padding: 0 16px 24px; }
+.cal-dot { position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
+.cycle-start-row { margin-top: 4px; }
+.cycle-start-row .btn-secondary { width: 100%; margin-bottom: 8px; }
 .cycle-card {
   background: var(--glass-bg); border: 1px solid var(--glass-border);
   border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px; box-shadow: var(--glass-shadow);
@@ -649,6 +662,30 @@ html[data-theme="soft-dark"] .msg-bubble {
 }
 .more-section h3 { margin: 0 0 14px; font-size: 15px; }
 .section-hint { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
+
+/* 更多页改成列表：每块一行，点进去才是详细设置的整页表单，避免所有东西摊平堆一屏。 */
+.more-list { margin: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.more-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 14px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  text-align: left;
+  color: var(--text);
+}
+.more-row-icon {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; overflow: hidden;
+}
+.more-row-body { flex: 1; min-width: 0; }
+.more-row-label { font-size: 14.5px; font-weight: 600; }
+.more-row-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more-row-chevron { color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
+.avatar-preview-sm { width: 34px; height: 34px; font-size: 13px; }
 .wallpaper-row { display: flex; gap: 12px; }
 .wallpaper-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .wallpaper-preview {

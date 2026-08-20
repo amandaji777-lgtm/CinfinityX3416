@@ -135,7 +135,7 @@ const Memory = (() => {
       el.querySelector('[data-act="disable"]')?.addEventListener('click', async () => { m.stale = !m.stale; await DB.put('ai_memories', m); await refresh(conv.id); renderMemoryList(dialog, conv); });
       el.querySelector('[data-act="edit"]')?.addEventListener('click', () => openMemEditor(dialog, conv, m));
       el.querySelector('[data-act="delete"]')?.addEventListener('click', async () => {
-        if (!confirm('删除这条长记忆？')) return;
+        if (!await UIDialog.confirm('删除这条长记忆？', { danger: true, okLabel: '删除' })) return;
         await DB.delete('ai_memories', m.id);
         await refresh(conv.id);
         renderMemoryList(dialog, conv);

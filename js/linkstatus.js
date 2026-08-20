@@ -47,7 +47,7 @@ const LinkStatus = (() => {
       const row = rows.find((r) => r.id === id);
       el.querySelector('[data-act="edit"]').addEventListener('click', () => openEntryEditor(dialog, character, row));
       el.querySelector('[data-act="delete"]').addEventListener('click', async () => {
-        if (!confirm('删除这条记录？')) return;
+        if (!await UIDialog.confirm('删除这条记录？', { danger: true, okLabel: '删除' })) return;
         await DB.delete('link_daily_status', row.id);
         await renderList(dialog, character);
       });
