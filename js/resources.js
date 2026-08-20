@@ -79,11 +79,7 @@ const Resources = (() => {
     const list = byKind(activeKind);
     container.innerHTML = `
       <div class="resources-view">
-        <div class="view-header">
-          <button class="btn-icon" id="res-back">←</button>
-          <h2>AI 资料库</h2>
-          <span></span>
-        </div>
+        <div class="view-header"><h2>AI 资料库</h2></div>
         <div class="res-tabs">
           ${Object.entries(KIND_META).map(([k, m]) => `
             <button class="res-tab ${activeKind === k ? 'active' : ''}" data-kind="${k}">${m.short}</button>
@@ -99,7 +95,6 @@ const Resources = (() => {
         </div>
       </div>
     `;
-    container.querySelector('#res-back').addEventListener('click', () => window.App.switchTab('chat'));
     container.querySelectorAll('.res-tab').forEach((btn) => {
       btn.addEventListener('click', () => { activeKind = btn.dataset.kind; render(); });
     });

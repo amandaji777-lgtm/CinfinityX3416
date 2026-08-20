@@ -250,6 +250,26 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .nav-icon { display: flex; }
 .nav-icon svg { width: 23px; height: 23px; }
 
+/* 中间的 Home 悬浮突出，像月亮浮在导航胶囊上方——聊天入口永远在正中间、永远最显眼。 */
+.nav-btn.nav-btn-center {
+  width: 56px;
+  height: 56px;
+  margin: -18px 2px 0;
+  flex-shrink: 0;
+  background: var(--accent-strong);
+  color: var(--on-accent-strong);
+  border: 3px solid var(--bg);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--glass-border);
+  transition: background 0.25s, transform 0.2s;
+}
+.nav-btn.nav-btn-center.active,
+.nav-btn.nav-btn-center:not(.active) {
+  background: var(--accent-strong);
+  color: var(--on-accent-strong);
+}
+.nav-btn.nav-btn-center .nav-icon svg { width: 26px; height: 26px; }
+.nav-btn.nav-btn-center:active { transform: scale(0.94); }
+
 /* ---------- 通用组件 ---------- */
 .view-header {
   display: flex;
