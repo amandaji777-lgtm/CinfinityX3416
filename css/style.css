@@ -729,6 +729,14 @@ html[data-theme="soft-dark"] .msg-bubble {
   height: 100%;
   filter: drop-shadow(0 10px 34px rgba(0,0,0,0.5));
 }
+/* 无限符号项链上的月相依次"点亮"，像追光灯一样绕环一圈——不是单独的小光点沿线滑动。 */
+.chase-moon {
+  animation: moon-chase 3.9s linear infinite;
+}
+@keyframes moon-chase {
+  0%, 89%, 100% { opacity: 0.55; filter: none; }
+  4% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255,255,255,0.85)) brightness(1.25); }
+}
 .splash-welcome {
   font-family: "Pinyon Script", "Brush Script MT", cursive;
   font-size: clamp(34px, 11vw, 50px);
@@ -737,7 +745,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28);
 }
 @media (prefers-reduced-motion: reduce) {
-  .splash-sparkle { display: none; }
+  .chase-moon { animation: none; opacity: 0.85; }
 }
 @keyframes splash-fade-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
