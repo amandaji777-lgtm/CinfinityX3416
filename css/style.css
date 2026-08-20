@@ -447,6 +447,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .conv-avatar {
   width: 42px; height: 42px; border-radius: 50%;
   background: var(--accent);
+  border: 1px solid var(--glass-border);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700;
   flex-shrink: 0;
@@ -516,6 +517,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   width: 26px; height: 26px; flex-shrink: 0;
   border-radius: 50%;
   background: var(--accent);
+  border: 1px solid var(--glass-border);
   color: var(--text);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600;
@@ -678,6 +680,7 @@ html[data-theme="soft-dark"] .msg-bubble {
 .more-row-icon {
   width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%;
   background: var(--accent);
+  border: 1px solid var(--glass-border);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 700; overflow: hidden;
 }
@@ -729,7 +732,7 @@ html[data-theme="soft-dark"] .msg-bubble {
 .res-toolbar { display: flex; gap: 8px; padding: 0 16px 10px; flex-shrink: 0; }
 .res-list { padding: 0 16px 16px; }
 .res-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 10px; box-shadow: var(--glass-shadow); }
-.res-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.res-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .res-card-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .res-card-avatar { width: 28px; height: 28px; font-size: 13px; }
 .res-source-tag { font-size: 10px; color: var(--text-muted); background: var(--surface-2); padding: 2px 7px; border-radius: 6px; flex-shrink: 0; }
