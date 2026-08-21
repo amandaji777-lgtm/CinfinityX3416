@@ -148,7 +148,7 @@ const DB = {
 
   STORE_NAMES: [
     'settings', 'connections', 'conversations', 'messages', 'bookmarks', 'moods',
-    'ai_resources', 'ai_memories', 'link_daily_status', 'proactive_log', 'cycle_logs',
+    'ai_resources', 'ai_memories', 'link_daily_status', 'proactive_log',
   ],
 };
 

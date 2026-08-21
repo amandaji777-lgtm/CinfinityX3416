@@ -107,7 +107,6 @@ const App = (() => {
     view.classList.add('active');
     if (tab === 'bookmarks') await Bookmarks.init(view);
     if (tab === 'mood') await Mood.init(view);
-    if (tab === 'cycle') await Cycle.init(view);
     if (tab === 'more') await More.init(view);
     if (tab === 'resources') await Resources.init(view);
     if (tab === 'chat' && Chat.refreshList) await Chat.refreshList();
