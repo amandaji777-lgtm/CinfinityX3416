@@ -588,9 +588,51 @@ html[data-theme="soft-dark"] .msg-bubble {
   box-shadow: var(--glass-shadow);
 }
 .bm-card.is-stale { opacity: 0.7; }
+.view-header-actions { display: flex; align-items: center; gap: 10px; }
+.bm-view-toggle {
+  display: flex; padding: 2px; border-radius: 999px;
+  background: var(--surface-2);
+}
+.bm-view-btn {
+  width: 28px; height: 28px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--text-muted); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.bm-view-btn.active { background: var(--glass-bg-strong); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
+
+/* 记忆星空：静态排布，星星本身不动，不用 canvas 逐帧重绘。 */
+.bm-sky-hint { padding: 0 18px 10px; font-size: 12px; color: var(--text-muted); }
+.bm-sky {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px; padding: 4px 14px 24px;
+}
+.bm-star {
+  aspect-ratio: 1; border: 0; background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); padding: 4px;
+}
+.bm-star svg { width: 60%; height: 60%; }
+.bm-star.is-empty { opacity: 0.22; }
+.bm-star.is-empty svg { fill: none; stroke: currentColor; stroke-width: 1.2; }
+.bm-star.is-filled {
+  color: var(--accent-strong);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-strong) 45%, transparent));
+}
+.bm-star.is-filled:active { transform: scale(0.85); }
+.bm-star-j1 { transform: translateY(3px); }
+.bm-star-j2 { transform: translateY(-2px) scale(0.88); }
+.bm-star-j3 { transform: translateY(4px) scale(1.08); }
+.bm-star-j4 { transform: translateY(-3px); }
+.bm-star-j5 { transform: translateY(1px) scale(0.92); }
 .bm-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .bm-type-tag { font-size: 10.5px; background: var(--accent); padding: 2px 7px; border-radius: 6px; }
 .bm-title { font-weight: 600; font-size: 13.5px; }
+.bm-photo {
+  width: 100%; aspect-ratio: 16 / 10; border-radius: var(--radius-sm);
+  background-color: var(--surface-2); background-size: cover; background-position: center;
+  margin-bottom: 8px; opacity: 0; transition: opacity 0.3s ease;
+}
+.bm-photo.is-loaded { opacity: 1; }
 .bm-content { font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
 .bm-tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { font-size: 10.5px; background: var(--surface-2); padding: 2px 7px; border-radius: 6px; color: var(--text-muted); }
@@ -702,6 +744,15 @@ html[data-theme="soft-dark"] .more-scrim {
 }
 .wallpaper-label { font-size: 12.5px; font-weight: 600; }
 .wallpaper-actions { display: flex; align-items: center; gap: 10px; }
+.bm-photo-edit { display: flex; align-items: center; gap: 12px; }
+.bm-photo-preview {
+  width: 84px; height: 60px; flex-shrink: 0; border-radius: var(--radius-sm);
+  background-color: var(--surface-2); background-size: cover; background-position: center;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--text-muted);
+}
+.bm-photo-edit-actions { display: flex; flex-direction: column; gap: 6px; }
 .avatar-upload-row { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
 .avatar-preview {
   width: 60px; height: 60px; border-radius: 50%; flex-shrink: 0;
@@ -757,11 +808,29 @@ html[data-theme="soft-dark"] .more-scrim {
 .draft-actions { display: flex; gap: 10px; }
 
 /* ---------- 长记忆管理 ---------- */
-.mem-row { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 10px; }
-.mem-row.is-stale { opacity: 0.6; }
-.mem-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.tag-pending { background: #fff3cd; color: #7a5b00; }
-.tag-confirmed { background: var(--accent); }
+/* 长记忆审核卡：待确认的用蜡封图标强调，不用额外的颜色（跟全站"颜色只在点击光辉/
+   壁纸出现"的规矩一致），靠形状、阴影和留白的对比区分"待审核"和"已确认"。 */
+.mem-review-card {
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 10px;
+  box-shadow: var(--glass-shadow);
+}
+.mem-review-card.is-pending { border-color: color-mix(in srgb, var(--accent-strong) 30%, var(--glass-border)); }
+.mem-review-card.is-stale { opacity: 0.6; }
+.mem-review-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.mem-review-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
+  padding: 3px 9px 3px 3px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-muted);
+}
+.mem-review-badge.is-pending {
+  background: var(--accent-strong); color: var(--on-accent-strong);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.mem-review-badge.is-confirmed { padding-left: 9px; }
+.wax-seal-ic { width: 16px; height: 16px; flex-shrink: 0; }
+.btn-sm { padding: 5px 12px; font-size: 12.5px; border-radius: var(--radius-sm); }
 
 /* ---------- 每日链接状态 ---------- */
 .ls-row { display: flex; align-items: flex-start; gap: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }

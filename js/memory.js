@@ -128,7 +128,7 @@ const Memory = (() => {
     const rows = (await DB.getAllByIndex('ai_memories', 'conversationId', conv.id)).sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
     const listEl = dialog.querySelector('#mem-list');
     listEl.innerHTML = rows.length === 0 ? '<div class="empty-sub">还没有自动总结的长记忆</div>' : rows.map(memRow).join('');
-    listEl.querySelectorAll('.mem-row').forEach((el) => {
+    listEl.querySelectorAll('.mem-review-card').forEach((el) => {
       const id = el.dataset.id;
       const m = rows.find((r) => r.id === id);
       el.querySelector('[data-act="confirm"]')?.addEventListener('click', async () => { m.userConfirmed = true; await DB.put('ai_memories', m); await refresh(conv.id); renderMemoryList(dialog, conv); });
@@ -143,18 +143,34 @@ const Memory = (() => {
     });
   }
 
-  function memRow(m) {
+  // 待确认的长记忆用一枚蜡封图标强调——AI 悄悄总结出来的东西，过一眼再点开才真正生效，
+  // 而不是默默存下就直接被拿去用。已确认的换成一个简单的对勾徽章，视觉上一眼区分开。
+  function waxSeal() {
     return `
-      <div class="mem-row ${m.stale ? 'is-stale' : ''}" data-id="${m.id}">
-        <div class="mem-top">
-          <span class="tag ${m.userConfirmed ? 'tag-confirmed' : 'tag-pending'}">${m.userConfirmed ? '已确认' : '待确认'}</span>
+      <svg class="wax-seal-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9.2" fill="currentColor" stroke="none" opacity="0.14"/>
+        <circle cx="12" cy="12" r="9.2"/>
+        <path d="M12,5.4 L13.4,9.6 L17.8,9.6 L14.2,12.1 L15.6,16.3 L12,13.8 L8.4,16.3 L9.8,12.1 L6.2,9.6 L10.6,9.6 Z" fill="currentColor" stroke="none"/>
+      </svg>
+    `;
+  }
+
+  function memRow(m) {
+    const pending = !m.userConfirmed;
+    return `
+      <div class="mem-review-card ${pending ? 'is-pending' : ''} ${m.stale ? 'is-stale' : ''}" data-id="${m.id}">
+        <div class="mem-review-top">
+          <span class="mem-review-badge ${pending ? 'is-pending' : 'is-confirmed'}" title="${pending ? '待审核' : '已确认'}">
+            ${pending ? waxSeal() : '✓'}
+            <span>${pending ? '待审核' : '已确认'}</span>
+          </span>
           ${m.stale ? '<span class="tag">已停用</span>' : ''}
           <span class="bm-time">${formatRelativeTime(m.generatedAt)}</span>
         </div>
         <div class="bm-content">${escapeHtml(m.content)}</div>
         ${m.keywords?.length ? `<div class="bm-tags">${m.keywords.map((k) => `<span class="tag">#${escapeHtml(k)}</span>`).join('')}</div>` : ''}
         <div class="bm-card-actions">
-          ${!m.userConfirmed ? '<button class="msg-act" data-act="confirm">确认</button>' : ''}
+          ${pending ? '<button class="btn-primary btn-sm" data-act="confirm">批准</button>' : ''}
           <button class="msg-act" data-act="edit">编辑</button>
           <button class="msg-act" data-act="disable">${m.stale ? '恢复' : '停用'}</button>
           <button class="msg-act" data-act="delete">删除</button>
