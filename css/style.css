@@ -452,7 +452,7 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .risk-note { font-size: 12px; color: var(--text-muted); background: var(--surface-2); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 14px; }
 
 /* ---------- 对话列表 ---------- */
-.chat-list-view, .bookmarks-view, .mood-view, .more-view, .resources-view { display: flex; flex-direction: column; flex: 1; }
+.chat-list-view, .bookmarks-view, .mood-view, .more-view, .resources-view, .calendar-view { display: flex; flex-direction: column; flex: 1; }
 .conv-list { padding: 4px 12px 16px; }
 .conv-row {
   display: flex; align-items: center; gap: 12px;
@@ -661,14 +661,39 @@ html[data-theme="soft-dark"] .msg-bubble {
 .hm-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .hm-cell { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--surface-2); cursor: pointer; }
 .hm-cell.is-today { box-shadow: 0 0 0 2px var(--accent-strong) inset; }
-.hm-stripes { position: absolute; inset: 0; display: flex; flex-direction: column; }
-.hm-stripe { flex: 1; }
+.hm-stripes { position: absolute; inset: 0; }
 .hm-cell-label { position: absolute; right: 3px; bottom: 2px; font-size: 9px; color: rgba(0,0,0,0.35); text-shadow: 0 0 3px rgba(255,255,255,0.6); }
 .hm-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
 .year-month-block { margin-bottom: 14px; }
 .year-month-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
 .hm-grid-compact { grid-template-columns: repeat(10, 1fr); gap: 4px; }
 .hm-cell-sm { border-radius: 4px; }
+
+/* ---------- 日历/备注 ---------- */
+.cal-scroll { padding: 0 16px 24px; flex: 1; }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 22px; }
+.cal-cell {
+  position: relative; aspect-ratio: 1; border: none; border-radius: 10px;
+  background: var(--glass-bg); color: var(--text);
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.cal-cell.is-blank { background: transparent; pointer-events: none; }
+.cal-cell.is-today { box-shadow: 0 0 0 2px var(--accent-strong) inset; font-weight: 600; }
+.cal-cell.has-note { background: var(--glass-bg-strong); }
+.cal-cell:active { transform: scale(0.94); }
+.cal-cell-dot { position: absolute; bottom: 6px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-strong); }
+.cal-upcoming-title { font-weight: 600; margin-bottom: 10px; font-size: 14.5px; }
+.cal-upcoming-row {
+  display: flex; align-items: baseline; gap: 10px;
+  background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.cal-upcoming-date { font-size: 12px; color: var(--text-muted); flex-shrink: 0; width: 52px; }
+.cal-upcoming-text { font-size: 13.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cal-day-notes { margin-bottom: 14px; }
+.cal-day-note-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--glass-border); font-size: 13.5px; }
+.cal-day-note-row:last-child { border-bottom: 0; }
 
 /* ---------- 更多/设置 ---------- */
 .more-section {
@@ -684,7 +709,7 @@ html[data-theme="soft-dark"] .msg-bubble {
 
 /* 更多页：星野壁纸抽屉。canvas 画背景，玻璃卡片列表盖在上面——两套主题都是
    纯中性灰阶（黑银=星空月晕，白金=铂金晨光+柔雾），不引入任何暖色调。 */
-.more-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.more-view { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .more-sky { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; }
 .more-scrim {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -694,7 +719,10 @@ html[data-theme="soft-dark"] .more-scrim {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.4) 100%);
 }
 .more-scroll {
-  position: relative; z-index: 2; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  /* flex:1+min-height:0 在真机 Safari 上、跟同一个 flex 容器里的绝对定位兄弟元素
+     (.more-sky/.more-scrim) 搭一起，算出来的可滚动高度不可靠——实测会把底部内容
+     卡住滚不到（用户截图）。改成绝对定位精确撑满 .more-view，不再依赖 flex 计算。 */
+  position: absolute; inset: 0; z-index: 2; overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: calc(var(--safe-top) + 30px) 18px calc(var(--safe-bottom) + 110px);
   display: flex; flex-direction: column;
   mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
@@ -870,6 +898,18 @@ html[data-theme="soft-dark"] .more-scrim {
 }
 .splash-photo-bg.is-active ~ .splash-veil { opacity: 1; }
 
+.splash-datetime {
+  position: absolute; z-index: 2; left: 0; right: 0;
+  top: calc(var(--safe-top) + 42px);
+  text-align: center;
+  color: #fdfaf3;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
+  animation: splash-fade-in 1.1s ease both;
+}
+.splash-screen.is-light .splash-datetime { color: #201f1b; text-shadow: none; }
+.splash-time { font-size: clamp(46px, 15vw, 64px); font-weight: 600; line-height: 1; letter-spacing: 0.01em; }
+.splash-date { margin-top: 6px; font-size: 13px; letter-spacing: 0.06em; opacity: 0.78; }
+
 .splash-content {
   position: relative; z-index: 2;
   text-align: center;
@@ -935,10 +975,25 @@ html[data-theme="soft-dark"] .more-scrim {
 }
 .splash-screen.is-light .splash-bar { background: rgba(32, 31, 27, 0.4); }
 
+.splash-progress {
+  width: 120px; height: 3px; border-radius: 999px;
+  background: rgba(245, 238, 251, 0.22);
+  overflow: hidden;
+}
+.splash-screen.is-light .splash-progress { background: rgba(32, 31, 27, 0.14); }
+.splash-progress-fill {
+  height: 100%; width: 0%; border-radius: inherit;
+  background: rgba(245, 238, 251, 0.85);
+  transition: width 1.1s cubic-bezier(.3, .6, .2, 1);
+}
+.splash-screen.is-light .splash-progress-fill { background: rgba(32, 31, 27, 0.55); }
+
 @media (prefers-reduced-motion: reduce) {
   .splash-welcome { animation: none; }
   .splash-welcome.is-complete { animation: none; }
   .splash-chev { animation: none; }
+  .splash-datetime { animation: none; }
+  .splash-progress-fill { transition: none; }
 }
 
 /* ---------- Toast ---------- */

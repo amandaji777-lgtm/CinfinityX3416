@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xingji-shell-v3';
+const CACHE_NAME = 'xingji-shell-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ const APP_SHELL = [
   './js/linkstatus.js',
   './js/bookmarks.js',
   './js/mood.js',
+  './js/calendar.js',
   './js/backup.js',
   './js/more.js',
   './js/ambience.js',

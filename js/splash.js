@@ -9,6 +9,9 @@
   const home = document.getElementById('splash-home');
   const content = document.querySelector('.splash-content');
   const welcomeEl = document.getElementById('splash-welcome');
+  const timeEl = document.getElementById('splash-time');
+  const dateEl = document.getElementById('splash-date');
+  const progressFill = document.getElementById('splash-progress-fill');
   if (!root || !canvas) return;
 
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -116,9 +119,28 @@
     dismissed = true;
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener('resize', resize);
+    if (clockId) clearInterval(clockId);
     welcomeEl?.classList.add('is-complete');
     root.classList.add('splash-hide');
     setTimeout(() => root.remove(), 500);
+  }
+
+  // ---------------- 锁屏风格的真实日期时间：每分钟刷新一次即可 ----------------
+  let clockId = null;
+  const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  function updateClock() {
+    if (!timeEl || !dateEl) return;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    timeEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    dateEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 · ${WEEKDAYS[now.getDay()]}`;
+  }
+  updateClock();
+  clockId = setInterval(updateClock, 15000);
+
+  // ---------------- 加载进度条：纯氛围提示，短暂延迟后填满，不代表真实加载进度 ----------------
+  if (progressFill) {
+    requestAnimationFrame(() => { requestAnimationFrame(() => { progressFill.style.width = '100%'; }); });
   }
 
   // ---------------- 背景：主题纯色，或用户自定义的开屏照片 ----------------

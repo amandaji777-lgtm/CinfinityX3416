@@ -94,18 +94,15 @@ const Mood = (() => {
   // 分层显示：每条记录占等宽的一段，而不是按时间点在 24 小时轴上定位——
   // 后者在记录时间挨得很近（比如测试时几分钟内连续加了好几条）时，色块会被挤成
   // 几乎看不见的窄条，超过两三条颜色就"消失"了。等宽分层保证每种颜色都占得到看得见的宽度。
-  function buildDayGradient(dayEntries) {
+  // 色标只打在每段的中点（不重复打点），相邻颜色之间自然线性过渡，不再是生硬的色块。
+  function buildGradient(dayEntries, direction) {
     if (dayEntries.length === 0) return 'var(--surface-2)';
     if (dayEntries.length === 1) return dayEntries[0].color;
     const n = dayEntries.length;
-    const stops = [];
-    dayEntries.forEach((e, i) => {
-      const from = (i / n * 100).toFixed(2);
-      const to = ((i + 1) / n * 100).toFixed(2);
-      stops.push(`${e.color} ${from}%`, `${e.color} ${to}%`);
-    });
-    return `linear-gradient(90deg, ${stops.join(', ')})`;
+    const stops = dayEntries.map((e, i) => `${e.color} ${((i + 0.5) / n * 100).toFixed(2)}%`);
+    return `linear-gradient(${direction}, ${stops.join(', ')})`;
   }
+  function buildDayGradient(dayEntries) { return buildGradient(dayEntries, '90deg'); }
 
   function entryRow(e) {
     return `
@@ -125,10 +122,10 @@ const Mood = (() => {
 
   function heatmapCell(d, sizeClass) {
     const dayEntries = entriesForDate(d);
-    const stripes = dayEntries.map((e) => `<span class="hm-stripe" style="background:${e.color}"></span>`).join('');
+    const bg = dayEntries.length ? buildGradient(dayEntries, '180deg') : '';
     const label = sizeClass ? '' : `<span class="hm-cell-label">${d.slice(8, 10)}</span>`;
     return `<div class="hm-cell ${sizeClass || ''} ${d === todayStr() ? 'is-today' : ''}" data-date="${d}">
-      <span class="hm-stripes">${stripes}</span>${label}
+      <span class="hm-stripes" style="${bg ? `background:${bg}` : ''}"></span>${label}
     </div>`;
   }
 
