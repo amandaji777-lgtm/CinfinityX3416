@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shiguang-shell-v10';
+const CACHE_NAME = 'shiguang-shell-v11';
 const APP_SHELL = [
   './',
   './index.html',
@@ -25,7 +25,8 @@ const APP_SHELL = [
   './js/ambience.js',
   './js/splash.js',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/splash-moon.jpg'
 ];
 
 self.addEventListener('install', (event) => {

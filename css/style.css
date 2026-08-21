@@ -764,7 +764,7 @@ html[data-theme="soft-dark"] .msg-bubble {
 /* ---------- 每日链接状态 ---------- */
 .ls-row { display: flex; align-items: flex-start; gap: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }
 
-/* ---------- 开屏动画：黑色毛玻璃 + 月相无限符号链 + 流星 ---------- */
+/* ---------- 开屏动画：黑色毛玻璃 + 用户提供的月相项链插画 + magic-rings 脉冲光环 + 流星 ---------- */
 .splash-screen {
   position: fixed; inset: 0;
   z-index: 999;
@@ -786,43 +786,36 @@ html[data-theme="soft-dark"] .msg-bubble {
 .splash-badge {
   position: relative;
   width: clamp(240px, 74vw, 300px);
-  height: clamp(240px, 74vw, 300px);
+  aspect-ratio: 900 / 1041;
   margin: 0 auto 18px;
 }
-.splash-badge::before {
-  content: '';
-  position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.035);
-  border: 1px solid rgba(255,255,255,0.09);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 0 60px rgba(255,255,255,0.05) inset;
-}
-.splash-scene {
-  position: absolute;
-  inset: 0;
+.splash-moon-img {
+  position: relative;
+  display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
   filter: drop-shadow(0 10px 34px rgba(0,0,0,0.5));
 }
-/* 无限符号项链上的月相依次"点亮"，像追光灯一样绕环一圈——不是单独的小光点沿线滑动。 */
-.chase-moon {
-  animation: moon-chase 3.9s linear infinite;
+/* magic-rings 灵感：从badge中心持续脉冲扩散并淡出的光环，叠加在参考图自带的静态圈之外。 */
+.magic-ring {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 74%;
+  height: 74%;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.55);
+  box-shadow: 0 0 16px rgba(255,255,255,0.2), inset 0 0 16px rgba(255,255,255,0.08);
+  animation: ring-pulse 3.6s cubic-bezier(.22,.6,.35,1) infinite;
+  opacity: 0;
 }
-@keyframes moon-chase {
-  0%, 89%, 100% { opacity: 0.55; filter: none; }
-  4% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255,255,255,0.85)) brightness(1.25); }
-}
-.splash-sparkle {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: sparkle-twinkle 2.6s ease-in-out infinite;
-}
-@keyframes sparkle-twinkle {
-  0%, 100% { opacity: 0.25; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1.15); }
+.magic-ring:nth-of-type(2) { animation-delay: 1.2s; }
+.magic-ring:nth-of-type(3) { animation-delay: 2.4s; }
+@keyframes ring-pulse {
+  0% { transform: scale(0.8); opacity: 0; }
+  14% { opacity: 0.85; }
+  100% { transform: scale(2.1); opacity: 0; }
 }
 .splash-welcome {
   font-family: "Pinyon Script", "Brush Script MT", cursive;
@@ -845,8 +838,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   100% { transform: translateY(0) scale(1); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .chase-moon { animation: none; opacity: 0.85; }
-  .splash-sparkle { animation: none; opacity: 0.7; }
+  .magic-ring { animation: none; opacity: 0; }
   .splash-welcome { animation: none; }
   .splash-welcome.is-complete { animation: none; }
 }
