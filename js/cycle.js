@@ -1,12 +1,12 @@
-// 潮汐：例假/生理周期记录，独立分区。内部分三块：概览（当前阶段+快速操作）、
-// 日历（按月看哪几天记录过、流量强弱）、记录（历史列表+周期开始日期管理）。
+// 潮汐：例假/生理周期记录，独立分区。主屏是当前阶段概览+快速记录，
+// "日历"和"记录历史"是点进去才展开的独立窗口（仿更多页的抽屉模式），
+// 不再是藏在同一屏里、切换后旧内容消失不见的三个子 tab。
 // 纯本地记录，不做任何医学诊断或建议。
 const Cycle = (() => {
   let container;
   let logs = [];
   let startDates = []; // 周期开始日期，倒序（最近的在前）
   let cycleLength = 28;
-  let subview = 'overview'; // overview | calendar | history
   let calCursor = todayStr();
 
   async function init(rootEl) {
@@ -82,42 +82,62 @@ const Cycle = (() => {
   }
 
   function render() {
+    const info = cycleInfo();
     container.innerHTML = `
       <div class="cycle-view">
         <div class="view-header"><h2>潮汐</h2></div>
-        <div class="seg-row sub-tabs">
-          <label class="seg-option"><input type="radio" name="cyclesub" value="overview" ${subview === 'overview' ? 'checked' : ''}><span>概览</span></label>
-          <label class="seg-option"><input type="radio" name="cyclesub" value="calendar" ${subview === 'calendar' ? 'checked' : ''}><span>日历</span></label>
-          <label class="seg-option"><input type="radio" name="cyclesub" value="history" ${subview === 'history' ? 'checked' : ''}><span>记录</span></label>
+        <div class="cycle-scroll">
+          ${info ? cycleHeaderHTML(info) : cycleEmptyHTML()}
+          <div class="cycle-actions">
+            <button class="btn-primary" id="btn-log-today">＋ 记录今天</button>
+          </div>
+          ${startDates.length ? cycleProgressHTML(info) : ''}
+          <nav class="more-glass-list cycle-nav-list">
+            <button type="button" class="more-row" id="row-cal">
+              <span class="more-row-icon">${cycleIcon('calendar')}</span>
+              <span class="more-row-body"><div class="more-row-label">日历</div><div class="more-row-sub">See the whole month</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-history">
+              <span class="more-row-icon">${cycleIcon('history')}</span>
+              <span class="more-row-body"><div class="more-row-label">记录历史</div><div class="more-row-sub">${logs.length ? `${logs.length} 条每日记录` : 'Nothing logged yet'}</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-mark-start">
+              <span class="more-row-icon">${cycleIcon('mark')}</span>
+              <span class="more-row-body"><div class="more-row-label">${info ? '今天是新一次周期第一天' : '标记周期第一天'}</div><div class="more-row-sub">Mark day one</div></span>
+            </button>
+          </nav>
+          <p class="section-hint">"标记周期第一天"只用来估算当前阶段、预测下一次日期；"记录今天"写的是流量/疼痛等每日细节，跟今天是不是周期第一天无关——两个都可以记，互不影响。</p>
         </div>
-        <div class="cycle-body" id="cycle-body">${renderSub()}</div>
       </div>
     `;
-    container.querySelectorAll('input[name=cyclesub]').forEach((el) => {
-      el.addEventListener('change', (e) => { subview = e.target.value; render(); });
-    });
-    bindSubEvents();
+    container.querySelector('#btn-log-today').addEventListener('click', () => openLogEditor(null));
+    container.querySelector('#row-cal').addEventListener('click', openCalendarPage);
+    container.querySelector('#row-history').addEventListener('click', openHistoryPage);
+    container.querySelector('#row-mark-start').addEventListener('click', startNewCycle);
   }
 
-  function renderSub() {
-    if (subview === 'calendar') return renderCalendar();
-    if (subview === 'history') return renderHistory();
-    return renderOverview();
+  function cycleIcon(name) {
+    const icons = {
+      calendar: '<rect x="3.4" y="4.8" width="17.2" height="15.2" rx="2"/><path d="M3.4 9.4h17.2M8 3.4v3M16 3.4v3"/>',
+      history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.4l3 2"/>',
+      mark: '<path d="M12 3.6c4.2 1.3 6.6 2.3 6.6 2.3v6c0 4-2.7 6.5-6.6 7.7-3.9-1.2-6.6-3.7-6.6-7.7v-6S7.8 4.9 12 3.6Z"/><path d="M9.2 12l1.9 1.9 3.7-3.9"/>',
+    };
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${icons[name] || ''}</svg>`;
   }
 
-  function renderOverview() {
-    const info = cycleInfo();
-    return `
-      ${info ? cycleHeaderHTML(info) : cycleEmptyHTML()}
-      <div class="cycle-actions">
-        <button class="btn-primary" id="btn-log-today">＋ 记录今天</button>
-      </div>
-      ${startDates.length ? cycleProgressHTML(info) : ''}
-      <div class="cycle-start-row">
-        <button class="btn-secondary" id="btn-new-cycle">📅 ${info ? '今天是新一次周期第一天' : '标记周期第一天'}</button>
-        <p class="section-hint">这个按钮只用来标记"这次周期从哪天开始"，用来估算当前阶段和预测下一次日期。跟上面"记录今天"是两回事——"记录今天"写的是流量/疼痛等每日细节，跟今天是不是周期第一天无关，两个都可以记、互不影响。</p>
-      </div>
-    `;
+  // ---------------- 日历：独立窗口 ----------------
+  function openCalendarPage() {
+    const dialog = Pages.open('日历', calendarBodyHTML());
+    bindCalendarEvents(dialog);
+  }
+
+  function refreshCalendarPageInPlace(dialog) {
+    const body = dialog.querySelector('.page-body');
+    if (!body) return;
+    body.innerHTML = calendarBodyHTML();
+    bindCalendarEvents(dialog);
   }
 
   function cycleHeaderHTML(info) {
@@ -152,7 +172,7 @@ const Cycle = (() => {
 
   const FLOW_COLORS = ['', '#f3c8d6', '#e79fc4', '#c2597a', '#8f3355'];
 
-  function renderCalendar() {
+  function calendarBodyHTML() {
     const dates = monthDatesOf(calCursor);
     const d = new Date(calCursor + 'T00:00:00');
     return `
@@ -166,6 +186,19 @@ const Cycle = (() => {
     `;
   }
 
+  function bindCalendarEvents(dialog) {
+    const body = dialog.querySelector('.page-body');
+    body.querySelector('#cal-prev').addEventListener('click', () => { calCursor = shiftMonth(calCursor, -1); refreshCalendarPageInPlace(dialog); });
+    body.querySelector('#cal-next').addEventListener('click', () => { calCursor = shiftMonth(calCursor, 1); refreshCalendarPageInPlace(dialog); });
+    body.querySelectorAll('.hm-cell[data-cal-date]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const date = el.dataset.calDate;
+        const existing = logs.find((l) => l.date === date);
+        openLogEditor(existing || null, date, () => refreshCalendarPageInPlace(dialog));
+      });
+    });
+  }
+
   function calCell(dateStr) {
     const log = logs.find((l) => l.date === dateStr);
     const dotColor = log ? FLOW_COLORS[Math.min(log.flow ?? 0, 4)] : '';
@@ -175,14 +208,38 @@ const Cycle = (() => {
     </div>`;
   }
 
-  function renderHistory() {
+  // ---------------- 记录历史：独立窗口 ----------------
+  function openHistoryPage() {
+    const dialog = Pages.open('记录历史', historyBodyHTML());
+    bindHistoryEvents(dialog);
+  }
+
+  function refreshHistoryPageInPlace(dialog) {
+    const body = dialog.querySelector('.page-body');
+    if (!body) return;
+    body.innerHTML = historyBodyHTML();
+    bindHistoryEvents(dialog);
+  }
+
+  function historyBodyHTML() {
     return `
       <div class="cycle-history">
         <div class="cycle-history-title">最近记录</div>
-        ${logs.length === 0 ? emptyState('还没有每日记录', '去"概览"点"记录今天"开始') : logs.slice(0, 20).map(logRow).join('')}
+        ${logs.length === 0 ? emptyState('还没有每日记录', '回到潮汐主页点"记录今天"开始') : logs.slice(0, 20).map(logRow).join('')}
       </div>
       ${startDates.length ? startDatesManagerHTML() : ''}
     `;
+  }
+
+  function bindHistoryEvents(dialog) {
+    const body = dialog.querySelector('.page-body');
+    body.querySelectorAll('.cycle-log-row[data-id]').forEach((el) => {
+      const log = logs.find((l) => l.id === el.dataset.id);
+      el.querySelector('[data-act="edit"]').addEventListener('click', () => openLogEditor(log, null, () => refreshHistoryPageInPlace(dialog)));
+    });
+    body.querySelectorAll('.cycle-log-row[data-start]').forEach((el) => {
+      el.querySelector('[data-act="remove-start"]').addEventListener('click', () => removeStartDate(el.dataset.start, dialog));
+    });
   }
 
   function logRow(log) {
@@ -213,28 +270,6 @@ const Cycle = (() => {
     `;
   }
 
-  function bindSubEvents() {
-    const body = container.querySelector('#cycle-body');
-    body.querySelector('#btn-new-cycle')?.addEventListener('click', startNewCycle);
-    body.querySelector('#btn-log-today')?.addEventListener('click', () => openLogEditor(null));
-    body.querySelector('#cal-prev')?.addEventListener('click', () => { calCursor = shiftMonth(calCursor, -1); render(); });
-    body.querySelector('#cal-next')?.addEventListener('click', () => { calCursor = shiftMonth(calCursor, 1); render(); });
-    body.querySelectorAll('.hm-cell[data-cal-date]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const date = el.dataset.calDate;
-        const existing = logs.find((l) => l.date === date);
-        openLogEditor(existing || null, date);
-      });
-    });
-    body.querySelectorAll('.cycle-log-row[data-id]').forEach((el) => {
-      const log = logs.find((l) => l.id === el.dataset.id);
-      el.querySelector('[data-act="edit"]').addEventListener('click', () => openLogEditor(log));
-    });
-    body.querySelectorAll('.cycle-log-row[data-start]').forEach((el) => {
-      el.querySelector('[data-act="remove-start"]').addEventListener('click', () => removeStartDate(el.dataset.start));
-    });
-  }
-
   async function startNewCycle() {
     if (!await UIDialog.confirm('标记今天为新一次周期的开始？')) return;
     const today = todayStr();
@@ -243,14 +278,15 @@ const Cycle = (() => {
     render();
   }
 
-  async function removeStartDate(dateStr) {
+  async function removeStartDate(dateStr, parentDialog) {
     if (!await UIDialog.confirm('删除这条周期开始日期记录？', { danger: true, okLabel: '删除' })) return;
     startDates = startDates.filter((d) => d !== dateStr);
     await DB.setSetting('periodStartDates', startDates);
     render();
+    if (parentDialog) refreshHistoryPageInPlace(parentDialog);
   }
 
-  function openLogEditor(item, presetDate) {
+  function openLogEditor(item, presetDate, onSaved) {
     const isNew = !item;
     const dialog = document.createElement('div');
     dialog.className = 'modal-overlay';
@@ -307,6 +343,7 @@ const Cycle = (() => {
       dialog.remove();
       await refresh();
       render();
+      if (onSaved) onSaved();
     });
     dialog.querySelector('#cycle-log-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -325,6 +362,7 @@ const Cycle = (() => {
       dialog.remove();
       await refresh();
       render();
+      if (onSaved) onSaved();
       toast('已保存');
     });
   }

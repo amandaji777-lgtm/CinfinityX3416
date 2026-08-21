@@ -731,7 +731,7 @@ const Chat = (() => {
 window.Chat = Chat;
 
 function emptyState(title, sub) {
-  return `<div class="empty-state">${flowerBloom(70)}<div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
+  return `<div class="empty-state"><div class="empty-title">${escapeHtml(title)}</div><div class="empty-sub">${escapeHtml(sub)}</div></div>`;
 }
 
 // 简约线稿玫瑰花饰，用在很小的空间里（比如按钮）。
@@ -747,25 +747,6 @@ function roseFlourish(size) {
       <path d="M0,7 V13"/>
       <path d="M0,9c-2 0-3.5 1.3-4 3"/>
       <path d="M0,11.5c1.8 0 3.2 1 3.6 2.6"/>
-    </svg>
-  `;
-}
-
-// 单朵线稿小花，用在空状态。之前拼了三朵花放在一起显得凌乱不连贯，改成只留一朵，
-// 花+一根茎+一片小叶子，干净利落。
-function flowerBloom(width) {
-  const height = Math.round(width * 60 / 50);
-  return `
-    <svg class="flower-spray" width="${width}" height="${height}" viewBox="8 0 50 60" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M35,21 C34,30 33,40 32,54"/>
-      <path d="M33,38 Q26,40 22,46"/>
-      <ellipse cx="20" cy="47" rx="4.5" ry="2.2" transform="rotate(-25 20 47)"/>
-      <path d="M35,20 C27,12.8 30.7,5.7 40.5,5.0 C47.5,11.8 45.7,19.6 35,20"/>
-      <path d="M35,20 C39.3,10.2 47.3,11.5 51.0,20.6 C46.7,29.3 38.7,30.1 35,20"/>
-      <path d="M35,20 C45.6,21.1 46.9,29.1 39.4,35.4 C29.7,34.0 26.6,26.6 35,20"/>
-      <path d="M35,20 C37.2,30.5 30.0,34.1 21.7,28.9 C20.1,19.3 26.1,14.0 35,20"/>
-      <path d="M35,20 C25.7,25.4 20.0,19.6 22.4,10.1 C31.0,5.6 38.0,9.7 35,20"/>
-      <circle cx="35" cy="20" r="1.4" fill="currentColor" stroke="none"/>
     </svg>
   `;
 }

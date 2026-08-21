@@ -1,6 +1,6 @@
 {
-  "name": "拾光 · 对话与心情记录",
-  "short_name": "拾光",
+  "name": "星纪 · 对话与心情记录",
+  "short_name": "星纪",
   "description": "AI 对话、记忆收藏与心情能量波动记录的个人小工作台",
   "start_url": "./index.html",
   "scope": "./",

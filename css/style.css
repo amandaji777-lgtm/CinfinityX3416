@@ -169,10 +169,22 @@ button { cursor: pointer; }
 #wallpaper-layer::after {
   content: '';
   position: absolute; inset: 0;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.4);
 }
-html[data-theme="soft-dark"] #wallpaper-layer::after { background: rgba(0, 0, 0, 0.4); }
+html[data-theme="soft-dark"] #wallpaper-layer::after { background: rgba(0, 0, 0, 0.5); }
 html.has-wallpaper .bg-orbs { display: none; }
+
+/* 壁纸开启时，照片本身可能很暗/很杂，玻璃卡片要更"实"一点才压得住，
+   否则文字会被照片细节吃掉——只在有壁纸时把玻璃调不透明、模糊调强。 */
+html.has-wallpaper {
+  --glass-bg: rgba(255, 255, 255, 0.74);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-blur: blur(26px) saturate(1.4);
+}
+html.has-wallpaper[data-theme="soft-dark"] {
+  --glass-bg: rgba(18, 18, 18, 0.74);
+  --glass-bg-strong: rgba(16, 16, 16, 0.88);
+}
 
 /* ---------- 漂浮光斑背景（玻璃拟态的模糊对象） ---------- */
 .bg-orbs {
@@ -327,7 +339,6 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .empty-sub { font-size: 13px; }
 .rose-flourish { color: var(--accent-strong); opacity: 0.55; margin-bottom: 10px; }
 .btn-icon .rose-flourish { width: 18px; height: 18px; margin-bottom: 0; opacity: 0.85; }
-.flower-spray { color: var(--text-muted); opacity: 0.6; margin-bottom: 14px; }
 
 /* ---------- 表单 ---------- */
 .field { display: block; margin-bottom: 12px; }
@@ -354,18 +365,30 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 
 .field-color input[type="color"] { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; background: var(--surface-2); cursor: pointer; }
 
-.seg-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.seg-row {
+  display: flex; gap: 2px; margin-bottom: 12px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
 .seg-option { flex: 1; text-align: center; }
 .seg-option input { position: absolute; opacity: 0; width: 0; height: 0; }
 .seg-option span {
   display: block;
-  padding: 9px 0;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  padding: 8px 0;
+  border-radius: calc(var(--radius-sm) - 3px);
   font-size: 13px;
   color: var(--text-muted);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
-.seg-option input:checked + span { background: var(--accent); color: var(--text); font-weight: 600; }
+.seg-option input:checked + span {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
 
 /* ---------- 整页表单：字段特别多的表单(API连接/资料库编辑/对话设置)用，
    从右侧滑入盖住当前视图、带返回按钮，内容区正常滚动，不再是局促的半截弹窗。
@@ -399,7 +422,11 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 }
 .page-header h2 { flex: 1; min-width: 0; margin: 0; font-size: 16.5px; }
 .page-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.page-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 18px calc(var(--safe-bottom) + 32px); }
+.page-body {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 18px calc(var(--safe-bottom) + 32px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
 .page-body .modal-actions { margin-top: 18px; }
 
 /* ---------- 弹窗 ---------- */
@@ -580,7 +607,6 @@ html[data-theme="soft-dark"] .msg-bubble {
 .bm-time { font-size: 10.5px; color: var(--text-muted); margin-right: auto; }
 
 /* ---------- 心情能量波动 ---------- */
-.sub-tabs { padding: 0 16px 12px; flex-shrink: 0; }
 .mood-add-row { padding: 0 16px 12px; }
 .mood-add-row .btn-secondary { width: 100%; }
 .range-tabs { padding: 0 16px 10px; flex-shrink: 0; }
@@ -611,10 +637,13 @@ html[data-theme="soft-dark"] .msg-bubble {
 .hm-cell-sm { border-radius: 4px; }
 
 /* ---------- 潮汐（生理周期记录） ---------- */
-.cycle-body { padding: 0 16px 24px; }
+.cycle-view { min-height: 0; }
+.cycle-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 0 16px calc(var(--safe-bottom) + 24px);
+}
 .cal-dot { position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
-.cycle-start-row { margin-top: 4px; }
-.cycle-start-row .btn-secondary { width: 100%; margin-bottom: 8px; }
+.cycle-nav-list { margin: 4px 0 14px; }
 .cycle-card {
   background: var(--glass-bg); border: 1px solid var(--glass-border);
   border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px; box-shadow: var(--glass-shadow);
@@ -665,30 +694,57 @@ html[data-theme="soft-dark"] .msg-bubble {
 .more-section h3 { margin: 0 0 14px; font-size: 15px; }
 .section-hint { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
 
-/* 更多页改成列表：每块一行，点进去才是详细设置的整页表单，避免所有东西摊平堆一屏。 */
-.more-list { margin: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
-.more-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 13px 14px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
-  text-align: left;
-  color: var(--text);
+/* 更多页：星野壁纸抽屉。canvas 画背景，玻璃卡片列表盖在上面——两套主题都是
+   纯中性灰阶（黑银=星空月晕，白金=铂金晨光+柔雾），不引入任何暖色调。 */
+.more-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.more-sky { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; }
+.more-scrim {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.16) 100%);
 }
-.more-row-icon {
-  width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%;
-  background: var(--accent);
+html[data-theme="soft-dark"] .more-scrim {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.4) 100%);
+}
+.more-scroll {
+  position: relative; z-index: 2; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: calc(var(--safe-top) + 30px) 18px calc(var(--safe-bottom) + 110px);
+  display: flex; flex-direction: column;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.more-hero { margin-bottom: 22px; text-shadow: 0 1px 18px rgba(0, 0, 0, 0.14); }
+.more-hero-name { margin: 0 0 2px; font-size: clamp(30px, 9vw, 38px); font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
+.more-hero-caption { margin: 0 0 12px; font-family: "Pinyon Script", cursive; font-size: 21px; color: var(--text-muted); }
+.more-hero-stat { margin: 0; font-size: 12.5px; letter-spacing: 0.04em; color: var(--text-muted); }
+.more-hero-stat b { font-size: 15px; font-weight: 700; color: var(--text); }
+
+.more-glass-list {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700; overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+.more-row {
+  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+  background: transparent; border: 0; border-top: 1px solid var(--glass-border);
+  padding: 14px 16px; color: var(--text);
+  transition: background 0.15s ease;
+}
+.more-row:first-child { border-top: 0; }
+.more-row:active { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.more-row-icon { flex: 0 0 auto; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.more-row-icon svg { width: 19px; height: 19px; display: block; }
+.more-row-icon.avatar-preview-sm {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--accent);
+  border: 1px solid var(--glass-border); font-size: 12px; font-weight: 700; overflow: hidden; color: var(--text);
 }
 .more-row-body { flex: 1; min-width: 0; }
-.more-row-label { font-size: 14.5px; font-weight: 600; }
-.more-row-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.more-row-chevron { color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
-.avatar-preview-sm { width: 34px; height: 34px; font-size: 13px; }
+.more-row-label { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
+.more-row-sub { font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more-row-chevron { color: var(--text-muted); font-size: 16px; flex-shrink: 0; opacity: 0.6; }
 .wallpaper-row { display: flex; gap: 12px; }
 .wallpaper-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .wallpaper-preview {
@@ -796,6 +852,10 @@ html[data-theme="soft-dark"] .msg-bubble {
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 10px 34px rgba(0,0,0,0.5));
+  /* 参考图本身是个矩形黑底文件，直接贴上去边缘会跟页面背景的渐变黑穿帮成一块方块——
+     用椭圆蒙版把最外圈淡出成透明，让页面自己的星空背景在边缘透出来，融合得更自然。 */
+  mask-image: radial-gradient(ellipse 85% 85% at 50% 48%, #000 80%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 48%, #000 80%, transparent 100%);
 }
 /* magic-rings 灵感：从badge中心持续脉冲扩散并淡出的光环，叠加在参考图自带的静态圈之外。 */
 .magic-ring {

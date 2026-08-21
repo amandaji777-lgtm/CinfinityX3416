@@ -1,5 +1,6 @@
-// "更多"页：一屏列表，每一行点开才是详细设置的整页表单——工作台设置、头像、
-// 自定义壁纸、AI 资料库入口、API 连接管理、数据备份与说明。
+// "更多"页：星野壁纸抽屉——顶部是工作台签名区，下面一块玻璃卡片列表，
+// 每一行点开才是详细设置的整页表单：工作台设置、头像、自定义壁纸、
+// AI 资料库入口、API 连接管理、数据备份与说明。
 const More = (() => {
   let container;
   let connections = [];
@@ -8,6 +9,9 @@ const More = (() => {
   let wallpaperPreviewUrls = { light: null, 'soft-dark': null };
   let userAvatarBlob = null;
   let userAvatarPreviewUrl = null;
+  let skyRaf = null;
+  let skyStars = [];
+  let skyResizeHandler = null;
 
   async function init(rootEl) {
     container = rootEl;
@@ -39,45 +43,58 @@ const More = (() => {
     }
   }
 
-  // ---------------- 顶层列表 ----------------
+  // ---------------- 顶层列表：星野壁纸抽屉 ----------------
   function render() {
     const s = App.settings;
     rebuildWallpaperPreviews();
     rebuildUserAvatarPreview();
-    const hasWallpaper = wallpaperBlobs.light instanceof Blob || wallpaperBlobs['soft-dark'] instanceof Blob;
     container.innerHTML = `
       <div class="more-view">
-        <div class="view-header"><h2>更多</h2></div>
-        <div class="more-list">
-          <button type="button" class="more-row" id="row-avatar">
-            <span class="more-row-icon avatar-preview-sm">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((s.nickname || '你')[0] || '你')}</span>
-            <span class="more-row-body"><div class="more-row-label">头像</div><div class="more-row-sub">我的头像 · 角色头像</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
-          <button type="button" class="more-row" id="row-workspace">
-            <span class="more-row-body"><div class="more-row-label">工作台设置</div><div class="more-row-sub">${escapeHtml(s.workspaceName || '拾光')} · ${s.theme === 'soft-dark' ? '黑银' : '白金'}</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
-          <button type="button" class="more-row" id="row-wallpaper">
-            <span class="more-row-body"><div class="more-row-label">外观 · 自定义壁纸</div><div class="more-row-sub">${hasWallpaper ? '已设置' : '未设置，用默认光斑背景'}</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
-          <button type="button" class="more-row" id="row-resources">
-            <span class="more-row-body"><div class="more-row-label">AI 资料库</div><div class="more-row-sub">对方卡 · 我的卡 · 预设 · 世界书 · 长记忆</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
-          <button type="button" class="more-row" id="row-connections">
-            <span class="more-row-body"><div class="more-row-label">API 连接</div><div class="more-row-sub">${connections.length === 0 ? '还没有连接' : `${connections.length} 个连接`}</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
-          <button type="button" class="more-row" id="row-backup">
-            <span class="more-row-body"><div class="more-row-label">数据与备份</div><div class="more-row-sub" id="row-backup-sub">读取中…</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
-          <button type="button" class="more-row" id="row-about">
-            <span class="more-row-body"><div class="more-row-label">关于 · 使用说明</div></span>
-            <span class="more-row-chevron">›</span>
-          </button>
+        <canvas class="more-sky" aria-hidden="true"></canvas>
+        <div class="more-scrim" aria-hidden="true"></div>
+        <div class="more-scroll">
+          <div class="more-hero">
+            <p class="more-hero-name">${escapeHtml(s.workspaceName || '星纪')}</p>
+            <p class="more-hero-caption">Star Chronicle</p>
+            ${heroStatHTML(s.createdAt)}
+          </div>
+          <nav class="more-glass-list">
+            <button type="button" class="more-row" id="row-avatar">
+              <span class="more-row-icon avatar-preview-sm">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((s.nickname || '你')[0] || '你')}</span>
+              <span class="more-row-body"><div class="more-row-label">头像</div><div class="more-row-sub">Choose your face</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-workspace">
+              <span class="more-row-icon">${moreIcon('workspace')}</span>
+              <span class="more-row-body"><div class="more-row-label">工作台设置</div><div class="more-row-sub">Tune the desk</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-wallpaper">
+              <span class="more-row-icon">${moreIcon('wallpaper')}</span>
+              <span class="more-row-body"><div class="more-row-label">外观 · 自定义壁纸</div><div class="more-row-sub">Dress the light</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-resources">
+              <span class="more-row-icon">${moreIcon('library')}</span>
+              <span class="more-row-body"><div class="more-row-label">AI 资料库</div><div class="more-row-sub">Feed the mind</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-connections">
+              <span class="more-row-icon">${moreIcon('connections')}</span>
+              <span class="more-row-body"><div class="more-row-label">API 连接</div><div class="more-row-sub">Wire the voice</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-backup">
+              <span class="more-row-icon">${moreIcon('backup')}</span>
+              <span class="more-row-body"><div class="more-row-label">数据与备份</div><div class="more-row-sub">Keep what matters</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+            <button type="button" class="more-row" id="row-about">
+              <span class="more-row-icon">${moreIcon('about')}</span>
+              <span class="more-row-body"><div class="more-row-label">关于 · 使用说明</div><div class="more-row-sub">Know the maker</div></span>
+              <span class="more-row-chevron">›</span>
+            </button>
+          </nav>
         </div>
       </div>
     `;
@@ -88,13 +105,99 @@ const More = (() => {
     container.querySelector('#row-connections').addEventListener('click', openConnectionsPage);
     container.querySelector('#row-backup').addEventListener('click', openBackupPage);
     container.querySelector('#row-about').addEventListener('click', openAboutPage);
-    updateBackupRowSub();
+    initSky();
   }
 
-  async function updateBackupRowSub() {
-    const lastBackupAt = await DB.getSetting('lastBackupAt');
-    const el = container.querySelector('#row-backup-sub');
-    if (el) el.textContent = lastBackupAt ? `最后备份 ${formatRelativeTime(lastBackupAt)}` : '还没有备份过';
+  function heroStatHTML(createdAt) {
+    if (!createdAt) return '';
+    const start = new Date(createdAt);
+    if (Number.isNaN(start.getTime())) return '';
+    const days = Math.max(1, Math.floor((Date.now() - start.getTime()) / 86400000) + 1);
+    const label = `${start.getFullYear()}.${String(start.getMonth() + 1).padStart(2, '0')}.${String(start.getDate()).padStart(2, '0')}`;
+    return `<p class="more-hero-stat">自 ${label} · 第 <b>${days}</b> 天</p>`;
+  }
+
+  // 抽屉列表用的简约单线图标，跟随主题色，不引入新色相。
+  function moreIcon(name) {
+    const icons = {
+      workspace: '<rect x="3.4" y="4.6" width="17.2" height="14.8" rx="2"/><path d="M3.4 9h17.2M8 13.4h5"/>',
+      wallpaper: '<path d="M4 16.5l5-6 4 4.5 3-3.5 4 5"/><circle cx="17" cy="7" r="2"/><rect x="3.4" y="4.4" width="17.2" height="15.2" rx="2"/>',
+      library: '<path d="M4.5 19V6.2a2 2 0 0 1 2-2H17l3 3v11.8a1.4 1.4 0 0 1-1.4 1.4H5.9A1.4 1.4 0 0 1 4.5 19Z"/><path d="M8 8.4h6M8 12h8"/>',
+      connections: '<circle cx="8" cy="12" r="3.6"/><circle cx="16" cy="12" r="3.6"/><path d="M11.4 12h1.2"/>',
+      backup: '<path d="M12 3.6c4.2 1.3 6.6 2.3 6.6 2.3v6c0 4-2.7 6.5-6.6 7.7-3.9-1.2-6.6-3.7-6.6-7.7v-6S7.8 4.9 12 3.6Z"/>',
+      about: '<circle cx="12" cy="12" r="8"/><path d="M12 10.6v5.4M12 7.6v.1"/>',
+    };
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${icons[name] || ''}</svg>`;
+  }
+
+  // ---------------- 背景：星野画布（黑银=星空月晕，白金=中性铂金晨光，绝不引入暖黄色相） ----------------
+  function initSky() {
+    if (skyRaf) { cancelAnimationFrame(skyRaf); skyRaf = null; }
+    if (skyResizeHandler) { window.removeEventListener('resize', skyResizeHandler); skyResizeHandler = null; }
+    const canvas = container.querySelector('.more-sky');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function size() {
+      const r = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, r.width * dpr);
+      canvas.height = Math.max(1, r.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w: r.width, h: r.height };
+    }
+    function seed(w, h) {
+      skyStars = [];
+      for (let i = 0; i < 70; i++) {
+        skyStars.push({ x: Math.random() * w, y: Math.random() * h * 0.7, r: Math.random() * 1.2 + 0.3, p: Math.random() * Math.PI * 2, s: Math.random() * 0.5 + 0.25 });
+      }
+    }
+    function draw(w, h, t) {
+      const isDark = document.documentElement.dataset.theme === 'soft-dark';
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      if (isDark) { bg.addColorStop(0, '#0d0d0d'); bg.addColorStop(0.6, '#161616'); bg.addColorStop(1, '#050505'); }
+      else { bg.addColorStop(0, '#fbfbfa'); bg.addColorStop(0.6, '#f0f0ee'); bg.addColorStop(1, '#e2e2df'); }
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+
+      const mx = w * 0.26, my = h * 0.15;
+      const glow = ctx.createRadialGradient(mx, my, 2, mx, my, isDark ? w * 0.55 : w * 0.4);
+      glow.addColorStop(0, isDark ? 'rgba(240,240,238,.16)' : 'rgba(163,163,156,.13)');
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
+
+      skyStars.forEach((st) => {
+        const tw = 0.5 + 0.5 * Math.sin(t * st.s + st.p);
+        if (isDark) {
+          ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(240,240,238,${0.2 + tw * 0.6})`;
+          ctx.fill();
+        } else {
+          const dx = Math.sin(t * 0.12 + st.p) * 5;
+          ctx.beginPath(); ctx.arc(st.x + dx, st.y, st.r * 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(163,163,156,${0.04 + tw * 0.03})`;
+          ctx.fill();
+        }
+      });
+
+      ctx.beginPath(); ctx.arc(mx, my, 14, 0, Math.PI * 2);
+      const moonG = ctx.createRadialGradient(mx, my, 1, mx, my, 14);
+      if (isDark) { moonG.addColorStop(0, 'rgba(240,240,238,.95)'); moonG.addColorStop(1, 'rgba(240,240,238,.2)'); }
+      else { moonG.addColorStop(0, 'rgba(163,163,156,.45)'); moonG.addColorStop(1, 'rgba(163,163,156,.04)'); }
+      ctx.fillStyle = moonG; ctx.fill();
+    }
+
+    let dims = size();
+    seed(dims.w, dims.h);
+    skyResizeHandler = () => { dims = size(); seed(dims.w, dims.h); };
+    window.addEventListener('resize', skyResizeHandler);
+    const start = performance.now();
+    if (reduced) { draw(dims.w, dims.h, 0); return; }
+    function frame(now) {
+      draw(dims.w, dims.h, (now - start) / 1000);
+      skyRaf = requestAnimationFrame(frame);
+    }
+    skyRaf = requestAnimationFrame(frame);
   }
 
   // ---------------- 头像 ----------------
@@ -181,7 +284,7 @@ const More = (() => {
       const useCustom = fd.get('useCustomColors') === 'on';
       const updated = {
         ...App.settings,
-        workspaceName: fd.get('workspaceName') || '拾光',
+        workspaceName: fd.get('workspaceName') || '星纪',
         subtitle: fd.get('subtitle') || '',
         nickname: fd.get('nickname') || '',
         theme: fd.get('theme') || 'light',
@@ -192,7 +295,7 @@ const More = (() => {
       for (const [k, v] of Object.entries(updated)) await DB.setSetting(k, v);
       App.settings = updated;
       App.applyTheme(updated);
-      document.title = updated.workspaceName || '拾光';
+      document.title = updated.workspaceName || '星纪';
       toast('已保存');
       Pages.close(dialog);
       render();
@@ -312,7 +415,7 @@ const More = (() => {
     const dialog = Pages.open('数据与备份', `
       <div class="more-section">
         <div class="storage-info">
-          <div>数据库：shiguang-db（v${DB_VERSION}）</div>
+          <div>本地数据库版本：v${DB_VERSION}</div>
           <div>存储模式：仅本机（不上传云端）</div>
           <div>最后备份：<span id="last-backup-at">读取中…</span></div>
           <div>持久化存储权限：<span id="persist-status">读取中…</span></div>
@@ -334,7 +437,6 @@ const More = (() => {
       toast('已导出备份文件');
       refreshCountsIn(dialog);
       updateBackupStatusIn(dialog);
-      updateBackupRowSub();
     });
     dialog.querySelector('#btn-import').addEventListener('change', async (e) => {
       const file = e.target.files[0];

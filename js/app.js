@@ -12,6 +12,12 @@ const App = (() => {
     // 不再有强制的首次设置向导：直接用默认值进入，想改名字/主题随时去
     // "更多 → 工作台设置"，避免每次打开都要先过一遍表单。
     if (!settings.wizardCompleted) settings = await applyDefaultSettings(settings);
+    // 应用改名"拾光"→"星纪"：老设备上早期存下的默认名要跟着迁移一次，
+    // 用户自己改过的名字（不等于旧默认值）不动。
+    if (settings.workspaceName === '拾光') {
+      settings.workspaceName = '星纪';
+      await DB.setSetting('workspaceName', '星纪');
+    }
     applyTheme(settings);
     await startMainApp();
   }
@@ -28,7 +34,7 @@ const App = (() => {
 
   async function applyDefaultSettings(existing) {
     const defaults = {
-      workspaceName: '拾光', subtitle: '对话 · 收藏 · 心情', nickname: '',
+      workspaceName: '星纪', subtitle: '对话 · 收藏 · 心情', nickname: '',
       theme: 'light', clockFormat: 24, aiEnabled: true, proactiveMessagesEnabled: false,
       storageMode: 'local-only', wizardCompleted: true, createdAt: nowISO(),
     };
@@ -57,7 +63,7 @@ const App = (() => {
 
   async function startMainApp() {
     document.getElementById('app-shell').style.display = 'flex';
-    document.title = settings.workspaceName || '拾光';
+    document.title = settings.workspaceName || '星纪';
 
     window.addEventListener('online', updateOfflineBanner);
     window.addEventListener('offline', updateOfflineBanner);
