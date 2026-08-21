@@ -9,7 +9,6 @@ const More = (() => {
   let wallpaperPreviewUrls = { light: null, 'soft-dark': null };
   let userAvatarBlob = null;
   let userAvatarPreviewUrl = null;
-  let skyRaf = null;
   let skyStars = [];
   let skyResizeHandler = null;
 
@@ -132,12 +131,10 @@ const More = (() => {
 
   // ---------------- 背景：星野画布（黑银=星空月晕，白金=中性铂金晨光，绝不引入暖黄色相） ----------------
   function initSky() {
-    if (skyRaf) { cancelAnimationFrame(skyRaf); skyRaf = null; }
     if (skyResizeHandler) { window.removeEventListener('resize', skyResizeHandler); skyResizeHandler = null; }
     const canvas = container.querySelector('.more-sky');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function size() {
       const r = canvas.getBoundingClientRect();
@@ -153,7 +150,11 @@ const More = (() => {
         skyStars.push({ x: Math.random() * w, y: Math.random() * h * 0.7, r: Math.random() * 1.2 + 0.3, p: Math.random() * Math.PI * 2, s: Math.random() * 0.5 + 0.25 });
       }
     }
-    function draw(w, h, t) {
+    // 静态画一次，不用 requestAnimationFrame 持续重绘——这层画布底下垫着的是
+    // 一块开了 backdrop-filter 的玻璃列表，持续重绘 + 持续重新模糊在真机上
+    // （尤其是 iOS Safari）非常吃性能，是列表滚动卡顿的头号嫌疑。星星就用
+    // 各自随机的固定亮度，不做逐帧闪烁。
+    function draw(w, h) {
       const isDark = document.documentElement.dataset.theme === 'soft-dark';
       const bg = ctx.createLinearGradient(0, 0, 0, h);
       if (isDark) { bg.addColorStop(0, '#0d0d0d'); bg.addColorStop(0.6, '#161616'); bg.addColorStop(1, '#050505'); }
@@ -167,15 +168,14 @@ const More = (() => {
       ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
 
       skyStars.forEach((st) => {
-        const tw = 0.5 + 0.5 * Math.sin(t * st.s + st.p);
+        const b = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(st.p * 3));
         if (isDark) {
           ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(240,240,238,${0.2 + tw * 0.6})`;
+          ctx.fillStyle = `rgba(240,240,238,${(0.25 + b * 0.55).toFixed(3)})`;
           ctx.fill();
         } else {
-          const dx = Math.sin(t * 0.12 + st.p) * 5;
-          ctx.beginPath(); ctx.arc(st.x + dx, st.y, st.r * 3.2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(163,163,156,${0.04 + tw * 0.03})`;
+          ctx.beginPath(); ctx.arc(st.x, st.y, st.r * 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(163,163,156,${(0.04 + b * 0.04).toFixed(3)})`;
           ctx.fill();
         }
       });
@@ -189,15 +189,9 @@ const More = (() => {
 
     let dims = size();
     seed(dims.w, dims.h);
-    skyResizeHandler = () => { dims = size(); seed(dims.w, dims.h); };
+    draw(dims.w, dims.h);
+    skyResizeHandler = () => { dims = size(); seed(dims.w, dims.h); draw(dims.w, dims.h); };
     window.addEventListener('resize', skyResizeHandler);
-    const start = performance.now();
-    if (reduced) { draw(dims.w, dims.h, 0); return; }
-    function frame(now) {
-      draw(dims.w, dims.h, (now - start) / 1000);
-      skyRaf = requestAnimationFrame(frame);
-    }
-    skyRaf = requestAnimationFrame(frame);
   }
 
   // ---------------- 头像 ----------------

@@ -83,15 +83,21 @@ const Cycle = (() => {
 
   function render() {
     const info = cycleInfo();
+    const todayLog = logs.find((l) => l.date === todayStr());
     container.innerHTML = `
       <div class="cycle-view">
         <div class="view-header"><h2>潮汐</h2></div>
         <div class="cycle-scroll">
           ${info ? cycleHeaderHTML(info) : cycleEmptyHTML()}
           <div class="cycle-actions">
-            <button class="btn-primary" id="btn-log-today">＋ 记录今天</button>
+            <button class="btn-primary" id="btn-log-today">${todayLog ? '＋ 更新今天的记录' : '＋ 记录今天'}</button>
           </div>
+          ${todayLog ? todayLogSummaryHTML(todayLog) : ''}
           ${startDates.length ? cycleProgressHTML(info) : ''}
+          <button type="button" class="cycle-mark-link" id="btn-mark-start">
+            ${cycleIcon('mark')}<span>${info ? '今天是新一次周期第一天' : '标记周期第一天'}</span>
+          </button>
+          <p class="section-hint">"标记周期第一天"只用来估算当前阶段、预测下一次日期；"记录今天"写的是流量/疼痛等每日细节，跟今天是不是周期第一天无关——两个都可以记，互不影响。</p>
           <nav class="more-glass-list cycle-nav-list">
             <button type="button" class="more-row" id="row-cal">
               <span class="more-row-icon">${cycleIcon('calendar')}</span>
@@ -103,19 +109,23 @@ const Cycle = (() => {
               <span class="more-row-body"><div class="more-row-label">记录历史</div><div class="more-row-sub">${logs.length ? `${logs.length} 条每日记录` : 'Nothing logged yet'}</div></span>
               <span class="more-row-chevron">›</span>
             </button>
-            <button type="button" class="more-row" id="row-mark-start">
-              <span class="more-row-icon">${cycleIcon('mark')}</span>
-              <span class="more-row-body"><div class="more-row-label">${info ? '今天是新一次周期第一天' : '标记周期第一天'}</div><div class="more-row-sub">Mark day one</div></span>
-            </button>
           </nav>
-          <p class="section-hint">"标记周期第一天"只用来估算当前阶段、预测下一次日期；"记录今天"写的是流量/疼痛等每日细节，跟今天是不是周期第一天无关——两个都可以记，互不影响。</p>
         </div>
       </div>
     `;
-    container.querySelector('#btn-log-today').addEventListener('click', () => openLogEditor(null));
+    container.querySelector('#btn-log-today').addEventListener('click', () => openLogEditor(todayLog || null));
     container.querySelector('#row-cal').addEventListener('click', openCalendarPage);
     container.querySelector('#row-history').addEventListener('click', openHistoryPage);
-    container.querySelector('#row-mark-start').addEventListener('click', startNewCycle);
+    container.querySelector('#btn-mark-start').addEventListener('click', startNewCycle);
+  }
+
+  function todayLogSummaryHTML(log) {
+    return `
+      <div class="cycle-today-log">
+        <span class="cycle-today-log-dot" style="background:${FLOW_COLORS[Math.min(log.flow ?? 0, 4)] || 'var(--surface-2)'}"></span>
+        <span>今天已记录 · 流量 ${log.flow ?? 0} · 疼 ${log.pain ?? 0}</span>
+      </div>
+    `;
   }
 
   function cycleIcon(name) {
@@ -129,6 +139,7 @@ const Cycle = (() => {
 
   // ---------------- 日历：独立窗口 ----------------
   function openCalendarPage() {
+    calCursor = todayStr(); // 每次从主屏点进来都回到当前月份，翻月只在窗口内部有效
     const dialog = Pages.open('日历', calendarBodyHTML());
     bindCalendarEvents(dialog);
   }
