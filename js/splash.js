@@ -1,9 +1,13 @@
-// 开屏动画：星空 + 流光雨滴，纯装饰，不阻塞真正的数据加载（App.boot() 在它下面并行执行）。
-// 大约 3 秒后自动淡出，也可以点按跳过；尊重 prefers-reduced-motion。
+// 开屏：星空 + 流光雨滴（仅在深色场景下画，白色纯色背景下跳过，避免白底画白色星星）。
+// 真正的"进入"动作是手指从底部横杠往上一滑（不是定时器自动跳走）——不阻塞真正的
+// 数据加载，App.boot() 在它下面并行执行。点击屏幕任意位置、键盘 ↑/空格 也能进入，
+// 尊重 prefers-reduced-motion（此时直接短暂展示后自动进入，不强制要求手势）。
 (function () {
   const root = document.getElementById('splash-screen');
   const canvas = document.getElementById('splash-canvas');
-  const skipBtn = document.getElementById('splash-skip');
+  const photoBg = document.getElementById('splash-photo-bg');
+  const home = document.getElementById('splash-home');
+  const content = document.querySelector('.splash-content');
   const welcomeEl = document.getElementById('splash-welcome');
   if (!root || !canvas) return;
 
@@ -12,6 +16,7 @@
   let width, height, dpr;
   let rafId = null;
   let dismissed = false;
+  let isDark = true;
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -111,26 +116,76 @@
     dismissed = true;
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener('resize', resize);
+    welcomeEl?.classList.add('is-complete');
     root.classList.add('splash-hide');
     setTimeout(() => root.remove(), 500);
   }
 
-  // 加载完成的一瞬间，"Welcome Home" 花体字先跳动发光一下，再淡出整个开屏。
-  function finish() {
-    if (dismissed) return;
-    welcomeEl?.classList.add('is-complete');
-    setTimeout(dismiss, reduceMotion ? 0 : 380);
+  // ---------------- 背景：主题纯色，或用户自定义的开屏照片 ----------------
+  async function setupBackground() {
+    // 这段脚本在 app.js（真正 applyTheme 的地方）之前就执行了，document.documentElement
+    // 的 data-theme 这时还没被设置，不能用它判断深浅——直接问 DB 拿存好的主题设置。
+    let theme = 'light';
+    try { theme = (await DB.getSetting('theme')) === 'soft-dark' ? 'soft-dark' : 'light'; } catch (_) {}
+    let photoUrl = null;
+    try { photoUrl = window.SplashPhoto ? await window.SplashPhoto.urlFor(theme) : null; } catch (_) { photoUrl = null; }
+
+    isDark = !!photoUrl || theme === 'soft-dark';
+    root.classList.toggle('is-light', !isDark);
+
+    if (photoUrl && photoBg) {
+      photoBg.style.backgroundImage = `url("${photoUrl}")`;
+      photoBg.classList.add('is-active');
+    }
+
+    if (isDark) {
+      if (reduceMotion) { draw(0); }
+      else { rafId = requestAnimationFrame(loop); }
+    }
   }
+  setupBackground();
+
+  // ---------------- 上滑进入：真实拖拽手势，跟手移动；桌面用鼠标拖拽/键盘兜底 ----------------
+  const THRESH = 70;
+  let dragging = false, startY = 0, dy = 0;
+
+  function setDrag(d) {
+    dy = Math.max(-260, Math.min(0, d));
+    const p = Math.min(1, -dy / THRESH);
+    if (content) {
+      content.style.transform = `translateY(${dy * 0.55}px)`;
+      content.style.opacity = String(1 - p * 0.7);
+    }
+    if (home) home.style.transform = `translateY(${dy * 0.3}px)`;
+  }
+  function resetDrag() {
+    dy = 0;
+    if (content) { content.style.transform = ''; content.style.opacity = ''; }
+    if (home) home.style.transform = '';
+  }
+  function onDown(e) { dragging = true; startY = e.clientY; }
+  function onMove(e) { if (!dragging) return; setDrag(e.clientY - startY); }
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    if (-dy > THRESH) dismiss(); else resetDrag();
+  }
+
+  if (home) {
+    home.addEventListener('pointerdown', (e) => { try { home.setPointerCapture(e.pointerId); } catch (_) {} onDown(e); });
+    home.addEventListener('pointermove', onMove);
+    home.addEventListener('pointerup', onUp);
+    home.addEventListener('pointercancel', onUp);
+    home.addEventListener('click', dismiss);
+  }
+  window.addEventListener('keydown', (e) => {
+    if (dismissed) return;
+    if (e.key === 'ArrowUp' || e.key === ' ') { e.preventDefault(); dismiss(); }
+  });
+  root.addEventListener('click', (e) => { if (e.target === root) dismiss(); });
 
   if (reduceMotion) {
-    // 减少动效偏好：只画一次静态星空，缩短停留时间。
-    draw(0);
-    setTimeout(finish, 900);
-  } else {
-    rafId = requestAnimationFrame(loop);
-    setTimeout(finish, 2650);
+    // 减少动效偏好：不强制要求手势，短暂停留后自动进入。
+    setTimeout(dismiss, 900);
   }
-
-  skipBtn?.addEventListener('click', dismiss);
-  root.addEventListener('click', (e) => { if (e.target === root) dismiss(); });
 })();

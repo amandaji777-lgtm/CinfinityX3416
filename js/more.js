@@ -7,6 +7,8 @@ const More = (() => {
   let storageInfo = null;
   let wallpaperBlobs = { light: null, 'soft-dark': null };
   let wallpaperPreviewUrls = { light: null, 'soft-dark': null };
+  let splashPhotoBlobs = { light: null, 'soft-dark': null };
+  let splashPhotoPreviewUrls = { light: null, 'soft-dark': null };
   let userAvatarBlob = null;
   let userAvatarPreviewUrl = null;
   let skyStars = [];
@@ -17,6 +19,7 @@ const More = (() => {
     connections = await DB.getAll('connections');
     storageInfo = await DB.estimateUsage();
     await refreshWallpaperBlobs();
+    await refreshSplashPhotoBlobs();
     await refreshUserAvatarBlob();
     render();
   }
@@ -24,6 +27,11 @@ const More = (() => {
   async function refreshWallpaperBlobs() {
     wallpaperBlobs.light = await DB.getSetting('wallpaperLight');
     wallpaperBlobs['soft-dark'] = await DB.getSetting('wallpaperDark');
+  }
+
+  async function refreshSplashPhotoBlobs() {
+    splashPhotoBlobs.light = await DB.getSetting('splashPhotoLight');
+    splashPhotoBlobs['soft-dark'] = await DB.getSetting('splashPhotoDark');
   }
 
   async function refreshUserAvatarBlob() {
@@ -42,10 +50,18 @@ const More = (() => {
     }
   }
 
+  function rebuildSplashPhotoPreviews() {
+    for (const t of ['light', 'soft-dark']) {
+      if (splashPhotoPreviewUrls[t]) URL.revokeObjectURL(splashPhotoPreviewUrls[t]);
+      splashPhotoPreviewUrls[t] = splashPhotoBlobs[t] instanceof Blob ? URL.createObjectURL(splashPhotoBlobs[t]) : null;
+    }
+  }
+
   // ---------------- 顶层列表：星野壁纸抽屉 ----------------
   function render() {
     const s = App.settings;
     rebuildWallpaperPreviews();
+    rebuildSplashPhotoPreviews();
     rebuildUserAvatarPreview();
     container.innerHTML = `
       <div class="more-view">
@@ -296,18 +312,28 @@ const More = (() => {
     });
   }
 
-  // ---------------- 自定义壁纸 ----------------
+  // ---------------- 自定义壁纸 + 开屏背景照片 ----------------
   function openWallpaperPage() {
     const dialog = Pages.open('外观 · 自定义壁纸', `
       <div class="more-section">
+        <h3>壁纸</h3>
         <p class="section-hint">白金和黑银可以各自设一张背景照片，毛玻璃卡片盖在上面（不会存进备份文件，换设备后需要重新上传）。</p>
         <div class="wallpaper-row">
           ${wallpaperItem('light', '白金')}
           ${wallpaperItem('soft-dark', '黑银')}
         </div>
       </div>
+      <div class="more-section">
+        <h3>开屏背景照片</h3>
+        <p class="section-hint">开屏页也可以各自设一张照片（会模糊压暗当氛围背景，不设就用主题自己的纯色）。</p>
+        <div class="wallpaper-row">
+          ${splashPhotoItem('light', '白金')}
+          ${splashPhotoItem('soft-dark', '黑银')}
+        </div>
+      </div>
     `);
     bindWallpaperEvents(dialog);
+    bindSplashPhotoEvents(dialog);
   }
 
   function wallpaperItem(theme, label) {
@@ -320,6 +346,21 @@ const More = (() => {
         <div class="wallpaper-actions">
           <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-wallpaper-input="${theme}" id="wallpaper-${idSafe}-input" hidden></label>
           ${url ? `<button type="button" class="msg-act" data-wallpaper-clear="${theme}">清除</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function splashPhotoItem(theme, label) {
+    const url = splashPhotoPreviewUrls[theme];
+    const idSafe = theme.replace(/[^a-z]/g, '');
+    return `
+      <div class="wallpaper-item">
+        <div class="wallpaper-preview" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '未设置'}</div>
+        <span class="wallpaper-label">${label}</span>
+        <div class="wallpaper-actions">
+          <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-splash-input="${theme}" id="splash-${idSafe}-input" hidden></label>
+          ${url ? `<button type="button" class="msg-act" data-splash-clear="${theme}">清除</button>` : ''}
         </div>
       </div>
     `;
@@ -354,6 +395,37 @@ const More = (() => {
     render();
     openWallpaperPage();
     toast('已清除壁纸');
+  }
+
+  function bindSplashPhotoEvents(dialog) {
+    dialog.querySelectorAll('[data-splash-input]').forEach((input) => {
+      input.addEventListener('change', (e) => handleSplashPhotoUpload(dialog, input.dataset.splashInput, e));
+    });
+    dialog.querySelectorAll('[data-splash-clear]').forEach((btn) => {
+      btn.addEventListener('click', () => handleSplashPhotoClear(dialog, btn.dataset.splashClear));
+    });
+  }
+
+  async function handleSplashPhotoUpload(dialog, theme, e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
+    await SplashPhoto.set(theme, file);
+    await refreshSplashPhotoBlobs();
+    Pages.close(dialog);
+    render();
+    openWallpaperPage();
+    toast('开屏背景已更新');
+  }
+
+  async function handleSplashPhotoClear(dialog, theme) {
+    await SplashPhoto.clear(theme);
+    await refreshSplashPhotoBlobs();
+    Pages.close(dialog);
+    render();
+    openWallpaperPage();
+    toast('已清除开屏背景');
   }
 
   // ---------------- API 连接 ----------------

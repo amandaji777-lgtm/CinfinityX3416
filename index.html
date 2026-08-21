@@ -24,17 +24,17 @@
   <div id="ambient-corner" class="ambient-corner" aria-hidden="true"></div>
 
   <div id="splash-screen" class="splash-screen" aria-hidden="true">
+    <div id="splash-photo-bg" class="splash-photo-bg"></div>
     <canvas id="splash-canvas"></canvas>
+    <div class="splash-veil"></div>
     <div class="splash-content">
-      <div class="splash-badge">
-        <img class="splash-moon-img" src="icons/splash-moon.jpg" alt="" aria-hidden="true">
-        <span class="magic-ring"></span>
-        <span class="magic-ring"></span>
-        <span class="magic-ring"></span>
-      </div>
       <div id="splash-welcome" class="splash-welcome">Welcome Home</div>
     </div>
-    <button id="splash-skip" class="splash-skip">跳过</button>
+    <div id="splash-home" class="splash-home">
+      <svg class="splash-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+      <div class="splash-hint">向上轻滑以进入</div>
+      <div class="splash-bar"></div>
+    </div>
   </div>
 
   <div id="page-stack" class="page-stack"></div>
@@ -95,6 +95,7 @@
   <script src="js/pages.js"></script>
   <script src="js/ui-dialog.js"></script>
   <script src="js/wallpaper.js"></script>
+  <script src="js/splash-photo.js"></script>
   <script src="js/avatars.js"></script>
   <script src="js/resources.js"></script>
   <script src="js/chat.js"></script>

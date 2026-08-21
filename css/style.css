@@ -766,62 +766,46 @@ html[data-theme="soft-dark"] .more-scrim {
 /* ---------- 每日链接状态 ---------- */
 .ls-row { display: flex; align-items: flex-start; gap: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px; }
 
-/* ---------- 开屏动画：黑色毛玻璃 + 用户提供的月相项链插画 + magic-rings 脉冲光环 + 流星 ---------- */
+/* ---------- 开屏：星空流光 + 可选自定义背景照片（模糊压暗当氛围，不再是被叠加装饰的
+   主角），中间"Welcome Home"，手指从底部横杠往上一划才真正进入——不是被动等定时器。
+   没设自定义照片时，背景就是当前主题的纯色（黑银黑色/白金白色），不再有内置默认图。 ---------- */
 .splash-screen {
   position: fixed; inset: 0;
   z-index: 999;
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.05), transparent 55%),
-    linear-gradient(165deg, #050506 0%, #0b0c10 55%, #030304 100%);
+  background: #050506;
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.5s ease, visibility 0.5s;
   overflow: hidden;
 }
 .splash-screen.splash-hide { opacity: 0; pointer-events: none; }
-#splash-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.splash-content {
-  position: relative;
-  text-align: center;
-  color: #f5eefb;
-  animation: splash-fade-in 1.1s ease both;
-}
-.splash-badge {
-  position: relative;
-  width: clamp(240px, 74vw, 300px);
-  aspect-ratio: 900 / 1041;
-  margin: 0 auto 18px;
-}
-.splash-moon-img {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 10px 34px rgba(0,0,0,0.5));
-  /* 参考图本身是个矩形黑底文件，直接贴上去边缘会跟页面背景的渐变黑穿帮成一块方块——
-     用椭圆蒙版把最外圈淡出成透明，让页面自己的星空背景在边缘透出来，融合得更自然。 */
-  mask-image: radial-gradient(ellipse 85% 85% at 50% 48%, #000 80%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 48%, #000 80%, transparent 100%);
-}
-/* magic-rings 灵感：从badge中心持续脉冲扩散并淡出的光环，叠加在参考图自带的静态圈之外。 */
-.magic-ring {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 74%;
-  height: 74%;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.55);
-  box-shadow: 0 0 16px rgba(255,255,255,0.2), inset 0 0 16px rgba(255,255,255,0.08);
-  animation: ring-pulse 3.6s cubic-bezier(.22,.6,.35,1) infinite;
+.splash-screen.is-light { background: #fafafa; }
+
+.splash-photo-bg {
+  position: absolute; inset: -6%;
+  background-size: cover; background-position: center;
+  filter: blur(28px) saturate(1.05) brightness(0.6);
+  transform: scale(1.08);
   opacity: 0;
+  transition: opacity 0.6s ease;
 }
-.magic-ring:nth-of-type(2) { animation-delay: 1.2s; }
-.magic-ring:nth-of-type(3) { animation-delay: 2.4s; }
-@keyframes ring-pulse {
-  0% { transform: scale(0.8); opacity: 0; }
-  14% { opacity: 0.85; }
-  100% { transform: scale(2.1); opacity: 0; }
+.splash-photo-bg.is-active { opacity: 1; }
+
+#splash-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.splash-veil {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 32%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.32) 72%, rgba(0,0,0,0.55) 100%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.splash-photo-bg.is-active ~ .splash-veil { opacity: 1; }
+
+.splash-content {
+  position: relative; z-index: 2;
+  text-align: center;
+  animation: splash-fade-in 1.1s ease both;
+  transition: transform 0.42s cubic-bezier(.2,.75,.25,1), opacity 0.42s ease;
 }
 .splash-welcome {
   font-family: "Pinyon Script", "Brush Script MT", cursive;
@@ -831,39 +815,61 @@ html[data-theme="soft-dark"] .more-scrim {
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28);
   animation: welcome-bob 2.4s ease-in-out infinite;
 }
+.splash-screen.is-light .splash-welcome {
+  color: #201f1b;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+}
 @keyframes welcome-bob {
-  0%, 100% { transform: translateY(0); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
-  50% { transform: translateY(-4px); text-shadow: 0 0 26px rgba(255, 255, 255, 0.65), 0 0 58px rgba(255, 255, 255, 0.38); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 .splash-welcome.is-complete {
   animation: welcome-complete-glow 0.7s ease-out 1;
 }
 @keyframes welcome-complete-glow {
-  0% { transform: translateY(0) scale(1); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
-  45% { transform: translateY(-7px) scale(1.06); text-shadow: 0 0 34px rgba(255, 255, 255, 0.9), 0 0 78px rgba(255, 255, 255, 0.55); }
-  100% { transform: translateY(0) scale(1); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 46px rgba(255, 255, 255, 0.28); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .magic-ring { animation: none; opacity: 0; }
-  .splash-welcome { animation: none; }
-  .splash-welcome.is-complete { animation: none; }
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-7px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
 }
 @keyframes splash-fade-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.splash-skip {
-  position: absolute;
-  right: calc(var(--safe-right) + 16px);
-  bottom: calc(var(--safe-bottom) + 20px);
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
-  color: #f5eefb;
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 12px;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+
+.splash-home {
+  position: absolute; z-index: 3; left: 0; right: 0;
+  bottom: calc(var(--safe-bottom) + 18px);
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  touch-action: none;
+  cursor: pointer;
+}
+.splash-chev {
+  width: 20px; height: 20px;
+  color: rgba(245, 238, 251, 0.75);
+  animation: splash-chev-bob 1.6s ease-in-out infinite;
+}
+.splash-screen.is-light .splash-chev { color: rgba(32, 31, 27, 0.55); }
+@keyframes splash-chev-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.35; }
+  50% { transform: translateY(-5px); opacity: 0.85; }
+}
+.splash-hint {
+  font-size: 11.5px; letter-spacing: 0.08em;
+  color: rgba(245, 238, 251, 0.72);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.2s ease;
+}
+.splash-screen.is-light .splash-hint { color: rgba(32, 31, 27, 0.58); text-shadow: none; }
+.splash-bar {
+  width: 120px; height: 4px; border-radius: 999px;
+  background: rgba(245, 238, 251, 0.72);
+}
+.splash-screen.is-light .splash-bar { background: rgba(32, 31, 27, 0.4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-welcome { animation: none; }
+  .splash-welcome.is-complete { animation: none; }
+  .splash-chev { animation: none; }
 }
 
 /* ---------- Toast ---------- */
