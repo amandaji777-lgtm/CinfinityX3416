@@ -121,8 +121,13 @@ button { cursor: pointer; }
 
 /* ---------- 自定义壁纸：设置了就顶替漂浮光斑，毛玻璃卡片盖在照片上 ---------- */
 #wallpaper-layer {
-  position: fixed; inset: 0; z-index: 0;
+  /* 主界面壁纸是长期垫在文字底下的背景，跟开屏那种几秒钟的氛围图不一样——需要
+     糊一点，太清晰会跟前面的文字/卡片抢注意力。轻度模糊 + 放大一点点盖住模糊
+     后露出的边缘。 */
+  position: fixed; inset: -6%; z-index: 0;
   background-size: cover; background-position: center;
+  filter: blur(10px) saturate(1.05);
+  transform: scale(1.08);
   opacity: 0; transition: opacity 0.4s ease;
   pointer-events: none;
 }
@@ -893,12 +898,11 @@ html[data-theme="soft-dark"] .more-hero-stat, html[data-theme="soft-dark"] .more
 .splash-screen.is-light { background: #fafafa; }
 
 .splash-photo-bg {
-  /* 第一轮调过一次（28px→14px 模糊，brightness 0.6→0.8）还是被反馈"太糊看不清"——
-     这次调得更明显：8px 模糊、brightness 提到 0.95（基本不额外压暗，只留一点点），
-     真正让"照片本身"看起来像照片，不是一坨颜色。 */
+  /* 开屏是几秒钟就划走的氛围图，跟主界面壁纸（长期垫文字底下）需求相反——
+     这里要更清晰，模糊再降一档。 */
   position: absolute; inset: -6%;
   background-size: cover; background-position: center;
-  filter: blur(8px) saturate(1.05) brightness(0.95);
+  filter: blur(4px) saturate(1.05) brightness(0.95);
   transform: scale(1.08);
   opacity: 0;
   transition: opacity 0.6s ease;
