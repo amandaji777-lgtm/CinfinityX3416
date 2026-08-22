@@ -9,10 +9,12 @@ const Wallpaper = (() => {
     return KEYS[theme] || KEYS.light;
   }
 
-  // 壁纸自适应取色：把照片画到一块 24×24 的小画布上求平均色和亮度——不管你选的是
-  // 白金还是黑银主题，玻璃卡片的明暗都跟着这张照片本身走（亮照片配浅玻璃深字，
-  // 暗照片配深玻璃亮字），而不是死板地跟着主题名字。之前"文字看不清"的根因就是
-  // 玻璃卡片的明暗只认主题、不认照片，深色照片配浅色主题的玻璃卡片自然看不清。
+  // 壁纸自适应取色：把照片画到一块 24×24 的小画布上求平均色相，给玻璃卡片轻轻带一点
+  // 照片的色调（12% 权重），但明暗永远跟着"你选的主题"走，不跟着"这张照片亮不亮"走——
+  // 之前的版本反过来了：深色照片会把 --text/--surface 这些全站共用的变量强制翻成浅色，
+  // 结果输入框/分段控件这些底色仍然是主题原来的浅色的地方，文字也变浅了，直接读不到
+  // （用户反馈"选项完全看不见"）。现在只调玻璃卡片自己的透明度和一点点色相，不透明度
+  // 调得比之前更高，保证不管照片多亮多暗，主题自己的文字颜色始终读得清楚。
   function sampleAverageColor(url) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -42,26 +44,23 @@ const Wallpaper = (() => {
   function applyAdaptiveTone(sample) {
     const root = document.documentElement.style;
     if (!sample) {
-      ['--glass-bg', '--glass-bg-strong', '--glass-border', '--text', '--text-muted'].forEach((k) => root.removeProperty(k));
+      ['--glass-bg', '--glass-bg-strong', '--glass-border'].forEach((k) => root.removeProperty(k));
       return;
     }
-    const dark = sample.lum <= 0.55;
-    // 玻璃底色朝照片平均色轻轻带一点色相（12% 权重），保持"颜色只在壁纸上出现"的原则，
-    // 又不会让玻璃变得五颜六色。
-    const base = dark ? 18 : 250;
+    // 明暗跟着当前选的主题走（不是跟着照片走），只把色相朝照片平均色带一点点（12% 权重）。
+    const dark = document.documentElement.dataset.theme === 'soft-dark';
+    const base = dark ? 20 : 248;
     const rr = mix(sample.r, base, 0.88), gg = mix(sample.g, base, 0.88), bb = mix(sample.b, base, 0.88);
+    // 透明度比之前调高不少——不再靠"跟着照片明暗翻色"来保证对比度，而是靠玻璃本身
+    // 足够不透明，无论照片多亮多暗，主题自己的文字颜色始终读得清楚。
     if (dark) {
-      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.60)`);
-      root.setProperty('--glass-bg-strong', `rgba(${Math.max(rr - 4, 0)},${Math.max(gg - 4, 0)},${Math.max(bb - 4, 0)},0.80)`);
+      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.82)`);
+      root.setProperty('--glass-bg-strong', `rgba(${Math.max(rr - 4, 0)},${Math.max(gg - 4, 0)},${Math.max(bb - 4, 0)},0.92)`);
       root.setProperty('--glass-border', 'rgba(255,255,255,0.14)');
-      root.setProperty('--text', '#f2f0ec');
-      root.setProperty('--text-muted', 'rgba(242,240,236,0.66)');
     } else {
-      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.62)`);
-      root.setProperty('--glass-bg-strong', `rgba(${Math.min(rr + 4, 255)},${Math.min(gg + 4, 255)},${Math.min(bb + 4, 255)},0.82)`);
+      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.84)`);
+      root.setProperty('--glass-bg-strong', `rgba(${Math.min(rr + 4, 255)},${Math.min(gg + 4, 255)},${Math.min(bb + 4, 255)},0.93)`);
       root.setProperty('--glass-border', 'rgba(0,0,0,0.10)');
-      root.setProperty('--text', '#201f1b');
-      root.setProperty('--text-muted', 'rgba(32,31,27,0.62)');
     }
   }
 
