@@ -76,9 +76,102 @@ const Chat = (() => {
     `;
     container.querySelector('#btn-new-conv').addEventListener('click', openNewConversationDialog);
     container.querySelector('#btn-res-lib').addEventListener('click', () => window.App.switchTab('resources'));
-    container.querySelectorAll('.conv-row').forEach((el) => {
-      el.addEventListener('click', () => openConversation(el.dataset.id));
+    bindConvSwipe();
+  }
+
+  // 会话左滑：露出一个"删除"按钮，不是滑到底直接删——还是要点一下+二次确认才会真正
+  // 删除，避免误滑一下就永久丢了一段对话。同时只允许同时露出一行，滑开新的一行会把
+  // 之前露出的收回去；轻点已经露出的行会先收回而不是直接进对话。
+  let swipeOpenWrap = null;
+  function bindConvSwipe() {
+    swipeOpenWrap = null;
+    const SWIPE_W = 76;
+    container.querySelectorAll('.conv-row-wrap').forEach((wrap) => {
+      const row = wrap.querySelector('.conv-row');
+      const delBtn = wrap.querySelector('.conv-row-delete');
+      let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, isSwipe = false, moved = false;
+
+      function setX(x, animate) {
+        row.style.transition = animate ? 'transform 0.2s ease' : '';
+        row.style.transform = x ? `translateX(${x}px)` : '';
+      }
+      function closeWrap(animate = true) {
+        setX(0, animate);
+        wrap.classList.remove('is-open');
+        if (swipeOpenWrap === wrap) swipeOpenWrap = null;
+      }
+      function openWrap() {
+        if (swipeOpenWrap && swipeOpenWrap !== wrap) {
+          const prevRow = swipeOpenWrap.querySelector('.conv-row');
+          prevRow.style.transition = 'transform 0.2s ease';
+          prevRow.style.transform = '';
+          swipeOpenWrap.classList.remove('is-open');
+        }
+        setX(-SWIPE_W, true);
+        wrap.classList.add('is-open');
+        swipeOpenWrap = wrap;
+      }
+
+      row.addEventListener('pointerdown', (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        dragging = true; decided = false; isSwipe = false; moved = false;
+        startX = e.clientX; startY = e.clientY; dx = 0;
+        row.style.transition = '';
+        try { row.setPointerCapture(e.pointerId); } catch (_) {}
+      });
+      row.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const rawDx = e.clientX - startX;
+        const rawDy = e.clientY - startY;
+        if (!decided) {
+          if (Math.abs(rawDx) < 6 && Math.abs(rawDy) < 6) return;
+          decided = true;
+          isSwipe = Math.abs(rawDx) > Math.abs(rawDy);
+          if (isSwipe) wrap.classList.add('is-dragging');
+        }
+        if (!isSwipe) return;
+        moved = true;
+        const base = wrap.classList.contains('is-open') ? -SWIPE_W : 0;
+        dx = Math.min(0, Math.max(-SWIPE_W - 24, base + rawDx));
+        setX(dx, false);
+      });
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        wrap.classList.remove('is-dragging');
+        if (!isSwipe) return;
+        if (dx < -SWIPE_W * 0.5) openWrap(); else closeWrap();
+      }
+      row.addEventListener('pointerup', endDrag);
+      row.addEventListener('pointercancel', endDrag);
+
+      row.addEventListener('click', () => {
+        if (moved) { moved = false; return; } // 刚滑完这一下点击不算数
+        if (wrap.classList.contains('is-open')) { closeWrap(); return; }
+        openConversation(wrap.dataset.id);
+      });
+      delBtn.addEventListener('click', async () => {
+        const conv = state.conversations.find((c) => c.id === wrap.dataset.id);
+        if (!conv) return;
+        if (!await UIDialog.confirm(`删除"${conv.title || characterOf(conv)?.name || '这段对话'}"及其全部消息？此操作不可撤销（收藏内容会保留但会标记为来源已删除）。`, { danger: true, okLabel: '删除' })) {
+          closeWrap();
+          return;
+        }
+        await deleteConversationData(conv.id);
+        await refreshConversations();
+        render();
+      });
     });
+  }
+
+  // 真正的删除动作抽出来单独一个函数，会话设置页里的"删除对话"按钮跟这里的左滑删除
+  // 共用同一份逻辑，不用维护两份一样的代码。
+  async function deleteConversationData(conversationId) {
+    const msgs = await DB.getAllByIndex('messages', 'conversationId', conversationId);
+    for (const m of msgs) await DB.delete('messages', m.id);
+    const bookmarks = await DB.getAllByIndex('bookmarks', 'conversationId', conversationId);
+    for (const b of bookmarks) { b.stale = true; b.sourceDeleted = true; await DB.put('bookmarks', b); }
+    await DB.delete('conversations', conversationId);
   }
 
   function characterOf(conv) {
@@ -94,13 +187,16 @@ const Chat = (() => {
     const pendingDraft = window.Proactive?.getPendingDraft(c.id);
     const avatarUrl = character ? state.avatarUrls[character.id] : null;
     return `
-      <div class="conv-row" data-id="${c.id}">
-        <div class="conv-avatar">${avatarInner(avatarUrl, character?.name || c.title || '对')}</div>
-        <div class="conv-meta">
-          <div class="conv-title">${escapeHtml(c.title || character?.name || '未命名对话')} ${pendingDraft ? '<span class="tag draft-tag">主动消息草稿</span>' : ''}</div>
-          <div class="conv-sub">${escapeHtml(c.lastMessagePreview || '还没有消息')}</div>
+      <div class="conv-row-wrap" data-id="${c.id}">
+        <button type="button" class="conv-row-delete" data-act="swipe-delete">删除</button>
+        <div class="conv-row" data-id="${c.id}">
+          <div class="conv-avatar">${avatarInner(avatarUrl, character?.name || c.title || '对')}</div>
+          <div class="conv-meta">
+            <div class="conv-title">${escapeHtml(c.title || character?.name || '未命名对话')} ${pendingDraft ? '<span class="tag draft-tag">主动消息草稿</span>' : ''}</div>
+            <div class="conv-sub">${escapeHtml(c.lastMessagePreview || '还没有消息')}</div>
+          </div>
+          <div class="conv-time">${formatRelativeTime(c.updatedAt)}</div>
         </div>
-        <div class="conv-time">${formatRelativeTime(c.updatedAt)}</div>
       </div>
     `;
   }
@@ -669,11 +765,7 @@ const Chat = (() => {
     });
     dialog.querySelector('#btn-delete-conv').addEventListener('click', async () => {
       if (!await UIDialog.confirm('删除这段对话及其全部消息？此操作不可撤销（收藏内容会保留但会标记为来源已删除）。', { danger: true, okLabel: '删除' })) return;
-      const msgs = await DB.getAllByIndex('messages', 'conversationId', conv.id);
-      for (const m of msgs) await DB.delete('messages', m.id);
-      const bookmarks = await DB.getAllByIndex('bookmarks', 'conversationId', conv.id);
-      for (const b of bookmarks) { b.stale = true; b.sourceDeleted = true; await DB.put('bookmarks', b); }
-      await DB.delete('conversations', conv.id);
+      await deleteConversationData(conv.id);
       Pages.close(dialog);
       state.view = 'list';
       await refreshConversations();

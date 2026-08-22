@@ -438,14 +438,29 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 /* ---------- 对话列表 ---------- */
 .chat-list-view, .bookmarks-view, .mood-view, .more-view, .resources-view, .calendar-view { display: flex; flex-direction: column; flex: 1; }
 .conv-list { padding: 4px 12px 16px; }
+/* 左滑露出删除：.conv-row-wrap 裁掉溢出、垫着一个红色删除按钮，.conv-row 本身横向
+   平移露出它——不是滑到底直接删，露出来之后还要点一下+二次确认才真的删除。 */
+.conv-row-wrap { position: relative; overflow: hidden; border-radius: var(--radius-md); margin-bottom: 8px; }
+.conv-row-delete {
+  /* .conv-row 的玻璃底色是半透明的（--glass-bg 自带 alpha），光靠盖住/裁掉不够——
+     没滑开的时候删除按钮的红色会透过玻璃透出来。改成默认 opacity:0，只有正在拖拽
+     或者已经滑开时才显示，从根本上避免透色。 */
+  position: absolute; top: 0; right: 0; bottom: 0; width: 76px;
+  background: var(--danger); color: #fff; border: none; font-size: 14px; font-weight: 600;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+}
+.conv-row-wrap.is-open .conv-row-delete,
+.conv-row-wrap.is-dragging .conv-row-delete {
+  opacity: 1; pointer-events: auto;
+}
 .conv-row {
   display: flex; align-items: center; gap: 12px;
   padding: 12px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  margin-bottom: 8px;
   box-shadow: var(--glass-shadow);
+  position: relative; touch-action: pan-y;
 }
 .conv-avatar {
   width: 42px; height: 42px; border-radius: 50%;
@@ -748,10 +763,6 @@ html[data-theme="soft-dark"] .more-scrim {
 .more-row:active { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .more-row-icon { flex: 0 0 auto; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .more-row-icon svg { width: 19px; height: 19px; display: block; }
-.more-row-icon.avatar-preview-sm {
-  width: 30px; height: 30px; border-radius: 50%; background: var(--accent);
-  border: 1px solid var(--glass-border); font-size: 12px; font-weight: 700; overflow: hidden; color: var(--text);
-}
 .more-row-body { flex: 1; min-width: 0; }
 .more-row-label { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
 .more-row-sub { font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -871,9 +882,12 @@ html[data-theme="soft-dark"] .more-scrim {
 .splash-screen.is-light { background: #fafafa; }
 
 .splash-photo-bg {
+  /* 之前 28px 模糊 + brightness(0.6) 叠加下面 .splash-veil 最深到 55% 黑，三层叠起来
+     几乎把照片本身的内容抹平了，用户反馈"除了整体变暗完全看不出图片"——调淡两层，
+     让照片的色彩/轮廓能真正被认出来，同时文字本身自带发光投影，对比度依然够读。 */
   position: absolute; inset: -6%;
   background-size: cover; background-position: center;
-  filter: blur(28px) saturate(1.05) brightness(0.6);
+  filter: blur(14px) saturate(1.05) brightness(0.8);
   transform: scale(1.08);
   opacity: 0;
   transition: opacity 0.6s ease;
@@ -884,7 +898,7 @@ html[data-theme="soft-dark"] .more-scrim {
 
 .splash-veil {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 50% 32%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.32) 72%, rgba(0,0,0,0.55) 100%);
+  background: radial-gradient(ellipse at 50% 32%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.16) 72%, rgba(0,0,0,0.32) 100%);
   opacity: 0;
   transition: opacity 0.4s ease;
   pointer-events: none;

@@ -109,7 +109,7 @@ const More = (() => {
           </div>
           <nav class="more-glass-list">
             <button type="button" class="more-row" id="row-avatar">
-              <span class="more-row-icon avatar-preview-sm">${userAvatarPreviewUrl ? `<img src="${userAvatarPreviewUrl}" alt="">` : escapeHtml((s.nickname || '你')[0] || '你')}</span>
+              <span class="more-row-icon">${moreIcon('avatar')}</span>
               <span class="more-row-body"><div class="more-row-label">头像</div><div class="more-row-sub">Choose your face</div></span>
               <span class="more-row-chevron">›</span>
             </button>
@@ -169,6 +169,7 @@ const More = (() => {
   // 抽屉列表用的简约单线图标，跟随主题色，不引入新色相。
   function moreIcon(name) {
     const icons = {
+      avatar: '<circle cx="12" cy="8.6" r="3.6"/><path d="M5 19.4c1.3-3.3 3.9-5 7-5s5.7 1.7 7 5"/>',
       workspace: '<rect x="3.4" y="4.6" width="17.2" height="14.8" rx="2"/><path d="M3.4 9h17.2M8 13.4h5"/>',
       wallpaper: '<path d="M4 16.5l5-6 4 4.5 3-3.5 4 5"/><circle cx="17" cy="7" r="2"/><rect x="3.4" y="4.4" width="17.2" height="15.2" rx="2"/>',
       library: '<path d="M4.5 19V6.2a2 2 0 0 1 2-2H17l3 3v11.8a1.4 1.4 0 0 1-1.4 1.4H5.9A1.4 1.4 0 0 1 4.5 19Z"/><path d="M8 8.4h6M8 12h8"/>',
@@ -206,10 +207,17 @@ const More = (() => {
     // 各自随机的固定亮度，不做逐帧闪烁。
     function draw(w, h) {
       const isDark = document.documentElement.dataset.theme === 'soft-dark';
-      const bg = ctx.createLinearGradient(0, 0, 0, h);
-      if (isDark) { bg.addColorStop(0, '#0d0d0d'); bg.addColorStop(0.6, '#161616'); bg.addColorStop(1, '#050505'); }
-      else { bg.addColorStop(0, '#fbfbfa'); bg.addColorStop(0.6, '#f0f0ee'); bg.addColorStop(1, '#e2e2df'); }
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      // 设了自定义壁纸时，这块画布底下的 #wallpaper-layer 才是真正该看见的背景——
+      // 之前这里无条件画一层不透明的渐变底色，会把壁纸整个盖住（用户反馈"更多"页
+      // 看不到壁纸的根因）。有壁纸就跳过这层不透明填充，把画布留透明，只保留
+      // 星星/月晕这些本来就是低透明度的装饰，叠在壁纸上面。
+      const hasWallpaper = wallpaperBlobs[isDark ? 'soft-dark' : 'light'] instanceof Blob;
+      if (!hasWallpaper) {
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        if (isDark) { bg.addColorStop(0, '#0d0d0d'); bg.addColorStop(0.6, '#161616'); bg.addColorStop(1, '#050505'); }
+        else { bg.addColorStop(0, '#fbfbfa'); bg.addColorStop(0.6, '#f0f0ee'); bg.addColorStop(1, '#e2e2df'); }
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      }
 
       const mx = w * 0.26, my = h * 0.15;
       const glow = ctx.createRadialGradient(mx, my, 2, mx, my, isDark ? w * 0.55 : w * 0.4);
