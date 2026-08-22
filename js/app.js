@@ -76,6 +76,10 @@ const App = (() => {
     const vv = window.visualViewport;
     function apply() {
       shell.style.height = vv.height + 'px';
+      // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
+      // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
+      // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
+      document.body.classList.toggle('keyboard-open', window.innerHeight - vv.height > 100);
     }
     apply();
     vv.addEventListener('resize', apply);

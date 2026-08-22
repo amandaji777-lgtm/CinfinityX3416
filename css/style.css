@@ -697,6 +697,11 @@ html[data-theme="soft-dark"] .msg-bubble {
   border-top: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
+/* 那段"输入框跟键盘之间的白边"找到了：--safe-bottom 这圈留白是给键盘收起时
+   躲开底部小黑条用的，键盘弹起的时候压根不需要——键盘本身已经贴着屏幕最
+   底部了，没有小黑条要躲。键盘弹起时（body.keyboard-open，见 app.js）把这
+   圈留白去掉，输入框就能真的贴到键盘上面，不再空出一条缝。 */
+body.keyboard-open .composer { padding-bottom: 10px; }
 .composer textarea {
   flex: 1;
   resize: none;
