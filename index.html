@@ -92,26 +92,11 @@
   <div id="silentsync-overlay" class="silentsync-overlay" aria-hidden="true">
     <div class="silentsync-emblem">
       <div class="silentsync-glow"></div>
-      <div class="silentsync-ring"></div>
-      <div class="silentsync-moon">
-        <div class="silentsync-taiji">
-          <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <defs>
-              <filter id="silentsync-ink" x="-60%" y="-60%" width="220%" height="220%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.025 0.09" numOctaves="3" seed="6" result="noise"></feTurbulence>
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="9" xChannelSelector="R" yChannelSelector="G" result="warped"></feDisplacementMap>
-                <feGaussianBlur in="warped" stdDeviation="3.2"></feGaussianBlur>
-              </filter>
-            </defs>
-            <g filter="url(#silentsync-ink)">
-              <path d="M0,-100 A50,50 0 0,1 0,0 A50,50 0 0,0 0,100 A100,100 0 0,1 0,-100 Z" style="fill:var(--accent-strong)"></path>
-              <circle cy="-50" r="15" style="fill:var(--surface)"></circle>
-              <circle cy="50" r="15" style="fill:var(--accent-strong)"></circle>
-            </g>
-          </svg>
-          <div class="silentsync-taiji-grain"></div>
-        </div>
-      </div>
+      <div class="silentsync-halo"></div>
+      <svg class="silentsync-sparkle" viewBox="0 0 40 40" aria-hidden="true">
+        <polygon points="20,4 22,20 20,36 18,20"></polygon>
+        <polygon points="4,20 20,18 36,20 20,22"></polygon>
+      </svg>
     </div>
   </div>
 
