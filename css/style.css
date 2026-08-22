@@ -126,7 +126,7 @@ button { cursor: pointer; }
      后露出的边缘。 */
   position: fixed; inset: -6%; z-index: 0;
   background-size: cover; background-position: center;
-  filter: blur(10px) saturate(1.05);
+  filter: blur(7px) saturate(1.05);
   transform: scale(1.08);
   opacity: 0; transition: opacity 0.4s ease;
   pointer-events: none;
@@ -315,7 +315,15 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 }
 .hint-banner.warn { background: #fff3cd; color: #7a5b00; }
 
-.empty-state { padding: 60px 24px; text-align: center; color: var(--text-muted); }
+/* 空状态提示文字没有卡片垫底，直接坐在壁纸上——加一圈跟文字反色的光晕保底，
+   跟"更多"页顶部签名文字是同一个道理，不然壁纸亮的地方会把浅色字糊掉。 */
+.empty-state {
+  padding: 60px 24px; text-align: center; color: var(--text-muted);
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9), 0 1px 8px rgba(255, 255, 255, 0.55);
+}
+html[data-theme="soft-dark"] .empty-state {
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 1px 8px rgba(0, 0, 0, 0.5);
+}
 .empty-title { font-size: 15px; margin-bottom: 4px; color: var(--text); }
 .empty-sub { font-size: 13px; }
 .rose-flourish { color: var(--accent-strong); opacity: 0.55; margin-bottom: 10px; }

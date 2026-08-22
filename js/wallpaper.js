@@ -51,15 +51,15 @@ const Wallpaper = (() => {
     const dark = document.documentElement.dataset.theme === 'soft-dark';
     const base = dark ? 20 : 248;
     const rr = mix(sample.r, base, 0.88), gg = mix(sample.g, base, 0.88), bb = mix(sample.b, base, 0.88);
-    // 透明度比之前调高不少——不再靠"跟着照片明暗翻色"来保证对比度，而是靠玻璃本身
-    // 足够不透明，无论照片多亮多暗，主题自己的文字颜色始终读得清楚。
+    // 不透明度比这次修复之前（0.60/0.62）略高一点留安全余量，但不像修复当天那版
+    // （0.82/0.84）那么闷——用户反馈"想要更通透一点"，这版两边各退一步。
     if (dark) {
-      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.82)`);
-      root.setProperty('--glass-bg-strong', `rgba(${Math.max(rr - 4, 0)},${Math.max(gg - 4, 0)},${Math.max(bb - 4, 0)},0.92)`);
+      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.68)`);
+      root.setProperty('--glass-bg-strong', `rgba(${Math.max(rr - 4, 0)},${Math.max(gg - 4, 0)},${Math.max(bb - 4, 0)},0.84)`);
       root.setProperty('--glass-border', 'rgba(255,255,255,0.14)');
     } else {
-      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.84)`);
-      root.setProperty('--glass-bg-strong', `rgba(${Math.min(rr + 4, 255)},${Math.min(gg + 4, 255)},${Math.min(bb + 4, 255)},0.93)`);
+      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.70)`);
+      root.setProperty('--glass-bg-strong', `rgba(${Math.min(rr + 4, 255)},${Math.min(gg + 4, 255)},${Math.min(bb + 4, 255)},0.85)`);
       root.setProperty('--glass-border', 'rgba(0,0,0,0.10)');
     }
   }
