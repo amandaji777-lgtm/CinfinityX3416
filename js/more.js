@@ -166,6 +166,18 @@ const More = (() => {
     return `<p class="more-hero-stat">自 ${label} · 第 <b>${days}</b> 天</p>`;
   }
 
+  // 真机上"纪念日"会偷偷跳一天的病根找到了：设置表单里那个 <input type="date">
+  // 用 .slice(0,10) 直接切 ISO 字符串（等于按 UTC 读日期），但上面 heroStatHTML
+  // 显示用的是本地时区的 getFullYear/getMonth/getDate——时区不是 UTC 的时候，同一
+  // 个存储值被这两处读出两个不同的日期。只要打开设置页看一眼、哪怕不改直接保存，
+  // 表单里那个错读的日期就会被当成新值存回去，一次比一次早一天。统一改成本地
+  // 时区读日期，跟 heroStatHTML 用同一套逻辑，两处才会真正一致。
+  function localDateInputValue(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   // 抽屉列表用的简约单线图标，跟随主题色，不引入新色相。
   function moreIcon(name) {
     const icons = {
@@ -357,7 +369,7 @@ const More = (() => {
         <label class="field"><span>工作台名称</span><input name="workspaceName" value="${escapeAttr(s.workspaceName || '')}" maxlength="20"></label>
         <label class="field"><span>副标题</span><input name="subtitle" value="${escapeAttr(s.subtitle || '')}" maxlength="30"></label>
         <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
-        <label class="field"><span>纪念日 · 第几天从这天算起</span><input type="date" name="createdAt" value="${escapeAttr((s.createdAt || '').slice(0, 10))}"></label>
+        <label class="field"><span>纪念日 · 第几天从这天算起</span><input type="date" name="createdAt" value="${escapeAttr(s.createdAt ? localDateInputValue(s.createdAt) : '')}"></label>
 
         <div class="field"><span>基础模式</span>
           <div class="seg-row">
