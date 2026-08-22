@@ -86,6 +86,14 @@
     </nav>
   </div>
 
+  <button id="silentsync-btn" class="silentsync-btn" type="button" title="静默同频" aria-label="静默同频">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12.5h4l2 6.5 4-15 2 8.5h6.5"/></svg>
+  </button>
+  <div id="silentsync-overlay" class="silentsync-overlay" aria-hidden="true">
+    <canvas id="silentsync-canvas"></canvas>
+    <div class="silentsync-core"></div>
+  </div>
+
   <script src="js/db.js"></script>
   <script src="js/crypto-utils.js"></script>
   <script src="js/ai.js"></script>
@@ -105,6 +113,7 @@
   <script src="js/calendar.js"></script>
   <script src="js/more.js"></script>
   <script src="js/ambience.js"></script>
+  <script src="js/silentsync.js"></script>
   <script src="js/splash.js"></script>
   <script src="js/app.js"></script>
 </body>
