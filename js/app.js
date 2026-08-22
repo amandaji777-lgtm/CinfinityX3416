@@ -94,6 +94,15 @@ const App = (() => {
       // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
       // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
       document.body.classList.toggle('keyboard-open', gap > 100);
+      // 键盘弹起时 message-list 的可视高度跟着变矮了，但它的滚动位置不会自动
+      // 跟着调整——如果之前刚好停在底部附近，外壳一变矮，最后几条消息就会被
+      // 新冒出来的输入框正好挡住/压住。聊天室里，只要还大致停在底部，就跟着
+      // 重新贴底一次，让最新消息始终露在输入框上方而不是被盖住。
+      const list = document.getElementById('message-list');
+      if (list && document.body.classList.contains('is-chat-room')) {
+        const wasNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+        if (wasNearBottom) list.scrollTop = list.scrollHeight;
+      }
     }
     // 键盘弹起/收起是有个滑动动画的（不是一步到位），这个过程中 visualViewport
     // 的 resize/scroll 事件会连续密集地触发好多次——每次都同步改一遍尺寸、逼一次

@@ -17,6 +17,26 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Pinyon+Script&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    // 主屏幕图标打开的独立模式下，iOS 有时候不是真的重启页面，而是把上一次挂起
+    // 的网页原样恢复——如果上次挂起前正好用键盘输入过，Safari 记的视觉视口缩放/
+    // 偏移可能还是歪的，恢复回来就会一直露出没铺满的边，且不是"重复设置同一个
+    // viewport 值"能扶正的（之前在 splash.js 里那样做过，但那时候20个脚本文件
+    // 都已经加载完了，早就错过第一帧，而且加同一个值不够——真正能让 iOS 硬重置
+    // 缩放/偏移状态的是短暂切到 user-scalable=no 再切回来）。这段挪到 <head>
+    // 最早执行、且用更狠的写法，尽量在任何内容画出来之前就把继承来的歪状态清掉。
+    (function () {
+      var m = document.querySelector('meta[name="viewport"]');
+      if (!m) return;
+      var original = m.getAttribute('content');
+      m.setAttribute('content', original + ', user-scalable=no');
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          m.setAttribute('content', original);
+        });
+      });
+    })();
+  </script>
 </head>
 <body>
   <div id="wallpaper-layer" aria-hidden="true"></div>

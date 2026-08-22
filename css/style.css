@@ -691,6 +691,32 @@ html[data-theme="soft-dark"] .msg-bubble {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .msg-content { font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+
+/* 思考过程：默认折叠，像"对方在想事情"的小提示条，点开才看得到内容——
+   收起来更有等对方说话的感觉，不是每次都要看长长的推理过程。 */
+.msg-thinking-toggle {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; padding: 0; margin-bottom: 6px;
+  font-size: 11.5px; color: var(--text-muted);
+  opacity: 0.85;
+}
+.msg-thinking-toggle .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 9px; }
+.msg-thinking-toggle.is-open .chevron { transform: rotate(180deg); }
+.msg-thinking-body {
+  font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  color: var(--text-muted); font-style: italic;
+  border-left: 2px solid var(--glass-border);
+  padding: 2px 0 2px 10px; margin-bottom: 8px;
+}
+.msg-thinking-live {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--text-muted); font-style: italic;
+}
+.msg-thinking-live::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-strong);
+  animation: silentsync-heartbeat 1.1s ease-in-out infinite;
+}
 .msg-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); }
 .msg-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 .msg-act { background: none; border: none; font-size: 11.5px; color: var(--text-muted); padding: 0; }

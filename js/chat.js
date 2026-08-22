@@ -387,6 +387,17 @@ const Chat = (() => {
     const list = container.querySelector('#message-list');
     list.scrollTop = list.scrollHeight;
     list.querySelectorAll('.msg-bubble').forEach((el) => bindMessageActions(el, conv));
+    // 用事件代理挂在 message-list 上，而不是逐条气泡绑定——流式输出过程中
+    // 新插进来的那条气泡不会经过完整 render()，代理这样才能一直管用。
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('.msg-thinking-toggle');
+      if (!btn) return;
+      const body = btn.nextElementSibling;
+      if (!body || !body.classList.contains('msg-thinking-body')) return;
+      const willOpen = body.hidden;
+      body.hidden = !willOpen;
+      btn.classList.toggle('is-open', willOpen);
+    });
 
     if (state.streaming) {
       container.querySelector('#btn-stop').addEventListener('click', () => {
@@ -418,6 +429,9 @@ const Chat = (() => {
     const avatarHtml = `<div class="msg-avatar">${avatarInner(avatarUrl, isUser ? '你' : character?.name)}</div>`;
     const bubbleHtml = `
         <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''} ${isGroupLast ? 'is-group-last' : 'is-group-mid'}" data-id="${m.id}">
+          ${m.thinking ? `
+          <button class="msg-thinking-toggle" data-act="toggle-thinking">💭 思考过程${m.thinkingSeconds ? ` · ${m.thinkingSeconds}s` : ''} <span class="chevron">▾</span></button>
+          <div class="msg-thinking-body" hidden>${escapeHtml(m.thinking)}</div>` : ''}
           <div class="msg-content">${renderMarkdownish(m.content)}</div>
           <div class="msg-meta">
             <span class="msg-time">${formatTime(m.createdAt)}</span>
@@ -613,6 +627,40 @@ const Chat = (() => {
     return `- ${entry.title ? entry.title + '：' : ''}${parts.join('；')}`;
   }
 
+  // 把 ai.js 那边混进字符串流里的 <think>…</think> 拆出来：真正在思考的时候
+  // （标签还没闭合）content 部分是空的，交给调用方显示"思考中…"这类提示。
+  function splitThinking(raw) {
+    const closed = raw.match(/^<think>([\s\S]*?)<\/think>([\s\S]*)$/);
+    if (closed) return { thinking: closed[1].trim(), content: closed[2].trim(), stillThinking: false };
+    const open = raw.match(/^<think>([\s\S]*)$/);
+    if (open) return { thinking: open[1].trim(), content: '', stillThinking: true };
+    return { thinking: '', content: raw, stillThinking: false };
+  }
+
+  // AI 想一条条发消息，还是一大段，交给它自己的措辞决定：回复里用空行隔开的
+  // 每一段，当成一条独立消息处理——不强加规则，AI 不分段就还是一整条。
+  function splitIntoSegments(text) {
+    return text.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  }
+
+  // 一次回复拆成好几条消息时，用这个让它们的 createdAt 依次错开几毫秒，保证
+  // 排序/分组稳定，同时几乎不影响时间显示。
+  function addMillis(iso, ms) {
+    return new Date(new Date(iso).getTime() + ms).toISOString();
+  }
+
+  // 发给 API 的历史消息里不能有连续同角色的两条（Anthropic 等协议要求严格轮流）——
+  // 一条 AI 回复在本地拆成好几条气泡存库后，这里要把它们合并回一条再喂给模型。
+  function mergeConsecutiveRoles(history) {
+    const merged = [];
+    for (const m of history) {
+      const last = merged[merged.length - 1];
+      if (last && last.role === m.role) last.content += '\n\n' + m.content;
+      else merged.push({ role: m.role, content: m.content });
+    }
+    return merged;
+  }
+
   async function requestAssistantReply(conv, { isProactiveCheck = false } = {}) {
     const connection = state.connections.find((c) => c.id === conv.connectionId);
     if (!connection) {
@@ -634,21 +682,23 @@ const Chat = (() => {
 
     const assistantMsg = { id: uuid(), conversationId: conv.id, role: 'assistant', content: '', createdAt: nowISO(), archived: false, bookmarked: false };
     let appended = false;
+    let thinkStartAt = null;
+    let thinkEndAt = null;
 
     try {
       let stream;
       if (connection.provider === 'anthropic') {
-        const msgs = history.map((m) => ({ role: m.role, content: m.content }));
+        const msgs = mergeConsecutiveRoles(history);
         const fullSystem = [systemText, postHistoryText].filter(Boolean).join('\n\n');
         stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem);
       } else if (connection.provider === 'gemini') {
-        const msgs = history.map((m) => ({ role: m.role, content: m.content }));
+        const msgs = mergeConsecutiveRoles(history);
         const fullSystem = [systemText, postHistoryText].filter(Boolean).join('\n\n');
         stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem);
       } else {
         const msgs = [
           ...(systemText ? [{ role: 'system', content: systemText }] : []),
-          ...history.map((m) => ({ role: m.role, content: m.content })),
+          ...mergeConsecutiveRoles(history),
           ...(postHistoryText ? [{ role: 'system', content: postHistoryText }] : []),
         ];
         stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal);
@@ -656,6 +706,8 @@ const Chat = (() => {
 
       for await (const chunk of stream) {
         assistantMsg.content += chunk;
+        if (thinkStartAt === null && assistantMsg.content.includes('<think>')) thinkStartAt = Date.now();
+        if (thinkEndAt === null && assistantMsg.content.includes('</think>')) thinkEndAt = Date.now();
         if (!appended) {
           state.messages.push(assistantMsg);
           appended = true;
@@ -674,9 +726,31 @@ const Chat = (() => {
       state.streaming = false;
       state.abortController = null;
       if (appended && assistantMsg.content) {
-        await DB.put('messages', assistantMsg);
+        // 拆出思考过程；标签万一没闭合（生成被打断之类），别把内容藏没了，
+        // 退回成普通正文照常显示。
+        let { thinking, content, stillThinking } = splitThinking(assistantMsg.content);
+        if (stillThinking) { content = thinking; thinking = ''; }
+        const thinkingSeconds = (thinking && thinkStartAt && thinkEndAt) ? Math.round((thinkEndAt - thinkStartAt) / 100) / 10 : null;
+
+        const segments = splitIntoSegments(content);
+        const finalMsgs = (segments.length > 1 ? segments : [content]).map((seg, i) => ({
+          id: i === 0 ? assistantMsg.id : uuid(),
+          conversationId: conv.id,
+          role: 'assistant',
+          content: seg,
+          createdAt: addMillis(assistantMsg.createdAt, i * 5),
+          archived: false,
+          bookmarked: false,
+          thinking: i === 0 ? thinking : '',
+          thinkingSeconds: i === 0 ? thinkingSeconds : null,
+        }));
+
+        const idx = state.messages.indexOf(assistantMsg);
+        if (idx !== -1) state.messages.splice(idx, 1, ...finalMsgs);
+        for (const m of finalMsgs) await DB.put('messages', m);
+
         conv.updatedAt = nowISO();
-        conv.lastMessagePreview = assistantMsg.content.slice(0, 40);
+        conv.lastMessagePreview = finalMsgs[finalMsgs.length - 1].content.slice(0, 40);
         await DB.put('conversations', conv);
         await refreshConversations();
         if (window.Memory) await window.Memory.maybeAutoSummarize(conv);
@@ -686,16 +760,30 @@ const Chat = (() => {
     return assistantMsg;
   }
 
+  // 流式过程中 msg.content 是原始缓冲区，可能正卡在 <think> 标签中间——跟存库后
+  // 的"已拆好 thinking/content"两码事，所以这里单独解析显示，不复用 messageBubble
+  // 那套（那套假定 m.content/m.thinking 已经是最终拆好的）。
+  function streamingDisplayHtml(rawContent) {
+    const { thinking, content, stillThinking } = splitThinking(rawContent);
+    if (stillThinking) return `<span class="msg-thinking-live">💭 思考中…</span>`;
+    let html = '';
+    if (thinking) {
+      html += `<button class="msg-thinking-toggle" data-act="toggle-thinking">💭 思考过程 <span class="chevron">▾</span></button><div class="msg-thinking-body" hidden>${escapeHtml(thinking)}</div>`;
+    }
+    html += renderMarkdownish(content);
+    return html;
+  }
+
   function updateStreamingBubble(msg, character) {
     const list = container.querySelector('#message-list');
     if (!list) return;
     let el = list.querySelector(`[data-id="${msg.id}"]`);
     if (!el) {
-      list.insertAdjacentHTML('beforeend', messageBubble(msg, true, character));
+      const placeholder = { ...msg, content: '', thinking: '' };
+      list.insertAdjacentHTML('beforeend', messageBubble(placeholder, true, character));
       el = list.querySelector(`[data-id="${msg.id}"]`);
-    } else {
-      el.querySelector('.msg-content').innerHTML = renderMarkdownish(msg.content);
     }
+    el.querySelector('.msg-content').innerHTML = streamingDisplayHtml(msg.content);
     list.scrollTop = list.scrollHeight;
   }
 

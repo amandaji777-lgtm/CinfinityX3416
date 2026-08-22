@@ -96,6 +96,12 @@ const Providers = {
       }
       if (!res.ok) throw explainHttpError(res.status);
       const reader = res.body.getReader();
+      // 不少推理模型（DeepSeek-R1 系、很多中转站）会在 delta 里单独给一个
+      // reasoning_content/reasoning 字段装"思考过程"，跟正式回复 content 分开传。
+      // 这里统一包一层 <think>…</think> 标签混进同一条字符串流里，跟"AI 自己在
+      // 正文里写 <think> 标签"这种更通用的写法走同一套下游解析逻辑，不用另开
+      // 一套协议。
+      let inReasoning = false;
       for await (const line of parseSSELines(reader)) {
         const trimmed = line.trim();
         if (!trimmed.startsWith('data:')) continue;
@@ -103,8 +109,17 @@ const Providers = {
         if (data === '[DONE]') return;
         try {
           const json = JSON.parse(data);
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) yield delta;
+          const delta = json.choices?.[0]?.delta;
+          const reasoning = delta?.reasoning_content || delta?.reasoning;
+          if (reasoning) {
+            if (!inReasoning) { inReasoning = true; yield '<think>'; }
+            yield reasoning;
+          }
+          const content = delta?.content;
+          if (content) {
+            if (inReasoning) { inReasoning = false; yield '</think>'; }
+            yield content;
+          }
         } catch (_) { /* 忽略无法解析的心跳行 */ }
       }
     },
