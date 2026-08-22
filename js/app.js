@@ -37,6 +37,76 @@
   setInterval(paint, 500);
 })();
 
+// 白边这轮翻篇了——诊断条截了十几张图，唯一从头到尾没有一次量错过的数字
+// 就是 window.innerHeight（每次都跟 visualViewport.height 对得上）；反倒是
+// 想用某个 CSS 单位一劳永逸的每一次尝试（vh/dvh/inset:0/百分比）到了真机上
+// 都各自露过馅——最新一次是 100vh 在她这台设备上量出来比 innerHeight 还
+// 多 62px（956 比 894），外壳"更高"，flex 排布跟着往下坠，导致整个界面看
+// 起来像是往下挪了一截。CSS 单位这条路走到头了，不再试图找"哪个单位这次
+// 才是准的"，直接用这个从没出过错的 JS 测量值，全程用 inline style 兜底，
+// 不再依赖任何 CSS 高度声明——而且挪到最前面、跟诊断条一样在脚本一加载就
+// 立刻跑一次，不等 DB 异步读完的 boot() 流程，尽量少留"CSS 兜底值短暂
+// 生效"的那一下闪烁。
+// 键盘/视觉视口挪动那部分（visualViewport.offsetTop）仍然要处理，两件事
+// 现在合并成一套逻辑：始终用 window.innerHeight 定高度，只在挪动时额外
+// 补一个 top 偏移。
+(function bindViewportSizing() {
+  const shell = document.getElementById('app-shell');
+  const splash = document.getElementById('splash-screen');
+  const wallpaper = document.getElementById('wallpaper-layer');
+  if (!shell && !splash) return;
+  const vv = window.visualViewport;
+  let rafId = null;
+  function apply() {
+    const h = window.innerHeight;
+    const gap = vv ? h - vv.height : 0;
+    const panned = gap > 100 || (vv && vv.offsetTop > 1);
+    const top = panned ? vv.offsetTop : 0;
+    const visibleH = panned ? vv.height : h;
+    [shell, splash].forEach((el) => {
+      if (!el) return;
+      el.style.height = visibleH + 'px';
+      el.style.top = top + 'px';
+    });
+    // 壁纸层不跟着键盘收缩（它本来就该常驻铺满整个真实屏幕，跟视口是否被
+    // 键盘遮住无关），但要用同一个可靠的 innerHeight 撑满，并保留原来
+    // "往外扩 6%"盖住模糊毛边的效果。
+    if (wallpaper) {
+      wallpaper.style.top = (-0.06 * h) + 'px';
+      wallpaper.style.height = (1.12 * h) + 'px';
+    }
+    // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
+    // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
+    // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
+    document.body.classList.toggle('keyboard-open', gap > 100);
+    // 键盘弹起时 message-list 的可视高度跟着变矮了，但它的滚动位置不会自动
+    // 跟着调整——如果之前刚好停在底部附近，外壳一变矮，最后几条消息就会被
+    // 新冒出来的输入框正好挡住/压住。聊天室里，只要还大致停在底部，就跟着
+    // 重新贴底一次，让最新消息始终露在输入框上方而不是被盖住。
+    const list = document.getElementById('message-list');
+    if (list && document.body.classList.contains('is-chat-room')) {
+      const wasNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+      if (wasNearBottom) list.scrollTop = list.scrollHeight;
+    }
+  }
+  // 键盘弹起/收起是有个滑动动画的（不是一步到位），这个过程中 visualViewport
+  // 的 resize/scroll 事件会连续密集地触发好多次——每次都同步改一遍尺寸、逼一次
+  // 重排，密集触发时容易在动画中间的某一帧撞上"布局还没缩完就被截断"的画面
+  // （配合 .message-list 那个 min-height:0 的修复，这里再用 rAF 把同一帧内的
+  // 多次触发合并成一次，进一步减少中间态被渲染出来的机会）。
+  function schedule() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(apply);
+  }
+  apply();
+  window.addEventListener('resize', schedule);
+  window.addEventListener('orientationchange', schedule);
+  if (vv) {
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+  }
+})();
+
 // 应用入口：首次向导判断、底部导航、"更多"设置页（API连接/备份/关于）。
 const App = (() => {
   let currentTab = 'chat';
@@ -100,63 +170,6 @@ const App = (() => {
     if (window.Wallpaper) Wallpaper.apply(isDark ? 'soft-dark' : 'light');
   }
 
-  // 视频逐帧看到了更彻底的病根：光改 app-shell 的高度只解决了"键盘挡住多少"，
-  // 没解决另一件事——iOS Safari 在输入框获得焦点时，会自己把"视觉视口"（真正
-  // 显示在屏幕上的那一小块）在"布局视口"里挪一下位置，想把输入框"滚"到看得见
-  // 的地方去。而 app-shell / splash-screen 用的 position:fixed;inset:0 是钉死
-  // 在布局视口上的，不会跟着这个"挪动"走——所以视觉视口一挪，整个外壳在屏幕上
-  // 看起来就像被"顶飞"了一样，露出一大片空白，直到手动滑一下把它拨回去。
-  // visualViewport 除了 .height，还有 .offsetTop：正好就是这个"挪了多少"的量。
-  // 用它反向把外壳往下（或上）挪回同样的距离，就能把这个挪动抵消掉，让外壳
-  // 一直贴在视觉视口里，不会再飞出去。开屏页也会遇到同一个问题（比如从上次
-  // 挂起的状态恢复、视觉视口本来就没归零），所以两个外壳一起处理。
-  function bindVisualViewportResize() {
-    const shell = document.getElementById('app-shell');
-    const splash = document.getElementById('splash-screen');
-    if (!window.visualViewport || (!shell && !splash)) return;
-    const vv = window.visualViewport;
-    let rafId = null;
-    function apply() {
-      const gap = window.innerHeight - vv.height;
-      const panned = gap > 100 || vv.offsetTop > 1;
-      [shell, splash].forEach((el) => {
-        if (!el) return;
-        if (panned) {
-          el.style.height = vv.height + 'px';
-          el.style.top = vv.offsetTop + 'px';
-        } else {
-          el.style.height = '';
-          el.style.top = '';
-        }
-      });
-      // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
-      // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
-      // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
-      document.body.classList.toggle('keyboard-open', gap > 100);
-      // 键盘弹起时 message-list 的可视高度跟着变矮了，但它的滚动位置不会自动
-      // 跟着调整——如果之前刚好停在底部附近，外壳一变矮，最后几条消息就会被
-      // 新冒出来的输入框正好挡住/压住。聊天室里，只要还大致停在底部，就跟着
-      // 重新贴底一次，让最新消息始终露在输入框上方而不是被盖住。
-      const list = document.getElementById('message-list');
-      if (list && document.body.classList.contains('is-chat-room')) {
-        const wasNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
-        if (wasNearBottom) list.scrollTop = list.scrollHeight;
-      }
-    }
-    // 键盘弹起/收起是有个滑动动画的（不是一步到位），这个过程中 visualViewport
-    // 的 resize/scroll 事件会连续密集地触发好多次——每次都同步改一遍尺寸、逼一次
-    // 重排，密集触发时容易在动画中间的某一帧撞上"布局还没缩完就被截断"的画面
-    // （配合 .message-list 那个 min-height:0 的修复，这里再用 rAF 把同一帧内的
-    // 多次触发合并成一次，进一步减少中间态被渲染出来的机会）。
-    function schedule() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(apply);
-    }
-    apply();
-    vv.addEventListener('resize', schedule);
-    vv.addEventListener('scroll', schedule);
-  }
-
   async function startMainApp() {
     document.getElementById('app-shell').style.display = 'flex';
     document.title = settings.workspaceName || '星纪';
@@ -169,7 +182,6 @@ const App = (() => {
     if (window.Proactive) await Proactive.refresh();
     if (window.Ambience) Ambience.init();
     if (window.SilentSync) SilentSync.init();
-    bindVisualViewportResize();
     switchTab('chat');
     bindNav();
 
