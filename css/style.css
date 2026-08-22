@@ -689,6 +689,15 @@ html[data-theme="soft-dark"] .msg-bubble {
 /* ---------- 日历/备注 ---------- */
 .cal-scroll { padding: 0 16px 24px; flex: 1; }
 .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+/* 日历页的月份标题/星期头/近期备注标题都是直接印在壁纸上的裸字，没有玻璃卡片托底，
+   跟"更多"页那批小字是同一类问题——套用同样的正反双光晕保底处理。 */
+#view-calendar .day-label, .cal-weekdays span, .cal-upcoming-title {
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 0 5px rgba(255, 255, 255, 0.85), 0 1px 10px rgba(255, 255, 255, 0.65), 0 1px 18px rgba(0, 0, 0, 0.15);
+}
+html[data-theme="soft-dark"] #view-calendar .day-label, html[data-theme="soft-dark"] .cal-weekdays span,
+html[data-theme="soft-dark"] .cal-upcoming-title {
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.8), 0 1px 10px rgba(0, 0, 0, 0.6), 0 1px 18px rgba(0, 0, 0, 0.35);
+}
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 22px; }
 .cal-cell {
   position: relative; aspect-ratio: 1; border: none; border-radius: 10px;
@@ -762,6 +771,15 @@ html[data-theme="soft-dark"] .more-scrim {
 html[data-theme="soft-dark"] .more-hero-name, html[data-theme="soft-dark"] .more-hero-caption,
 html[data-theme="soft-dark"] .more-hero-stat, html[data-theme="soft-dark"] .more-hero-stat b {
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.85), 0 1px 10px rgba(0, 0, 0, 0.55), 0 1px 18px rgba(0, 0, 0, 0.3);
+}
+/* 星纪下面的小字（副标题/天数统计）本身字号更小，同样粗细的光晕相对更弱，
+   看反馈还是会在某些照片区域读不清——单独再叠一层更近距离的光晕加强轮廓。 */
+.more-hero-caption, .more-hero-stat, .more-hero-stat b {
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 0 5px rgba(255, 255, 255, 0.85), 0 1px 10px rgba(255, 255, 255, 0.65), 0 1px 18px rgba(0, 0, 0, 0.15);
+}
+html[data-theme="soft-dark"] .more-hero-caption, html[data-theme="soft-dark"] .more-hero-stat,
+html[data-theme="soft-dark"] .more-hero-stat b {
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.8), 0 1px 10px rgba(0, 0, 0, 0.6), 0 1px 18px rgba(0, 0, 0, 0.35);
 }
 .more-hero-name { margin: 0 0 2px; font-size: clamp(30px, 9vw, 38px); font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
 .more-hero-caption { margin: 0 0 12px; font-family: "Pinyon Script", cursive; font-size: 21px; color: var(--text-muted); }

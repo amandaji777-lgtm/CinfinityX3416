@@ -357,6 +357,7 @@ const More = (() => {
         <label class="field"><span>工作台名称</span><input name="workspaceName" value="${escapeAttr(s.workspaceName || '')}" maxlength="20"></label>
         <label class="field"><span>副标题</span><input name="subtitle" value="${escapeAttr(s.subtitle || '')}" maxlength="30"></label>
         <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
+        <label class="field"><span>纪念日 · 第几天从这天算起</span><input type="date" name="createdAt" value="${escapeAttr((s.createdAt || '').slice(0, 10))}"></label>
 
         <div class="field"><span>基础模式</span>
           <div class="seg-row">
@@ -383,11 +384,13 @@ const More = (() => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const useCustom = fd.get('useCustomColors') === 'on';
+      const createdAtDate = fd.get('createdAt');
       const updated = {
         ...App.settings,
         workspaceName: fd.get('workspaceName') || '星纪',
         subtitle: fd.get('subtitle') || '',
         nickname: fd.get('nickname') || '',
+        createdAt: createdAtDate ? new Date(`${createdAtDate}T00:00:00`).toISOString() : App.settings.createdAt,
         theme: fd.get('theme') || 'light',
         customAccent: useCustom ? fd.get('customAccent') : null,
         aiEnabled: fd.get('aiEnabled') === 'on',
