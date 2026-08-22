@@ -269,16 +269,24 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
 }
 
 /* ---------- App Shell ---------- */
+/* 找到真正的病根了：过去这里用 height:100vh / 100dvh / calc(var(--vh)*100)
+   三层兜底，CSS 层叠是按写的顺序，后写的赢——只要浏览器认得 calc()/自定义
+   属性这个语法（现在都认得），最后这条 JS 实测值就会赢过原生的 100dvh，
+   等于把"浏览器自己实时算的、永远准的"高度，换成了"JS 在某个时间点量一次、
+   之后可能过期"的高度。真机上如果那次测量点没踩准（比如刚从主屏幕冷启动、
+   状态栏/安全区还没最终定下来），量出来的数字就会偏矮，底下露出一条没盖到
+   的白边——这正是你反复看到的那条白边的根源，不只是开屏页，聊天页顶飞后
+   露出来的空白本质上也是同一件事。
+   真正的修法：position:fixed + inset:0，让浏览器原生实时计算，不経过 JS
+   这道手、也就没有"过期"这回事——不再需要任何 vh 兜底链。 */
 .app-shell {
   display: none;
   flex-direction: column;
-  height: 100vh; /* 兜底，不支持下面两条的极老浏览器 */
-  height: 100dvh;
-  height: calc(var(--vh, 1vh) * 100); /* 真机 JS 实测值，最终以它为准（见 index.html 头部内联脚本） */
+  position: fixed;
+  inset: 0;
   padding-top: var(--safe-top);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  position: relative;
   z-index: 1;
 }
 .offline-banner {
@@ -1027,13 +1035,12 @@ html[data-theme="soft-dark"] .more-hero-stat b {
    主角），中间"Welcome Home"，手指从底部横杠往上一划才真正进入——不是被动等定时器。
    没设自定义照片时，背景就是当前主题的纯色（黑银黑色/白金白色），不再有内置默认图。 ---------- */
 .splash-screen {
+  /* 上一版在这里叠了一层 JS 实测的 --vh 当"兜底"，结果适得其反：本来
+     position:fixed + inset:0 就是浏览器原生实时算的、最准的铺满方式，
+     再叠一层 calc(var(--vh)*100) 反而会因为层叠顺序把这个更准的结果
+     覆盖掉，变成依赖 JS 那次可能过期的测量值——就是底边露白的真正原因。
+     去掉那层兜底，只留 inset:0，别再画蛇添足。 */
   position: fixed; inset: 0;
-  /* 跟 .app-shell 一样，不能只信 inset:0——Safari 地址栏还没完全收起/展开的
-     瞬间，固定定位元素按"视口"撑开这件事本身会有落差，底部会露出一条没盖到
-     的缝，透出 body 底色，看起来像开屏没铺满屏幕。用同一套三层兜底高度。 */
-  height: 100vh;
-  height: 100dvh;
-  height: calc(var(--vh, 1vh) * 100);
   z-index: 999;
   background: #050506;
   display: flex; flex-direction: column; align-items: center;
