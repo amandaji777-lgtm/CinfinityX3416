@@ -170,3 +170,16 @@ function uuid() {
 function nowISO() {
   return new Date().toISOString();
 }
+
+// Safari 在部分版本上，把 canvas.toBlob() 刚生成的 Blob 直接存进 IndexedDB 会抛
+// "Error preparing Blob/File data to be stored in object store"——这是 WebKit 自己
+// 的已知问题，不是我们代码逻辑错。头像/壁纸/开屏背景/收藏照片这些图片存之前统一先转成
+// ArrayBuffer 再存，读出来时再包回 Blob，绕开这个坑（旧数据仍是裸 Blob，读的时候兼容）。
+async function blobToStorable(blob) {
+  return { __blob: true, buf: await blob.arrayBuffer(), type: blob.type };
+}
+function storableToBlob(v) {
+  if (v instanceof Blob) return v; // 兼容这次修复之前存的旧数据
+  if (v && v.__blob && v.buf) return new Blob([v.buf], { type: v.type || 'application/octet-stream' });
+  return null;
+}

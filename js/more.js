@@ -59,17 +59,17 @@ const More = (() => {
   }
 
   async function refreshWallpaperBlobs() {
-    wallpaperBlobs.light = await DB.getSetting('wallpaperLight');
-    wallpaperBlobs['soft-dark'] = await DB.getSetting('wallpaperDark');
+    wallpaperBlobs.light = storableToBlob(await DB.getSetting('wallpaperLight'));
+    wallpaperBlobs['soft-dark'] = storableToBlob(await DB.getSetting('wallpaperDark'));
   }
 
   async function refreshSplashPhotoBlobs() {
-    splashPhotoBlobs.light = await DB.getSetting('splashPhotoLight');
-    splashPhotoBlobs['soft-dark'] = await DB.getSetting('splashPhotoDark');
+    splashPhotoBlobs.light = storableToBlob(await DB.getSetting('splashPhotoLight'));
+    splashPhotoBlobs['soft-dark'] = storableToBlob(await DB.getSetting('splashPhotoDark'));
   }
 
   async function refreshUserAvatarBlob() {
-    userAvatarBlob = await DB.getSetting('userAvatar');
+    userAvatarBlob = storableToBlob(await DB.getSetting('userAvatar'));
   }
 
   function rebuildUserAvatarPreview() {

@@ -11,7 +11,7 @@ const SplashPhoto = (() => {
 
   async function urlFor(theme) {
     let blob = null;
-    try { blob = await DB.getSetting(keyFor(theme)); } catch (_) { blob = null; }
+    try { blob = storableToBlob(await DB.getSetting(keyFor(theme))); } catch (_) { blob = null; }
     if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
     if (blob instanceof Blob) {
       currentObjectUrl = URL.createObjectURL(blob);
@@ -21,7 +21,7 @@ const SplashPhoto = (() => {
   }
 
   async function set(theme, file) {
-    await DB.setSetting(keyFor(theme), file);
+    await DB.setSetting(keyFor(theme), await blobToStorable(file));
   }
 
   async function clear(theme) {
@@ -29,7 +29,7 @@ const SplashPhoto = (() => {
   }
 
   async function has(theme) {
-    const blob = await DB.getSetting(keyFor(theme));
+    const blob = storableToBlob(await DB.getSetting(keyFor(theme)));
     return blob instanceof Blob;
   }
 

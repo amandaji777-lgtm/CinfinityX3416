@@ -35,7 +35,7 @@ const Avatars = (() => {
   async function getBlob(resourceId) {
     try {
       const v = await DB.getSetting(keyFor(resourceId));
-      return v instanceof Blob ? v : null;
+      return storableToBlob(v);
     } catch (_) {
       return null;
     }
@@ -49,7 +49,7 @@ const Avatars = (() => {
 
   async function set(resourceId, file) {
     const resized = await resizeImageFile(file);
-    await DB.setSetting(keyFor(resourceId), resized);
+    await DB.setSetting(keyFor(resourceId), await blobToStorable(resized));
     invalidate(resourceId);
   }
 

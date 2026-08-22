@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xingji-shell-v4';
+const CACHE_NAME = 'xingji-shell-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -26,7 +26,12 @@ const APP_SHELL = [
   './js/ambience.js',
   './js/splash.js',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/nav-bookmarks.png',
+  './icons/nav-mood.png',
+  './icons/nav-home.png',
+  './icons/nav-calendar.png',
+  './icons/nav-more.png'
 ];
 
 self.addEventListener('install', (event) => {

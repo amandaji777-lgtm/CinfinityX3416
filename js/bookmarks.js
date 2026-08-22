@@ -160,8 +160,9 @@ const Bookmarks = (() => {
         photoObserver.unobserve(el);
         const id = el.dataset.bmId;
         const item = all.find((b) => b.id === id);
-        if (!(item?.image instanceof Blob)) return;
-        const url = URL.createObjectURL(item.image);
+        const imgBlob = storableToBlob(item?.image);
+        if (!imgBlob) return;
+        const url = URL.createObjectURL(imgBlob);
         photoUrls.set(id, url);
         el.style.backgroundImage = `url("${url}")`;
         el.classList.add('is-loaded');
@@ -178,7 +179,7 @@ const Bookmarks = (() => {
           <span class="bm-type-tag">${isCustom ? '自定义' : '对话摘录'}</span>
           ${b.title ? `<span class="bm-title">${escapeHtml(b.title)}</span>` : ''}
         </div>
-        ${b.image instanceof Blob ? `<div class="bm-photo" data-bm-id="${b.id}"></div>` : ''}
+        ${storableToBlob(b.image) ? `<div class="bm-photo" data-bm-id="${b.id}"></div>` : ''}
         <div class="bm-content">${escapeHtml(truncate(b.content, 160))}</div>
         ${b.tags && b.tags.length ? `<div class="bm-tags">${b.tags.map((t) => `<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
         ${b.stale ? '<div class="bm-stale-note">原始对话已修改或删除，这里保留的是收藏时的快照</div>' : ''}
@@ -194,7 +195,7 @@ const Bookmarks = (() => {
 
   function openEditor(item) {
     const isNew = !item;
-    let pendingImage = item?.image instanceof Blob ? item.image : null;
+    let pendingImage = storableToBlob(item?.image);
     let editPreviewUrl = null;
     const dialog = document.createElement('div');
     dialog.className = 'modal-overlay';
@@ -267,6 +268,7 @@ const Bookmarks = (() => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const tags = String(fd.get('tags') || '').split(/[,，\s]+/).filter(Boolean);
+      const storableImage = pendingImage ? await blobToStorable(pendingImage) : null;
       if (isNew) {
         await DB.put('bookmarks', {
           id: uuid(),
@@ -274,7 +276,7 @@ const Bookmarks = (() => {
           title: fd.get('title')?.trim() || '',
           content: fd.get('content')?.trim() || '',
           tags,
-          image: pendingImage,
+          image: storableImage,
           stale: false,
           createdAt: nowISO(),
         });
@@ -282,7 +284,7 @@ const Bookmarks = (() => {
         item.title = fd.get('title')?.trim() || '';
         item.content = fd.get('content')?.trim() || '';
         item.tags = tags;
-        item.image = pendingImage;
+        item.image = storableImage;
         await DB.put('bookmarks', item);
       }
       closeDialog();

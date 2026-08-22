@@ -69,7 +69,7 @@ const Wallpaper = (() => {
     const layer = document.getElementById('wallpaper-layer');
     if (!layer) return;
     let blob = null;
-    try { blob = await DB.getSetting(keyFor(theme)); } catch (_) { blob = null; }
+    try { blob = storableToBlob(await DB.getSetting(keyFor(theme))); } catch (_) { blob = null; }
 
     if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
 
@@ -89,7 +89,7 @@ const Wallpaper = (() => {
   }
 
   async function set(theme, file) {
-    await DB.setSetting(keyFor(theme), file);
+    await DB.setSetting(keyFor(theme), await blobToStorable(file));
     await apply(document.documentElement.dataset.theme || 'light');
   }
 
@@ -99,7 +99,7 @@ const Wallpaper = (() => {
   }
 
   async function has(theme) {
-    const blob = await DB.getSetting(keyFor(theme));
+    const blob = storableToBlob(await DB.getSetting(keyFor(theme)));
     return blob instanceof Blob;
   }
 
