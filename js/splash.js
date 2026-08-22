@@ -13,6 +13,17 @@
   const dateEl = document.getElementById('splash-date');
   if (!root || !canvas) return;
 
+  // 主屏幕图标打开的独立模式下，iOS 有时候不是真的重启页面，而是把上一次挂起的
+  // 网页原样恢复——如果上次挂起前正好用键盘输入过，Safari 记的视觉视口缩放/偏移
+  // 可能还是歪的，恢复回来开屏就会跟着错位、露出没铺满的边。开屏一启动就先"晃"
+  // 一下 viewport meta（逼 Safari 重新算一遍），把这个继承来的歪状态先扶正。
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (viewportMeta) {
+    const originalViewport = viewportMeta.getAttribute('content');
+    viewportMeta.setAttribute('content', originalViewport + ',maximum-scale=1.0');
+    requestAnimationFrame(() => viewportMeta.setAttribute('content', originalViewport));
+  }
+
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ctx = canvas.getContext('2d');
   let width, height, dpr;
