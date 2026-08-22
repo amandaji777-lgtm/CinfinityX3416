@@ -36,8 +36,6 @@
   --orb-opacity-low: 0.5;
   --orb-opacity-high: 0.78;
 
-  --user-bubble-bg: var(--accent-strong);
-  --user-bubble-text: var(--on-accent-strong);
   --ripple-glow: var(--accent-strong);
 }
 
@@ -60,8 +58,6 @@ html[data-theme="soft-dark"] {
   --orb-1: #d8d8d6; --orb-2: #a0a09c; --orb-3: #707068;
   --orb-opacity-low: 0.2; --orb-opacity-high: 0.38;
 
-  --user-bubble-bg: var(--accent-strong);
-  --user-bubble-text: var(--on-accent-strong);
   --ripple-glow: var(--accent-strong);
 }
 
@@ -202,7 +198,11 @@ html[data-theme="soft-dark"] {
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+/* 整个页面本身不该能滚动——高度已经是精确的一屏，滚动都发生在内部各自的
+   容器里。不锁住的话，聊天输入框拿到焦点、键盘弹起时，Safari 会自作主张
+   把整个页面往上顶一截去"露出"输入框，顶部多出一块空白，看起来像整页被
+   顶飞了。锁死之后键盘弹起只会让 --vh 变矮、内部布局自己收缩适配。 */
+html, body { height: 100%; overflow: hidden; }
 body {
   margin: 0;
   background: var(--bg);
@@ -301,6 +301,11 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
   backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-shadow);
 }
+/* 进了具体的对话房间之后，已经有自己的返回按钮可以离开，底部这条悬浮导航条
+   就不需要再占地方了——尤其是打字的时候，它会跟着一起被键盘顶起来，堆在
+   输入框上方很挤。进房间就整条隐藏，.app-main 是 flex:1，会自动补上这块
+   空间，不用额外调整别的尺寸。 */
+body.is-chat-room .bottom-nav, body.is-chat-room .silentsync-btn { display: none; }
 .nav-btn {
   flex: 0 0 auto;
   width: 46px;
@@ -626,8 +631,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
 }
-.msg-bubble.from-user { margin-left: auto; background: var(--user-bubble-bg); color: var(--user-bubble-text); }
-.msg-bubble.from-user .msg-meta, .msg-bubble.from-user .msg-act { color: color-mix(in srgb, var(--user-bubble-text) 65%, transparent); }
+.msg-bubble.from-user { margin-left: auto; }
 .msg-bubble.from-ai { margin-right: auto; }
 .msg-bubble.is-archived { opacity: 0.5; }
 
@@ -640,13 +644,13 @@ html[data-theme="soft-dark"] .msg-bubble {
 .msg-row.from-ai .msg-bubble.is-group-last { margin-bottom: 14px; }
 .msg-row.from-user .msg-bubble.is-group-last { margin-bottom: 14px; }
 .msg-avatar {
-  width: 26px; height: 26px; flex-shrink: 0;
+  width: 34px; height: 34px; flex-shrink: 0;
   border-radius: 50%;
   background: var(--accent);
   border: 1px solid var(--glass-border);
   color: var(--text);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600;
+  font-size: 14px; font-weight: 600;
   margin-bottom: 3px;
   overflow: hidden;
 }

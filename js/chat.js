@@ -50,6 +50,7 @@ const Chat = (() => {
   }
 
   function render() {
+    document.body.classList.toggle('is-chat-room', state.view === 'room');
     if (state.view === 'list') renderList();
     else renderRoom();
   }

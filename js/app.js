@@ -112,6 +112,10 @@ const App = (() => {
     if (tab === 'more') await More.init(view);
     if (tab === 'resources') await Resources.init(view);
     if (tab === 'chat' && Chat.refreshList) await Chat.refreshList();
+    // 底部导航条在"聊天室内"要隐藏（chat.js 自己在房间/列表切换时也会同步这个
+    // class），但切到别的标签页时必须确保它被清掉——不然从聊天室切去"更多"
+    // 之类的页面，导航条会跟着消失不见。
+    document.body.classList.toggle('is-chat-room', tab === 'chat' && Chat.state?.view === 'room');
   }
 
   async function goToChat(conversationId, messageId) {
