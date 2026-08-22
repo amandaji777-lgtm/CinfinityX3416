@@ -59,6 +59,7 @@ const Resources = (() => {
   let all = [];
   let activeKind = 'character';
   let avatarUrls = {};
+  let activeCategoryDialog = null; // 当前打开的分区独立页面（Pages.open 返回的根节点），没打开时为 null
 
   async function init(rootEl) {
     container = rootEl;
@@ -75,8 +76,9 @@ const Resources = (() => {
     return all.filter((r) => r.kind === kind).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   }
 
+  // 顶层落地页：五个分区各是一行，点进去才是该分区自己的独立页面（Pages 抽屉），
+  // 不再是同一屏里切换 segment tab——每个区域感觉上真的是"进了一个地方"而不是"切了个标签"。
   function render() {
-    const list = byKind(activeKind);
     container.innerHTML = `
       <div class="resources-view">
         <div class="view-header">
@@ -84,36 +86,78 @@ const Resources = (() => {
           <h2>AI 资料库</h2>
           <span></span>
         </div>
-        <div class="res-tabs">
-          ${Object.entries(KIND_META).map(([k, m]) => `
-            <button class="res-tab ${activeKind === k ? 'active' : ''}" data-kind="${k}">${m.short}</button>
-          `).join('')}
-        </div>
-        <div class="res-toolbar">
-          <button class="btn-secondary" id="res-new-text">＋ 文字新建</button>
-          <label class="btn-secondary file-btn">上传 JSON<input type="file" id="res-import" accept="application/json" hidden></label>
-        </div>
-        <div class="res-list">
-          ${list.length === 0 ? emptyState('这个区域还没有内容', '点上面"文字新建"逐项填写，或粘贴一段自然语言') :
-            list.map(resCard).join('')}
-        </div>
+        <nav class="more-glass-list">
+          ${Object.entries(KIND_META).map(([k, m]) => resCategoryRow(k, m)).join('')}
+        </nav>
       </div>
     `;
     container.querySelector('#res-back').addEventListener('click', () => window.App.switchTab('more'));
-    container.querySelectorAll('.res-tab').forEach((btn) => {
-      btn.addEventListener('click', () => { activeKind = btn.dataset.kind; render(); });
+    container.querySelectorAll('.more-row[data-kind]').forEach((btn) => {
+      btn.addEventListener('click', () => openCategoryPage(btn.dataset.kind));
     });
-    container.querySelector('#res-new-text').addEventListener('click', () => openEditor(activeKind, null));
-    container.querySelector('#res-import').addEventListener('change', handleImportFile);
-    container.querySelectorAll('.res-card').forEach((el) => {
+  }
+
+  function resCategoryRow(kind, meta) {
+    const count = byKind(kind).length;
+    return `
+      <button type="button" class="more-row" data-kind="${kind}">
+        <span class="more-row-body">
+          <div class="more-row-label">${meta.label}</div>
+          <div class="more-row-sub">${count} 条</div>
+        </span>
+        <span class="more-row-chevron">›</span>
+      </button>
+    `;
+  }
+
+  // 分区独立页面：整页抽屉（跟 API 连接/头像/壁纸那些设置页是同一套 Pages 组件），
+  // 顶部工具栏 + 卡片列表，自带返回按钮，返回就回到上面的五分区落地页。
+  function openCategoryPage(kind) {
+    activeKind = kind;
+    const dialog = Pages.open(KIND_META[kind].label, categoryBodyHTML(kind));
+    activeCategoryDialog = dialog;
+    dialog.querySelector('.page-back').addEventListener('click', () => {
+      if (activeCategoryDialog === dialog) activeCategoryDialog = null;
+      render(); // 分区页面关闭、回到落地页时，条数可能已经变了，重画一下落地列表
+    });
+    bindCategoryEvents(dialog, kind);
+  }
+
+  function categoryBodyHTML(kind) {
+    const list = byKind(kind);
+    return `
+      <div class="res-toolbar">
+        <button class="btn-secondary" id="res-new-text">＋ 文字新建</button>
+        <label class="btn-secondary file-btn">上传 JSON<input type="file" id="res-import" accept="application/json" hidden></label>
+      </div>
+      <div class="res-list">
+        ${list.length === 0 ? emptyState('这个区域还没有内容', '点上面"文字新建"逐项填写，或粘贴一段自然语言') :
+          list.map(resCard).join('')}
+      </div>
+    `;
+  }
+
+  function bindCategoryEvents(dialog, kind) {
+    dialog.querySelector('#res-new-text').addEventListener('click', () => openEditor(kind, null));
+    dialog.querySelector('#res-import').addEventListener('change', handleImportFile);
+    dialog.querySelectorAll('.res-card').forEach((el) => {
       const id = el.dataset.id;
       const item = all.find((r) => r.id === id);
-      el.querySelector('[data-act="edit"]').addEventListener('click', () => openEditor(activeKind, item));
+      el.querySelector('[data-act="edit"]').addEventListener('click', () => openEditor(kind, item));
       el.querySelector('[data-act="dup"]').addEventListener('click', () => duplicateResource(item));
       el.querySelector('[data-act="export"]').addEventListener('click', () => exportResource(item));
       el.querySelector('[data-act="linkstatus"]')?.addEventListener('click', () => window.LinkStatus.openManager(item));
       el.querySelector('[data-act="delete"]').addEventListener('click', () => deleteResource(item));
     });
+  }
+
+  // 分区页里增删改之后：如果这个分区页面还开着，就地刷新它的列表，不整页重开；
+  // 落地页的每分区条数会在下次进 AI 资料库时（Resources.init 重新跑）自然更新。
+  function refreshCategoryView() {
+    if (!activeCategoryDialog || !activeCategoryDialog.isConnected) { activeCategoryDialog = null; return; }
+    const dialog = activeCategoryDialog;
+    dialog.querySelector('.page-body').innerHTML = categoryBodyHTML(activeKind);
+    bindCategoryEvents(dialog, activeKind);
   }
 
   function resCard(r) {
@@ -375,16 +419,22 @@ const Resources = (() => {
     previewDialog.querySelector('#pv-cancel').addEventListener('click', () => previewDialog.remove());
     previewDialog.querySelector('#pv-confirm').addEventListener('click', async () => {
       await DB.put('ai_resources', resource);
+      let avatarError = null;
       if (avatarChange) {
-        if (avatarChange.clear) await Avatars.clear(resource.id);
-        else if (avatarChange.file) await Avatars.set(resource.id, avatarChange.file);
+        try {
+          if (avatarChange.clear) await Avatars.clear(resource.id);
+          else if (avatarChange.file) await Avatars.set(resource.id, avatarChange.file);
+        } catch (err) {
+          avatarError = err?.message || '未知错误';
+        }
       }
       previewDialog.remove();
       Pages.close(dialog);
       await refresh();
-      render();
+      refreshCategoryView();
       if (window.Chat) await window.Chat.refreshAvatars();
-      toast('已保存');
+      if (avatarError) await UIDialog.alert('资料卡已保存，但头像设置失败：' + avatarError + '，换一张小一点的图片再试一次');
+      else toast('已保存');
     });
   }
 
@@ -392,7 +442,7 @@ const Resources = (() => {
     const copy = { ...item, id: uuid(), name: item.name + ' 副本', updatedAt: nowISO() };
     await DB.put('ai_resources', copy);
     await refresh();
-    render();
+    refreshCategoryView();
   }
 
   function exportResource(item) {
@@ -412,7 +462,7 @@ const Resources = (() => {
     await DB.delete('ai_resources', item.id);
     if (item.kind === 'character') await Avatars.clear(item.id);
     await refresh();
-    render();
+    refreshCategoryView();
     if (window.Chat) await window.Chat.refreshAvatars();
   }
 
@@ -462,10 +512,9 @@ const Resources = (() => {
       };
       await DB.put('ai_resources', resource);
       dialog.remove();
-      activeKind = json.kind;
       await refresh();
-      render();
-      toast('导入成功');
+      refreshCategoryView();
+      toast('导入成功' + (json.kind !== activeKind ? `，已存入「${KIND_META[json.kind]?.label || json.kind}」` : ''));
     });
   }
 

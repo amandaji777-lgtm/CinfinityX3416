@@ -199,7 +199,6 @@ const Mood = (() => {
       await DB.put('moods', record);
       dialog.remove();
       await refresh();
-      if (window.Ambience) Ambience.refreshCorner();
       dayCursor = record.date;
       range = 'day';
       render();
@@ -210,7 +209,6 @@ const Mood = (() => {
     if (!await UIDialog.confirm('删除这条心情记录？', { danger: true, okLabel: '删除' })) return;
     await DB.delete('moods', item.id);
     await refresh();
-    if (window.Ambience) Ambience.refreshCorner();
     render();
   }
 

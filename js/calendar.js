@@ -7,6 +7,7 @@ const Calendar = (() => {
 
   async function init(rootEl) {
     container = rootEl;
+    cursor = todayStr(); // 每次切进日历标签页都回到当月，不保留上次浏览到的月份
     await refresh();
     render();
   }

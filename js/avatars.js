@@ -8,6 +8,30 @@ const Avatars = (() => {
     return resourceId ? `charAvatar:${resourceId}` : 'userAvatar';
   }
 
+  // 头像原本直接存手机相机原图，跟壁纸一样容易在真机/内嵌浏览器上因为配额限制
+  // 悄悄写入失败（界面却显示"已更新"）。上传前先压到长边 500px 足够圆形头像清晰度用了。
+  function resizeImageFile(file, maxDim = 500, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('图片处理失败')), 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+      img.src = url;
+    });
+  }
+
   async function getBlob(resourceId) {
     try {
       const v = await DB.getSetting(keyFor(resourceId));
@@ -24,7 +48,8 @@ const Avatars = (() => {
   }
 
   async function set(resourceId, file) {
-    await DB.setSetting(keyFor(resourceId), file);
+    const resized = await resizeImageFile(file);
+    await DB.setSetting(keyFor(resourceId), resized);
     invalidate(resourceId);
   }
 

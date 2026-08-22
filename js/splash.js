@@ -11,7 +11,6 @@
   const welcomeEl = document.getElementById('splash-welcome');
   const timeEl = document.getElementById('splash-time');
   const dateEl = document.getElementById('splash-date');
-  const progressFill = document.getElementById('splash-progress-fill');
   if (!root || !canvas) return;
 
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -137,11 +136,6 @@
   }
   updateClock();
   clockId = setInterval(updateClock, 15000);
-
-  // ---------------- 加载进度条：纯氛围提示，短暂延迟后填满，不代表真实加载进度 ----------------
-  if (progressFill) {
-    requestAnimationFrame(() => { requestAnimationFrame(() => { progressFill.style.width = '100%'; }); });
-  }
 
   // ---------------- 背景：主题纯色，或用户自定义的开屏照片 ----------------
   async function setupBackground() {

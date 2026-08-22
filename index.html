@@ -3,6 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+  <script>
+    // 100dvh 在部分内嵌浏览器/WebView 里算不准（尤其带自己地址栏/工具栏的第三方浏览器
+    // 打开我们这个网页时），真机上多次反馈过"更多"页内容显示不全就是这个原因——
+    // 用 JS 实测 window.innerHeight 写一个 --vh 自定义属性兜底，比单纯信 dvh 更可靠。
+    // 必须在 <head> 里内联执行、越早越好，赶在首次绘制之前把值准备好。
+    (function () {
+      function setVh() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }
+      setVh();
+      window.addEventListener('resize', setVh);
+      window.addEventListener('orientationchange', setVh);
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', setVh);
+    })();
+  </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,21 +34,19 @@
 <body>
   <div id="wallpaper-layer" aria-hidden="true"></div>
   <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
-  <div id="ambient-corner" class="ambient-corner" aria-hidden="true"></div>
 
   <div id="splash-screen" class="splash-screen" aria-hidden="true">
     <div id="splash-photo-bg" class="splash-photo-bg"></div>
     <canvas id="splash-canvas"></canvas>
     <div class="splash-veil"></div>
     <div id="splash-datetime" class="splash-datetime">
-      <div id="splash-time" class="splash-time"></div>
       <div id="splash-date" class="splash-date"></div>
+      <div id="splash-time" class="splash-time"></div>
     </div>
     <div class="splash-content">
       <div id="splash-welcome" class="splash-welcome">Welcome Home</div>
     </div>
     <div id="splash-home" class="splash-home">
-      <div class="splash-progress"><div id="splash-progress-fill" class="splash-progress-fill"></div></div>
       <svg class="splash-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
       <div class="splash-hint">向上轻滑以进入</div>
       <div class="splash-bar"></div>

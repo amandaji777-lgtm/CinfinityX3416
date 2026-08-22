@@ -11,8 +11,36 @@ const More = (() => {
   let splashPhotoPreviewUrls = { light: null, 'soft-dark': null };
   let userAvatarBlob = null;
   let userAvatarPreviewUrl = null;
+  let characters = [];
+  let charAvatarUrls = {};
   let skyStars = [];
   let skyResizeHandler = null;
+
+  // 壁纸/开屏背景图之前是直接把手机相机原图整个存进 IndexedDB——动辄几MB到十几MB，
+  // 在部分浏览器/内嵌 WebView 里很容易安静地写入失败（配额限制），界面上却没有任何提示，
+  // 看起来就像"设置了但没生效"。上传前先压到长边 1600px（比小卡片缩略图的 900px 大，
+  // 毕竟壁纸要铺满全屏），同时给调用方补上 try/catch，失败时明确告诉用户，不再假装成功。
+  function resizeImageFile(file, maxDim = 1600, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('图片处理失败')), 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+      img.src = url;
+    });
+  }
 
   async function init(rootEl) {
     container = rootEl;
@@ -21,7 +49,13 @@ const More = (() => {
     await refreshWallpaperBlobs();
     await refreshSplashPhotoBlobs();
     await refreshUserAvatarBlob();
+    await refreshCharacters();
     render();
+  }
+
+  async function refreshCharacters() {
+    characters = await DB.getAllByIndex('ai_resources', 'kind', 'character');
+    charAvatarUrls = await Avatars.preload(characters.map((c) => c.id));
   }
 
   async function refreshWallpaperBlobs() {
@@ -210,7 +244,8 @@ const More = (() => {
     window.addEventListener('resize', skyResizeHandler);
   }
 
-  // ---------------- 头像 ----------------
+  // ---------------- 头像：自己 + 每一张"对方角色卡"，都在这一个页面里直接设置，
+  // 不用再跑去 AI 资料库找到具体那张角色卡、点进整个编辑表单才能改头像。 ----------------
   function openAvatarPage() {
     const dialog = Pages.open('头像', `
       <div class="more-section">
@@ -225,9 +260,11 @@ const More = (() => {
         <p class="section-hint">会显示在你自己发的每条消息旁边。</p>
       </div>
       <div class="more-section">
-        <h3>角色头像</h3>
-        <p class="section-hint">每个"对方角色卡"的头像单独在 AI 资料库里设置——编辑一张角色卡，顶部就能上传专属头像。</p>
-        <button type="button" class="btn-secondary" id="avatar-goto-resources">去 AI 资料库设置角色头像</button>
+        <h3>对方头像</h3>
+        ${characters.length === 0 ? `
+          <p class="section-hint">还没有"对方角色卡"，先去 AI 资料库新建一张，回来就能在这里直接换头像了。</p>
+          <button type="button" class="btn-secondary" id="avatar-goto-resources">去 AI 资料库新建角色卡</button>
+        ` : characters.map(charAvatarRow).join('')}
       </div>
     `);
     dialog.querySelector('#user-avatar-input').addEventListener('change', async (e) => {
@@ -235,13 +272,17 @@ const More = (() => {
       e.target.value = '';
       if (!file) return;
       if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
-      await Avatars.set(null, file);
-      await refreshUserAvatarBlob();
-      if (window.Chat) await window.Chat.refreshAvatars();
-      Pages.close(dialog);
-      render();
-      openAvatarPage();
-      toast('头像已更新');
+      try {
+        await Avatars.set(null, file);
+        await refreshUserAvatarBlob();
+        if (window.Chat) await window.Chat.refreshAvatars();
+        Pages.close(dialog);
+        render();
+        openAvatarPage();
+        toast('头像已更新');
+      } catch (err) {
+        await UIDialog.alert('头像设置失败：' + (err?.message || '未知错误') + '，换一张小一点的图片试试');
+      }
     });
     dialog.querySelector('#user-avatar-clear')?.addEventListener('click', async () => {
       await Avatars.clear(null);
@@ -252,10 +293,52 @@ const More = (() => {
       openAvatarPage();
       toast('已移除头像');
     });
-    dialog.querySelector('#avatar-goto-resources').addEventListener('click', () => {
+    dialog.querySelector('#avatar-goto-resources')?.addEventListener('click', () => {
       Pages.close(dialog);
       window.App.switchTab('resources');
     });
+    characters.forEach((c) => {
+      dialog.querySelector(`[data-char-avatar-input="${c.id}"]`)?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
+        try {
+          await Avatars.set(c.id, file);
+          await refreshCharacters();
+          if (window.Chat) await window.Chat.refreshAvatars();
+          Pages.close(dialog);
+          render();
+          openAvatarPage();
+          toast(`${c.name || '对方'}的头像已更新`);
+        } catch (err) {
+          await UIDialog.alert('头像设置失败：' + (err?.message || '未知错误') + '，换一张小一点的图片试试');
+        }
+      });
+      dialog.querySelector(`[data-char-avatar-clear="${c.id}"]`)?.addEventListener('click', async () => {
+        await Avatars.clear(c.id);
+        await refreshCharacters();
+        if (window.Chat) await window.Chat.refreshAvatars();
+        Pages.close(dialog);
+        render();
+        openAvatarPage();
+        toast('已移除头像');
+      });
+    });
+  }
+
+  function charAvatarRow(c) {
+    const url = charAvatarUrls[c.id];
+    return `
+      <div class="avatar-upload-row">
+        <div class="avatar-preview">${url ? `<img src="${url}" alt="">` : escapeHtml((c.name || '角')[0] || '角')}</div>
+        <div class="avatar-upload-actions">
+          <div class="section-hint" style="margin:0 0 4px;">${escapeHtml(c.name || '未命名角色')}</div>
+          <label class="btn-secondary file-btn">更换头像<input type="file" accept="image/*" data-char-avatar-input="${c.id}" hidden></label>
+          ${url ? `<button type="button" class="msg-act" data-char-avatar-clear="${c.id}">移除头像</button>` : ''}
+        </div>
+      </div>
+    `;
   }
 
   // ---------------- 工作台设置 ----------------
@@ -380,12 +463,17 @@ const More = (() => {
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
-    await Wallpaper.set(theme, file);
-    await refreshWallpaperBlobs();
-    Pages.close(dialog);
-    render();
-    openWallpaperPage();
-    toast('壁纸已更新');
+    try {
+      const resized = await resizeImageFile(file, 1600, 0.85);
+      await Wallpaper.set(theme, resized);
+      await refreshWallpaperBlobs();
+      Pages.close(dialog);
+      render();
+      openWallpaperPage();
+      toast('壁纸已更新');
+    } catch (err) {
+      await UIDialog.alert('壁纸设置失败：' + (err?.message || '未知错误') + '，换一张小一点的图片试试');
+    }
   }
 
   async function handleWallpaperClear(dialog, theme) {
@@ -411,12 +499,17 @@ const More = (() => {
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
-    await SplashPhoto.set(theme, file);
-    await refreshSplashPhotoBlobs();
-    Pages.close(dialog);
-    render();
-    openWallpaperPage();
-    toast('开屏背景已更新');
+    try {
+      const resized = await resizeImageFile(file, 1600, 0.85);
+      await SplashPhoto.set(theme, resized);
+      await refreshSplashPhotoBlobs();
+      Pages.close(dialog);
+      render();
+      openWallpaperPage();
+      toast('开屏背景已更新');
+    } catch (err) {
+      await UIDialog.alert('开屏背景设置失败：' + (err?.message || '未知错误') + '，换一张小一点的图片试试');
+    }
   }
 
   async function handleSplashPhotoClear(dialog, theme) {
