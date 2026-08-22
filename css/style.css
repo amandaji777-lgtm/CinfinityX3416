@@ -176,11 +176,21 @@ html[data-theme="soft-dark"] {
   overflow: hidden;
   animation: silentsync-spin 42s linear infinite;
 }
-/* 太极图案：黑白交界处特意模糊（内层比外圆盘大一圈，模糊溢出的部分被外层的
-   圆形 overflow:hidden 裁掉），这样只有黑白之间的分界线被柔化成渐变过渡，
-   外轮廓本身还是干净的圆，不会整块都糊成一团。 */
+/* 水墨感太极：不是几何意义上工工整整的太极图，交界线先用 feTurbulence +
+   feDisplacementMap 揉成不规则的水波纹边缘，再轻微模糊，让黑白像墨在宣纸上
+   洇开那样"融合又没有完全融合"；上面再叠一层噪点纹理（mix-blend-mode:
+   overlay）做出墨迹本身的颗粒感。内层比外圆盘大一圈，扭曲/模糊溢出的部分
+   被外层圆形 overflow:hidden 裁掉，外轮廓还是干净的圆。 */
 .silentsync-taiji { position: absolute; inset: -18%; }
-.silentsync-taiji svg { width: 100%; height: 100%; display: block; filter: blur(7px); }
+.silentsync-taiji svg { width: 100%; height: 100%; display: block; }
+.silentsync-taiji-grain {
+  position: absolute; inset: -18%;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3MCIgaGVpZ2h0PSI3MCI+PGZpbHRlciBpZD0ibiI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjIiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48ZmVDb2xvck1hdHJpeCB0eXBlPSJtYXRyaXgiIHZhbHVlcz0iMCAwIDAgMCAwICAwIDAgMCAwIDAgIDAgMCAwIDAgMCAgMC45IDAgMCAwIDAiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbikiLz48L3N2Zz4=");
+  background-size: 70px 70px;
+  mix-blend-mode: overlay;
+  opacity: 0.4;
+  pointer-events: none;
+}
 
 @keyframes silentsync-spin {
   from { transform: rotate(0deg); }
