@@ -268,6 +268,14 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
   .bg-orbs span { animation: none; opacity: var(--orb-opacity-low); }
 }
 
+/* 临时诊断条——定位到那条白边真正的病根之后会整段删掉。 */
+#debug-badge {
+  position: fixed; top: 0; left: 0; z-index: 99999;
+  background: rgba(255, 0, 60, 0.88); color: #fff;
+  font: 10px/1.4 monospace; padding: 4px 6px;
+  white-space: pre; pointer-events: none;
+}
+
 /* ---------- App Shell ---------- */
 /* 找到真正的病根了：过去这里用 height:100vh / 100dvh / calc(var(--vh)*100)
    三层兜底，CSS 层叠是按写的顺序，后写的赢——只要浏览器认得 calc()/自定义

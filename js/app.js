@@ -1,3 +1,33 @@
+// 临时诊断：那条白边反复几轮猜的 CSS 机制都没根治，改成把真实数字直接印在
+// 屏幕左上角——出问题时截图看数字，比继续猜靠谱。定位到真正病根之后会整段删掉。
+(function bindDebugBadge() {
+  const badge = document.getElementById('debug-badge');
+  if (!badge) return;
+  function paint() {
+    const vv = window.visualViewport;
+    const shell = document.getElementById('app-shell');
+    const splash = document.getElementById('splash-screen');
+    const r = (el) => el ? el.getBoundingClientRect() : null;
+    const sr = r(shell);
+    const pr = r(splash);
+    const lines = [
+      `innerH=${window.innerHeight} docClientH=${document.documentElement.clientHeight}`,
+      `vv.h=${vv ? Math.round(vv.height) : 'n/a'} vv.top=${vv ? Math.round(vv.offsetTop) : 'n/a'} vv.scale=${vv ? vv.scale.toFixed(2) : 'n/a'}`,
+      `shell top/bot/h=${sr ? `${Math.round(sr.top)}/${Math.round(sr.bottom)}/${Math.round(sr.height)}` : 'n/a'} style.h=${shell ? shell.style.height || '(none)' : 'n/a'}`,
+      `splash top/bot/h=${pr ? `${Math.round(pr.top)}/${Math.round(pr.bottom)}/${Math.round(pr.height)}` : 'n/a'} display=${splash ? getComputedStyle(splash).display : 'n/a'}`,
+      `standalone=${window.matchMedia('(display-mode: standalone)').matches} kbOpen=${document.body.classList.contains('keyboard-open')}`,
+    ];
+    badge.textContent = lines.join('\n');
+  }
+  paint();
+  window.addEventListener('resize', paint);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', paint);
+    window.visualViewport.addEventListener('scroll', paint);
+  }
+  setInterval(paint, 500);
+})();
+
 // 应用入口：首次向导判断、底部导航、"更多"设置页（API连接/备份/关于）。
 const App = (() => {
   let currentTab = 'chat';
