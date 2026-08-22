@@ -7,14 +7,23 @@
     const vv = window.visualViewport;
     const shell = document.getElementById('app-shell');
     const splash = document.getElementById('splash-screen');
+    const wallpaper = document.getElementById('wallpaper-layer');
+    const photoBg = document.getElementById('splash-photo-bg');
+    const canvas = document.getElementById('splash-canvas');
     const r = (el) => el ? el.getBoundingClientRect() : null;
     const sr = r(shell);
     const pr = r(splash);
+    const wr = r(wallpaper);
+    const phr = r(photoBg);
+    const cr = r(canvas);
+    const fmt = (rect) => rect ? `${Math.round(rect.top)}/${Math.round(rect.bottom)}/${Math.round(rect.height)}` : 'n/a';
     const lines = [
       `innerH=${window.innerHeight} docClientH=${document.documentElement.clientHeight}`,
       `vv.h=${vv ? Math.round(vv.height) : 'n/a'} vv.top=${vv ? Math.round(vv.offsetTop) : 'n/a'} vv.scale=${vv ? vv.scale.toFixed(2) : 'n/a'}`,
-      `shell top/bot/h=${sr ? `${Math.round(sr.top)}/${Math.round(sr.bottom)}/${Math.round(sr.height)}` : 'n/a'} style.h=${shell ? shell.style.height || '(none)' : 'n/a'}`,
-      `splash top/bot/h=${pr ? `${Math.round(pr.top)}/${Math.round(pr.bottom)}/${Math.round(pr.height)}` : 'n/a'} display=${splash ? getComputedStyle(splash).display : 'n/a'}`,
+      `shell t/b/h=${fmt(sr)} splash t/b/h=${fmt(pr)}`,
+      `wallpaper t/b/h=${fmt(wr)} hasWallpaperClass=${document.documentElement.classList.contains('has-wallpaper')}`,
+      `photoBg t/b/h=${fmt(phr)} opacity=${photoBg ? getComputedStyle(photoBg).opacity : 'n/a'} bgImgSet=${photoBg ? photoBg.style.backgroundImage !== '' : 'n/a'}`,
+      `canvas t/b/h=${fmt(cr)} style.h=${canvas ? canvas.style.height || '(none)' : 'n/a'}`,
       `standalone=${window.matchMedia('(display-mode: standalone)').matches} kbOpen=${document.body.classList.contains('keyboard-open')}`,
     ];
     badge.textContent = lines.join('\n');
