@@ -61,32 +61,45 @@ const App = (() => {
     if (window.Wallpaper) Wallpaper.apply(isDark ? 'soft-dark' : 'light');
   }
 
-  // 找到真正的病根了：.app-shell 用 position:fixed;inset:0 撑满屏幕，这个
-  // inset:0 是按"布局视口"算的——键盘弹起时布局视口本身不会变小（这是 iOS
-  // Safari 的固定行为），所以 app-shell 完全不会跟着收缩让位置给键盘，输入框
-  // 就被键盘挡住了。之前用 JS 量 --vh 那一套本来是有跟着键盘缩放的效果的，
-  // 只是被我自己不小心用错了层叠顺序搞坏——但"让外壳跟着键盘缩放"这件事本身
-  // 是必须做的，不能整个去掉。这次用对方法重做：直接监听 visualViewport（浏览器
-  // 原生提供、专门反映"键盘弹起后真正能看见多少屏幕"的 API），键盘一弹起就把
-  // app-shell 的高度改成这个实际可见高度，键盘收起再改回全屏——用 JS 直接赋值
-  // inline style，不会再有 CSS 层叠顺序把它盖掉的问题。
+  // 视频逐帧看到了更彻底的病根：光改 app-shell 的高度只解决了"键盘挡住多少"，
+  // 没解决另一件事——iOS Safari 在输入框获得焦点时，会自己把"视觉视口"（真正
+  // 显示在屏幕上的那一小块）在"布局视口"里挪一下位置，想把输入框"滚"到看得见
+  // 的地方去。而 app-shell / splash-screen 用的 position:fixed;inset:0 是钉死
+  // 在布局视口上的，不会跟着这个"挪动"走——所以视觉视口一挪，整个外壳在屏幕上
+  // 看起来就像被"顶飞"了一样，露出一大片空白，直到手动滑一下把它拨回去。
+  // visualViewport 除了 .height，还有 .offsetTop：正好就是这个"挪了多少"的量。
+  // 用它反向把外壳往下（或上）挪回同样的距离，就能把这个挪动抵消掉，让外壳
+  // 一直贴在视觉视口里，不会再飞出去。开屏页也会遇到同一个问题（比如从上次
+  // 挂起的状态恢复、视觉视口本来就没归零），所以两个外壳一起处理。
   function bindVisualViewportResize() {
     const shell = document.getElementById('app-shell');
-    if (!shell || !window.visualViewport) return;
+    const splash = document.getElementById('splash-screen');
+    if (!window.visualViewport || (!shell && !splash)) return;
     const vv = window.visualViewport;
     let rafId = null;
     function apply() {
-      shell.style.height = vv.height + 'px';
+      const gap = window.innerHeight - vv.height;
+      const panned = gap > 100 || vv.offsetTop > 1;
+      [shell, splash].forEach((el) => {
+        if (!el) return;
+        if (panned) {
+          el.style.height = vv.height + 'px';
+          el.style.top = vv.offsetTop + 'px';
+        } else {
+          el.style.height = '';
+          el.style.top = '';
+        }
+      });
       // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
       // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
       // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
-      document.body.classList.toggle('keyboard-open', window.innerHeight - vv.height > 100);
+      document.body.classList.toggle('keyboard-open', gap > 100);
     }
     // 键盘弹起/收起是有个滑动动画的（不是一步到位），这个过程中 visualViewport
-    // 的 resize 事件会连续密集地触发好多次——每次都同步改一遍高度、逼一次重排，
-    // 密集触发时容易在动画中间的某一帧撞上"布局还没缩完就被截断"的画面（配合
-    // .message-list 那个 min-height:0 的修复，这里再用 rAF 把同一帧内的多次
-    // 触发合并成一次，进一步减少中间态被渲染出来的机会）。
+    // 的 resize/scroll 事件会连续密集地触发好多次——每次都同步改一遍尺寸、逼一次
+    // 重排，密集触发时容易在动画中间的某一帧撞上"布局还没缩完就被截断"的画面
+    // （配合 .message-list 那个 min-height:0 的修复，这里再用 rAF 把同一帧内的
+    // 多次触发合并成一次，进一步减少中间态被渲染出来的机会）。
     function schedule() {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(apply);
