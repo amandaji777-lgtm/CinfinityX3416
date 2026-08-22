@@ -282,14 +282,6 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
   .bg-orbs span { animation: none; opacity: var(--orb-opacity-low); }
 }
 
-/* 临时诊断条——定位到那条白边真正的病根之后会整段删掉。 */
-#debug-badge {
-  position: fixed; top: 0; left: 0; z-index: 99999;
-  background: rgba(255, 0, 60, 0.88); color: #fff;
-  font: 10px/1.4 monospace; padding: 4px 6px;
-  white-space: pre; pointer-events: none;
-}
-
 /* ---------- App Shell ---------- */
 /* 这次是真的找到病根了，而且是有人实测验证过的：iOS 独立模式（PWA）下，
    100dvh 会被系统悄悄扣掉几十像素，只有纯粹的 100vh 量出来才准——inset:0
@@ -1113,21 +1105,23 @@ html[data-theme="soft-dark"] .more-hero-stat b {
   position: fixed; top: 0; left: 0; right: 0; height: 100vh;
   z-index: 999;
   background: #050506;
-  --splash-fade-color: #050506;
   display: flex; flex-direction: column; align-items: center;
   transition: opacity 0.5s ease, visibility 0.5s;
   overflow: hidden;
 }
 .splash-screen.splash-hide { opacity: 0; pointer-events: none; }
-.splash-screen.is-light { background: #fafafa; --splash-fade-color: #fafafa; }
+.splash-screen.is-light { background: #fafafa; }
 
 /* 底边那圈 iOS 独立模式下的系统级留白，查到这一步已经确认不是我们代码能
    改动的东西了（外壳/壁纸/照片每一层的尺寸都反复验证过是对的，画面还是会
    在同一个位置停住）——干脆把这圈"停下来"的边界，做成一段收束到底色的
-   渐隐，看起来像是氛围图本来就设计成往下收束变暗/变淡，而不是没铺满。 */
+   渐隐，看起来像是氛围图本来就设计成往下收束变暗/变淡，而不是没铺满。
+   一开始直接淡到主题底色（黑银是纯黑）太重、跟浅色照片不搭——改成淡到
+   半透明黑做"变暗"的氛围渐隐，不管什么主题、什么照片色调都不会显得突兀，
+   也比纯色柔和很多。 */
 .splash-bottom-fade {
   position: absolute; left: 0; right: 0; bottom: 0; height: 130px;
-  background: linear-gradient(to bottom, transparent, var(--splash-fade-color) 88%);
+  background: linear-gradient(to bottom, transparent, rgba(10, 8, 6, 0.4));
   pointer-events: none;
   z-index: 1;
 }
