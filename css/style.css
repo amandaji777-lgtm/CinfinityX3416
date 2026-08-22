@@ -243,8 +243,8 @@ button { cursor: pointer; }
      动态视口逻辑影响的百分比包含块计算。 */
   position: fixed; top: -6vh; left: -6vw; right: -6vw; height: 112vh; z-index: 0;
   background-size: cover; background-position: center;
-  /* filter:blur() 是 iOS 上唯一还没排除嫌疑的合成属性，先去掉验证是不是它
-     导致底边画不满（跟 .splash-photo-bg 那条是同一个实验）。 */
+  /* filter:blur() 已排除嫌疑（见 .splash-photo-bg 里的说明），恢复模糊效果。 */
+  filter: blur(7px) saturate(1.05);
   opacity: 0; transition: opacity 0.4s ease;
   pointer-events: none;
 }
@@ -1121,15 +1121,15 @@ html[data-theme="soft-dark"] .more-hero-stat b {
 .splash-screen.is-light { background: #fafafa; }
 
 .splash-photo-bg {
-  /* 上一步去掉 transform 之后，用全新安装 + 最新代码验证过：盒子尺寸这次
-     100%对得上（跟 innerHeight 精确一致），但画面还是没铺满到底——这就把
-     "布局算错了"这个可能性彻底排除了，剩下能解释"盒子对、画没画满"的只有
-     "画"本身的合成问题。这层唯一还留着的、会强制 iOS 走 GPU 合成路径的
-     属性就是 filter:blur()——这次连它也去掉，直接验证是不是它。如果去掉
-     之后白边真的消失，再想办法用别的方式（比如导出已经模糊好的图片素材，
-     而不是靠实时 CSS 滤镜）把柔和感找回来，不再用现场 filter 硬糊。 */
+  /* filter:blur() 测试过了：换成完全没有模糊感的清晰图片，白边照样在同一个
+     位置出现——排除了 blur。真正原因是 body 自己的 overflow:hidden 裁剪边界
+     （body 的高度一直还是靠 CSS 100vh 撑的，没跟着 shell/splash 一起换成
+     JS 测量，导致 body 自己裁剪的边界比真实屏幕矮了一截——这层的盒子本身
+     没错，是被祖先咬掉了一块，getBoundingClientRect() 量不出这种"被祖先
+     裁剪"的情况）。body 那边已经改成同一套可靠的 JS 测量，模糊效果恢复。 */
   position: absolute; inset: -6%;
   background-size: cover; background-position: center;
+  filter: blur(4px) saturate(1.05) brightness(0.95);
   opacity: 0;
   transition: opacity 0.6s ease;
 }

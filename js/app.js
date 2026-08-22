@@ -16,10 +16,12 @@
     const wr = r(wallpaper);
     const phr = r(photoBg);
     const cr = r(canvas);
+    const br = r(document.body);
     const fmt = (rect) => rect ? `${Math.round(rect.top)}/${Math.round(rect.bottom)}/${Math.round(rect.height)}` : 'n/a';
     const lines = [
       `innerH=${window.innerHeight} docClientH=${document.documentElement.clientHeight}`,
       `vv.h=${vv ? Math.round(vv.height) : 'n/a'} vv.top=${vv ? Math.round(vv.offsetTop) : 'n/a'} vv.scale=${vv ? vv.scale.toFixed(2) : 'n/a'}`,
+      `body t/b/h=${fmt(br)} style.h=${document.body.style.height || '(none)'}`,
       `shell t/b/h=${fmt(sr)} splash t/b/h=${fmt(pr)}`,
       `wallpaper t/b/h=${fmt(wr)} hasWallpaperClass=${document.documentElement.classList.contains('has-wallpaper')}`,
       `photoBg t/b/h=${fmt(phr)} opacity=${photoBg ? getComputedStyle(photoBg).opacity : 'n/a'} bgImgSet=${photoBg ? photoBg.style.backgroundImage !== '' : 'n/a'}`,
@@ -63,6 +65,16 @@
     const panned = gap > 100 || (vv && vv.offsetTop > 1);
     const top = panned ? vv.offsetTop : 0;
     const visibleH = panned ? vv.height : h;
+    // 真正的谜底：body/html 一直还是靠 CSS 的 100vh 撑高度的，这次全新安装、
+    // 全新代码测出来 shell/splash 自己的盒子量出来都精确等于 innerHeight，
+    // 但画面还是被裁掉一截——因为 body 自己还挂着 overflow:hidden，如果 body
+    // 自己那个 100vh 量出来比真实高度矮，body 就会把里面所有内容（哪怕它们
+    // 自己的盒子量出来是对的）都按 body 自己这个偏矮的边界裁掉一截。子元素
+    // 自己的 getBoundingClientRect() 不会告诉你它被祖先的 overflow:hidden
+    // 裁剪了——这就是为什么诊断条一直看起来"数字是对的"却始终没测出真正
+    // 问题。body/html 也一起用这个可靠的 JS 测量值撑高度，不再假手 CSS。
+    document.documentElement.style.height = h + 'px';
+    document.body.style.height = h + 'px';
     [shell, splash].forEach((el) => {
       if (!el) return;
       el.style.height = visibleH + 'px';
