@@ -47,6 +47,15 @@ const FIELD_SCHEMAS = {
   ],
 };
 
+// 这三类各自已经有专属的"名字"字段（角色卡叫"姓名"，长记忆叫"标题"），列表标题
+// 直接从这个字段派生，不用再单独填一遍"资源名称"——预设/世界书没有这种字段，
+// 所以它们还是保留独立的"资源名称"作为唯一的命名入口。
+const NAME_DERIVED_FROM_FIELD = {
+  character: 'name',
+  persona: 'name',
+  longMemory: 'title',
+};
+
 const LOREBOOK_ENTRY_FIELDS = [
   ['title', '标题', 'short'], ['content', '正文', 'long'],
   ['keywords', '关键词/同义词（逗号分隔）', 'short'], ['priority', '优先级', 'number'],
@@ -196,6 +205,16 @@ const Resources = (() => {
   // ---- 编辑器：逐项填写 / 粘贴文本 两种模式，确认前都会有 JSON 预览 ----
   function openEditor(kind, item) {
     const isNew = !item;
+    // 角色卡/我的角色卡/手工长记忆这三类的"名字"就用它们各自专属的字段（姓名/标题）——
+    // 那个字段单独拎到"逐项填写/整段粘贴"两个模式切换的上面，两种模式下都看得见、
+    // 填得到，不会切到"整段粘贴"就找不到填名字的地方。预设/世界书没有专属名字字段，
+    // 还是用通用的"资源名称"。
+    const derivedField = NAME_DERIVED_FROM_FIELD[kind];
+    const nameLabel = derivedField ? FIELD_SCHEMAS[kind].find(([k]) => k === derivedField)[1] : '资源名称';
+    // 兼容这次改版之前存的旧数据：那时候"资源名称"和这个专属字段是分开填的，
+    // 可能只填了其中一个——编辑时优先用专属字段的值，没有就退回旧的资源名称，
+    // 不会让本来填过名字的老角色卡打开后突然变成空的。
+    const nameValue = derivedField ? (item?.data?.[derivedField] || item?.name || '') : (item?.name || '');
     const dialog = Pages.open(`${isNew ? '新建' : '编辑'}${KIND_META[kind].label}`, `
       ${kind === 'character' ? `
         <div class="avatar-upload-row">
@@ -210,9 +229,9 @@ const Resources = (() => {
         <label class="seg-option"><input type="radio" name="mode" value="fields" checked><span>逐项填写</span></label>
         <label class="seg-option"><input type="radio" name="mode" value="paste"><span>整段粘贴</span></label>
       </div>
-      <label class="field"><span>资源名称</span><input id="res-name" value="${escapeAttr(item?.name || '')}" maxlength="30" required></label>
+      <label class="field"><span>${nameLabel}</span><input id="res-name" ${derivedField ? `data-field="${derivedField}"` : ''} value="${escapeAttr(nameValue)}" maxlength="30" required></label>
       <div id="fields-mode">
-        ${kind === 'lorebook' ? lorebookEntriesEditor(item) : fieldsForm(kind, item?.data || {})}
+        ${kind === 'lorebook' ? lorebookEntriesEditor(item) : fieldsForm(kind, item?.data || {}, derivedField)}
       </div>
       <div id="paste-mode" style="display:none">
         <label class="field"><span>粘贴自然语言描述（缺项就空着，系统不会编造）</span>
@@ -280,7 +299,7 @@ const Resources = (() => {
     dialog.querySelector('#res-delete')?.addEventListener('click', () => { Pages.close(dialog); deleteResource(item); });
     dialog.querySelector('#res-preview').addEventListener('click', async () => {
       const name = dialog.querySelector('#res-name').value.trim();
-      if (!name) { await UIDialog.alert('请填写资源名称'); return; }
+      if (!name) { await UIDialog.alert(`请填写${nameLabel}`); return; }
       const mode = dialog.querySelector('input[name=mode]:checked').value;
       let data, originalText = '', sourceType;
       if (mode === 'paste') {
@@ -302,8 +321,8 @@ const Resources = (() => {
     });
   }
 
-  function fieldsForm(kind, data) {
-    return (FIELD_SCHEMAS[kind] || []).map(([key, label, type]) => `
+  function fieldsForm(kind, data, excludeKey) {
+    return (FIELD_SCHEMAS[kind] || []).filter(([key]) => key !== excludeKey).map(([key, label, type]) => `
       <label class="field"><span>${label}</span>
         ${type === 'long'
           ? `<textarea data-field="${key}" rows="2">${escapeHtml(data[key] || '')}</textarea>`
