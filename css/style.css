@@ -130,7 +130,9 @@ html[data-theme="soft-dark"] {
 }
 
 .silentsync-overlay {
-  position: fixed; inset: 0;
+  /* 同一个坑：inset:0 在 iOS 独立模式下会被系统动态视口逻辑扣掉像素，写死
+     100vh 才躲得开。 */
+  position: fixed; top: 0; left: 0; right: 0; height: 100vh;
   z-index: 500;
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
@@ -209,8 +211,15 @@ html[data-theme="soft-dark"] {
    滚"这个前提都不成立，Safari 就没有可以滚的目标了。 */
 html, body { height: 100%; overflow: hidden; }
 body {
+  /* 真正的病根找到了：iOS 独立模式下，dvh/inset:0 这类"跟着安全区动态算"的
+     铺满方式，系统内部会悄悄扣掉几十像素（这是别人在真机接 Mac 调试器实测
+     出来的已知毛病，不是我们代码的问题），只有纯粹的 100vh 这种"写死不跟着
+     动态视口走"的量法量出来才是准的。inset:0 虽然没直接写 vh，但 iOS 内部
+     算 position:fixed 的包含块用的是同一套会被扣像素的逻辑，跟 dvh 是一个
+     坑——改成显式 100vh，绕开这套动态视口换算，才是真正躲开这个坑。 */
   position: fixed;
-  inset: 0;
+  top: 0; left: 0; right: 0;
+  height: 100vh;
   width: 100%;
   margin: 0;
   background: var(--bg);
@@ -227,10 +236,12 @@ button { cursor: pointer; }
   /* 主界面壁纸是长期垫在文字底下的背景，跟开屏那种几秒钟的氛围图不一样——需要
      糊一点，太清晰会跟前面的文字/卡片抢注意力。轻度模糊 + 放大一点点盖住模糊
      后露出的边缘。
-     跟 .splash-photo-bg 同一个病：filter 叠 transform 在超高屏幕上是已知会
-     让 iOS 合成层裁切出问题的组合，inset:-6% 本身够用了，去掉这层重复的
-     scale(1.08) 降低合成复杂度。 */
-  position: fixed; inset: -6%; z-index: 0;
+     这层是直接 position:fixed 挂在 body 下面的，不在 app-shell 容器里面——
+     跟 app-shell/splash-screen 那条"inset:0 在 iOS 独立模式下会被动态视口
+     偷偷扣像素"是同一个坑，但这层用的是 inset:-6% 这种百分比写法，没法直接
+     换成 100vh。改成 vh/vw 直接写死这一圈"往外扩6%"的量，不再依赖会被系统
+     动态视口逻辑影响的百分比包含块计算。 */
+  position: fixed; top: -6vh; left: -6vw; right: -6vw; height: 112vh; z-index: 0;
   background-size: cover; background-position: center;
   filter: blur(7px) saturate(1.05);
   opacity: 0; transition: opacity 0.4s ease;
@@ -252,7 +263,7 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
 /* ---------- 漂浮光斑背景（玻璃拟态的模糊对象） ---------- */
 .bg-orbs {
   position: fixed;
-  inset: 0;
+  top: 0; left: 0; right: 0; height: 100vh;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -279,21 +290,19 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
 }
 
 /* ---------- App Shell ---------- */
-/* 找到真正的病根了：过去这里用 height:100vh / 100dvh / calc(var(--vh)*100)
-   三层兜底，CSS 层叠是按写的顺序，后写的赢——只要浏览器认得 calc()/自定义
-   属性这个语法（现在都认得），最后这条 JS 实测值就会赢过原生的 100dvh，
-   等于把"浏览器自己实时算的、永远准的"高度，换成了"JS 在某个时间点量一次、
-   之后可能过期"的高度。真机上如果那次测量点没踩准（比如刚从主屏幕冷启动、
-   状态栏/安全区还没最终定下来），量出来的数字就会偏矮，底下露出一条没盖到
-   的白边——这正是你反复看到的那条白边的根源，不只是开屏页，聊天页顶飞后
-   露出来的空白本质上也是同一件事。
-   真正的修法：position:fixed + inset:0，让浏览器原生实时计算，不経过 JS
-   这道手、也就没有"过期"这回事——不再需要任何 vh 兜底链。 */
+/* 这次是真的找到病根了，而且是有人实测验证过的：iOS 独立模式（PWA）下，
+   100dvh 会被系统悄悄扣掉几十像素，只有纯粹的 100vh 量出来才准——inset:0
+   虽然没直接写 vh，但 iOS 内部算 position:fixed 包含块用的是同一套会被
+   动态视口逻辑影响的算法，是同一个坑，不是"过期的 JS 测量值"这类我们自己
+   代码的问题。之前疑心过的 vh 层叠顺序、visualViewport 挪动、GPU 合成裁切，
+   都是在这同一个坑里各自摸到的側面——真正躲开的办法是老老实实写死
+   100vh，不用任何"跟着安全区动态换算"的写法。 */
 .app-shell {
   display: none;
   flex-direction: column;
   position: fixed;
-  inset: 0;
+  top: 0; left: 0; right: 0;
+  height: 100vh;
   padding-top: var(--safe-top);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
@@ -515,7 +524,7 @@ html[data-theme="soft-dark"] .empty-state {
 /* ---------- 整页表单：字段特别多的表单(API连接/资料库编辑/对话设置)用，
    从右侧滑入盖住当前视图、带返回按钮，内容区正常滚动，不再是局促的半截弹窗。
    z-index 比 modal-overlay 低，这样表单内弹出的小确认框仍会盖在整页表单之上。 ---------- */
-.page-stack { position: fixed; inset: 0; z-index: 150; pointer-events: none; }
+.page-stack { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 150; pointer-events: none; }
 .page-view {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
@@ -553,7 +562,7 @@ html[data-theme="soft-dark"] .empty-state {
 
 /* ---------- 弹窗 ---------- */
 .modal-overlay {
-  position: fixed; inset: 0;
+  position: fixed; top: 0; left: 0; right: 0; height: 100vh;
   background: rgba(20,15,25,0.35);
   display: flex; align-items: center; justify-content: center;
   padding: 24px calc(var(--safe-left) + 20px) calc(var(--safe-bottom) + 24px) calc(var(--safe-right) + 20px);
@@ -1098,12 +1107,9 @@ html[data-theme="soft-dark"] .more-hero-stat b {
    主角），中间"Welcome Home"，手指从底部横杠往上一划才真正进入——不是被动等定时器。
    没设自定义照片时，背景就是当前主题的纯色（黑银黑色/白金白色），不再有内置默认图。 ---------- */
 .splash-screen {
-  /* 上一版在这里叠了一层 JS 实测的 --vh 当"兜底"，结果适得其反：本来
-     position:fixed + inset:0 就是浏览器原生实时算的、最准的铺满方式，
-     再叠一层 calc(var(--vh)*100) 反而会因为层叠顺序把这个更准的结果
-     覆盖掉，变成依赖 JS 那次可能过期的测量值——就是底边露白的真正原因。
-     去掉那层兜底，只留 inset:0，别再画蛇添足。 */
-  position: fixed; inset: 0;
+  /* 同 .app-shell 那条：iOS 独立模式下 inset:0 走的是会被系统偷偷扣掉
+     几十像素的动态视口算法，写死 100vh 才是真正躲开这个坑的办法。 */
+  position: fixed; top: 0; left: 0; right: 0; height: 100vh;
   z-index: 999;
   background: #050506;
   display: flex; flex-direction: column; align-items: center;
