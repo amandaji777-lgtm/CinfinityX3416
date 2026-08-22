@@ -61,23 +61,25 @@ const App = (() => {
     if (window.Wallpaper) Wallpaper.apply(isDark ? 'soft-dark' : 'light');
   }
 
-  // iOS Safari（包括加到主屏幕后的独立模式）有个很顽固的老毛病：输入框弹出键盘
-  // 又收起之后，浏览器内部记的"视觉视口"缩放/偏移有时候对不上了，表现出来就是
-  // 页面莫名其妙空出一截、或者内容顶到奇怪的位置——手动双指缩放一下能"修好"，
-  // 就是因为缩放手势会强迫 Safari 重新计算这个视口。写代码模拟同一个动作：
-  // 输入框失焦（键盘收起）时，把 viewport meta 标签的内容改一下再立刻改回去，
-  // 逼 Safari 重新算一遍，不用等用户自己去缩放。
-  function bindKeyboardZoomFix() {
-    const meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) return;
-    const original = meta.getAttribute('content');
-    document.addEventListener('focusout', (e) => {
-      if (!e.target.matches?.('input, textarea')) return;
-      requestAnimationFrame(() => {
-        meta.setAttribute('content', original + ',maximum-scale=1.0');
-        requestAnimationFrame(() => meta.setAttribute('content', original));
-      });
-    });
+  // 找到真正的病根了：.app-shell 用 position:fixed;inset:0 撑满屏幕，这个
+  // inset:0 是按"布局视口"算的——键盘弹起时布局视口本身不会变小（这是 iOS
+  // Safari 的固定行为），所以 app-shell 完全不会跟着收缩让位置给键盘，输入框
+  // 就被键盘挡住了。之前用 JS 量 --vh 那一套本来是有跟着键盘缩放的效果的，
+  // 只是被我自己不小心用错了层叠顺序搞坏——但"让外壳跟着键盘缩放"这件事本身
+  // 是必须做的，不能整个去掉。这次用对方法重做：直接监听 visualViewport（浏览器
+  // 原生提供、专门反映"键盘弹起后真正能看见多少屏幕"的 API），键盘一弹起就把
+  // app-shell 的高度改成这个实际可见高度，键盘收起再改回全屏——用 JS 直接赋值
+  // inline style，不会再有 CSS 层叠顺序把它盖掉的问题。
+  function bindVisualViewportResize() {
+    const shell = document.getElementById('app-shell');
+    if (!shell || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    function apply() {
+      shell.style.height = vv.height + 'px';
+    }
+    apply();
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
   }
 
   async function startMainApp() {
@@ -92,7 +94,7 @@ const App = (() => {
     if (window.Proactive) await Proactive.refresh();
     if (window.Ambience) Ambience.init();
     if (window.SilentSync) SilentSync.init();
-    bindKeyboardZoomFix();
+    bindVisualViewportResize();
     switchTab('chat');
     bindNav();
 
