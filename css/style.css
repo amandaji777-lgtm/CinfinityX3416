@@ -1113,12 +1113,24 @@ html[data-theme="soft-dark"] .more-hero-stat b {
   position: fixed; top: 0; left: 0; right: 0; height: 100vh;
   z-index: 999;
   background: #050506;
+  --splash-fade-color: #050506;
   display: flex; flex-direction: column; align-items: center;
   transition: opacity 0.5s ease, visibility 0.5s;
   overflow: hidden;
 }
 .splash-screen.splash-hide { opacity: 0; pointer-events: none; }
-.splash-screen.is-light { background: #fafafa; }
+.splash-screen.is-light { background: #fafafa; --splash-fade-color: #fafafa; }
+
+/* 底边那圈 iOS 独立模式下的系统级留白，查到这一步已经确认不是我们代码能
+   改动的东西了（外壳/壁纸/照片每一层的尺寸都反复验证过是对的，画面还是会
+   在同一个位置停住）——干脆把这圈"停下来"的边界，做成一段收束到底色的
+   渐隐，看起来像是氛围图本来就设计成往下收束变暗/变淡，而不是没铺满。 */
+.splash-bottom-fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 130px;
+  background: linear-gradient(to bottom, transparent, var(--splash-fade-color) 88%);
+  pointer-events: none;
+  z-index: 1;
+}
 
 .splash-photo-bg {
   /* filter:blur() 测试过了：换成完全没有模糊感的清晰图片，白边照样在同一个
