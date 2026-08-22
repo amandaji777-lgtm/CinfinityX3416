@@ -314,6 +314,13 @@ html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
    输入框上方很挤。进房间就整条隐藏，.app-main 是 flex:1，会自动补上这块
    空间，不用额外调整别的尺寸。 */
 body.is-chat-room .bottom-nav, body.is-chat-room .silentsync-btn { display: none; }
+/* 真正的病根找到了：#view-chat 这个外层容器本来就带着通用的 overflow-y:auto
+   （给对话列表页用的，列表内容比屏幕高需要靠它滚）。聊天室页面自己已经是
+   flex:1;min-height:0 + 内部 .message-list 自己滚这一套，不需要外层再滚——
+   但只要外层还挂着 overflow:auto，输入框一获得焦点，Safari 就会把它当成
+   "最近的可滚祖先"整个滚上去，表现出来就是整个聊天室被顶飞、只剩输入框
+   露在最上面。进房间时把这层滚动也关掉，才是真的堵死了 Safari 能滚的对象。 */
+body.is-chat-room #view-chat.view { overflow: hidden; }
 .nav-btn {
   flex: 0 0 auto;
   width: 46px;
