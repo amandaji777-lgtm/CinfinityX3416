@@ -25,11 +25,15 @@
     // 都已经加载完了，早就错过第一帧，而且加同一个值不够——真正能让 iOS 硬重置
     // 缩放/偏移状态的是短暂切到 user-scalable=no 再切回来）。这段挪到 <head>
     // 最早执行、且用更狠的写法，尽量在任何内容画出来之前就把继承来的歪状态清掉。
+    // 另外查到一份开源项目的排查记录：iOS 独立模式冷启动时，env(safe-area-inset-*)
+    // 这些安全区数值有时候会"晚一点点"才就位，这一小段时间里页面会先用兜底色画一下，
+    // 等数值真正到位了再纠正过来——就是那"黑一下马上变回来"的来源。跟上面缩放那段
+    // 一起，顺手也把 viewport-fit 抖一下，逼 iOS 尽早把这套值算好，缩短这一下的时间。
     (function () {
       var m = document.querySelector('meta[name="viewport"]');
       if (!m) return;
       var original = m.getAttribute('content');
-      m.setAttribute('content', original + ', user-scalable=no');
+      m.setAttribute('content', original.replace('viewport-fit=cover', 'viewport-fit=auto') + ', user-scalable=no');
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           m.setAttribute('content', original);
