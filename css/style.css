@@ -249,8 +249,9 @@ button { cursor: pointer; }
      动态视口逻辑影响的百分比包含块计算。 */
   position: fixed; top: -6vh; left: -6vw; right: -6vw; height: 112vh; z-index: 0;
   background-size: cover; background-position: center;
-  /* filter:blur() 已排除嫌疑（见 .splash-photo-bg 里的说明），恢复模糊效果。 */
-  filter: blur(7px) saturate(1.05);
+  /* filter:blur() 已排除嫌疑（见 .splash-photo-bg 里的说明），恢复模糊效果；
+     这次反馈糊过头看不清照片内容，调淡一档。 */
+  filter: blur(4px) saturate(1.05);
   opacity: 0; transition: opacity 0.4s ease;
   pointer-events: none;
 }
