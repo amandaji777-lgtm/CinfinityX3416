@@ -226,11 +226,13 @@ button { cursor: pointer; }
 #wallpaper-layer {
   /* 主界面壁纸是长期垫在文字底下的背景，跟开屏那种几秒钟的氛围图不一样——需要
      糊一点，太清晰会跟前面的文字/卡片抢注意力。轻度模糊 + 放大一点点盖住模糊
-     后露出的边缘。 */
+     后露出的边缘。
+     跟 .splash-photo-bg 同一个病：filter 叠 transform 在超高屏幕上是已知会
+     让 iOS 合成层裁切出问题的组合，inset:-6% 本身够用了，去掉这层重复的
+     scale(1.08) 降低合成复杂度。 */
   position: fixed; inset: -6%; z-index: 0;
   background-size: cover; background-position: center;
   filter: blur(7px) saturate(1.05);
-  transform: scale(1.08);
   opacity: 0; transition: opacity 0.4s ease;
   pointer-events: none;
 }
@@ -1113,11 +1115,17 @@ html[data-theme="soft-dark"] .more-hero-stat b {
 
 .splash-photo-bg {
   /* 开屏是几秒钟就划走的氛围图，跟主界面壁纸（长期垫文字底下）需求相反——
-     这里要更清晰，模糊再降一档。 */
+     这里要更清晰，模糊再降一档。
+     那条一直没根治的白边，诊断条把外层容器/画布这些"盒子尺寸"全部验证过是
+     对的，问题应该出在这一层的"画"本身——filter（模糊）叠 transform（缩放）
+     在 iOS 上是已知会触发 GPU 合成层裁切 bug 的组合，尤其是在超高屏幕
+         （Pro Max 这类）上，越界合成出来的贴图在底边偶尔会被截断一小条，跟
+     "盒子量出来是对的、但画面没画满"这个现象完全对得上。inset:-6% 本身已经
+     留够了溢出余量，scale(1.08) 是重复的二次保险，先去掉这层 transform，
+     只留 filter，降低合成复杂度试试看。 */
   position: absolute; inset: -6%;
   background-size: cover; background-position: center;
   filter: blur(4px) saturate(1.05) brightness(0.95);
-  transform: scale(1.08);
   opacity: 0;
   transition: opacity 0.6s ease;
 }
