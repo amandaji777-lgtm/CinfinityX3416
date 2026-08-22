@@ -202,8 +202,16 @@ html[data-theme="soft-dark"] {
    容器里。不锁住的话，聊天输入框拿到焦点、键盘弹起时，Safari 会自作主张
    把整个页面往上顶一截去"露出"输入框，顶部多出一块空白，看起来像整页被
    顶飞了。锁死之后键盘弹起只会让 --vh 变矮、内部布局自己收缩适配。 */
+/* overflow:hidden 这一条单独试过，在部分 iOS Safari/内嵌浏览器上还是拦不住
+   "输入框拿到焦点就把整页滚上去露出来"这个老毛病——那是因为 body 本身还是一个
+   "有滚动能力"的容器，只是被 overflow 关掉了，Safari 依然会尝试去滚它。彻底
+   的做法是让 body 干脆不参与文档滚动：position:fixed 钉死在视口上，连"能不能
+   滚"这个前提都不成立，Safari 就没有可以滚的目标了。 */
 html, body { height: 100%; overflow: hidden; }
 body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
   margin: 0;
   background: var(--bg);
   color: var(--text);
@@ -1013,6 +1021,12 @@ html[data-theme="soft-dark"] .more-hero-stat b {
    没设自定义照片时，背景就是当前主题的纯色（黑银黑色/白金白色），不再有内置默认图。 ---------- */
 .splash-screen {
   position: fixed; inset: 0;
+  /* 跟 .app-shell 一样，不能只信 inset:0——Safari 地址栏还没完全收起/展开的
+     瞬间，固定定位元素按"视口"撑开这件事本身会有落差，底部会露出一条没盖到
+     的缝，透出 body 底色，看起来像开屏没铺满屏幕。用同一套三层兜底高度。 */
+  height: 100vh;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
   z-index: 999;
   background: #050506;
   display: flex; flex-direction: column; align-items: center;
