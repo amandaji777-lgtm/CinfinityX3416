@@ -209,7 +209,13 @@ html[data-theme="soft-dark"] {
    "有滚动能力"的容器，只是被 overflow 关掉了，Safari 依然会尝试去滚它。彻底
    的做法是让 body 干脆不参与文档滚动：position:fixed 钉死在视口上，连"能不能
    滚"这个前提都不成立，Safari 就没有可以滚的目标了。 */
-html, body { height: 100%; overflow: hidden; }
+/* 在公开的开源项目里查到一份很具体的排查记录（JulianBvW/PlayRecap 的
+   ios-pwa-edge-to-edge-fix.md）：html/body 写 height:100% 会"悄悄"让 iOS
+   直接不启用 viewport-fit=cover 这个"内容画到安全区底下"的渲染模式——
+   这不是"量出来的数字对不对"的问题（所以诊断条量了十几次全是对的），是
+   "要不要启用那套渲染模式"这个更早期的判断出了岔子，只有源头 CSS 直接写
+   100vh（不能是 100%，也不能靠 JS 事后再改）才会让这套模式打开。 */
+html, body { height: 100vh; overflow: hidden; }
 body {
   /* 真正的病根找到了：iOS 独立模式下，dvh/inset:0 这类"跟着安全区动态算"的
      铺满方式，系统内部会悄悄扣掉几十像素（这是别人在真机接 Mac 调试器实测
@@ -226,7 +232,7 @@ body {
   color: var(--text);
   font-family: "Noto Serif SC", "Songti SC", "STSong", "SimSun", -apple-system, BlinkMacSystemFont, serif;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: none;
 }
 button, input, textarea, select { font-family: inherit; font-size: 15px; color: inherit; }
 button { cursor: pointer; }
