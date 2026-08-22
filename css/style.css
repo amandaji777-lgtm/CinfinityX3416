@@ -682,7 +682,7 @@ html[data-theme="soft-dark"] .msg-bubble {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.msg-content { font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.msg-content { font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .msg-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); }
 .msg-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 .msg-act { background: none; border: none; font-size: 11.5px; color: var(--text-muted); padding: 0; }
@@ -781,8 +781,22 @@ html[data-theme="soft-dark"] .msg-bubble {
 
 /* ---------- 心情能量波动 ---------- */
 .mood-add-row { padding: 0 16px 12px; }
-.mood-add-row .btn-secondary { width: 100%; }
+/* "+记录此刻"、"日/周/月/年"这两处之前用的是全站通用的实心灰底（.btn-secondary/
+   .seg-row 默认样式），在自定义壁纸上显得灰扑扑很突兀——单独在心情页这两处
+   换成跟壁纸融合的玻璃质感，看得清但不闷。只改这两处，不动全站别处用到
+   .btn-secondary/.seg-row 的地方。 */
+.mood-add-row .btn-secondary {
+  width: 100%;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
 .range-tabs { padding: 0 16px 10px; flex-shrink: 0; }
+.range-tabs.seg-row {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
 #mood-body { padding: 0 16px 24px; }
 .day-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .day-label { font-weight: 600; font-size: 14.5px; }
