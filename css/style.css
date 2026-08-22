@@ -632,7 +632,15 @@ html[data-theme="soft-dark"] .empty-state {
 .archived-toggle { padding: 6px 16px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
 
 .message-list {
-  flex: 1; overflow-y: auto; padding: 14px 12px; -webkit-overflow-scrolling: touch;
+  /* flex:1 的子元素默认 min-height 是 auto，不是 0——意思是它"不情愿"缩得比
+     自己内容还矮。平时没事，但键盘弹起那一下，app-shell 的高度是跟着键盘
+     动画连续快速变化的（不是一步到位），中间那几帧如果 message-list 因为
+     这个默认值一时没跟着缩下去，会把同一行的 room-header 硬生生挤到可视区
+     域外面（#view-chat 又是 overflow:hidden，挤出去就直接看不见了）——这正是
+     视频里"标题栏突然消失、只剩一条孤零零的消息"那个瞬间的成因。加上
+     min-height:0，明确告诉它"可以缩到比内容还矮，用滚动条兜底"，跟外层
+     .chat-room-view 已经有的这条规则是同一个道理。 */
+  flex: 1; min-height: 0; overflow-y: auto; padding: 14px 12px; -webkit-overflow-scrolling: touch;
   mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }

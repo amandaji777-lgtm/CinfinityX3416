@@ -74,6 +74,7 @@ const App = (() => {
     const shell = document.getElementById('app-shell');
     if (!shell || !window.visualViewport) return;
     const vv = window.visualViewport;
+    let rafId = null;
     function apply() {
       shell.style.height = vv.height + 'px';
       // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
@@ -81,9 +82,18 @@ const App = (() => {
       // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
       document.body.classList.toggle('keyboard-open', window.innerHeight - vv.height > 100);
     }
+    // 键盘弹起/收起是有个滑动动画的（不是一步到位），这个过程中 visualViewport
+    // 的 resize 事件会连续密集地触发好多次——每次都同步改一遍高度、逼一次重排，
+    // 密集触发时容易在动画中间的某一帧撞上"布局还没缩完就被截断"的画面（配合
+    // .message-list 那个 min-height:0 的修复，这里再用 rAF 把同一帧内的多次
+    // 触发合并成一次，进一步减少中间态被渲染出来的机会）。
+    function schedule() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(apply);
+    }
     apply();
-    vv.addEventListener('resize', apply);
-    vv.addEventListener('scroll', apply);
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
   }
 
   async function startMainApp() {
