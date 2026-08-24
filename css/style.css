@@ -684,6 +684,14 @@ html[data-theme="soft-dark"] .msg-bubble {
 .msg-bubble.from-user { margin-left: auto; }
 .msg-bubble.from-ai { margin-right: auto; }
 .msg-bubble.is-archived { opacity: 0.5; }
+/* 自己发的气泡跟对方的气泡稍微区分一下：叠一层很淡的暗色，颜色/材质其他都不变，
+   幅度控制得很轻，不做成实心深色块。 */
+.msg-bubble.from-user {
+  background: linear-gradient(rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.07)), rgba(255, 255, 255, 0.32);
+}
+html[data-theme="soft-dark"] .msg-bubble.from-user {
+  background: linear-gradient(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.14)), rgba(255, 255, 255, 0.06);
+}
 
 /* 分组气泡：同一发言方连续消息只有最后一条保留完整圆角，中间的贴角变方一点。 */
 .msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
@@ -776,6 +784,11 @@ body.keyboard-open .composer { padding-bottom: 10px; }
   padding: 9px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface);
 }
 .bm-list { padding: 0 16px 16px; }
+.bm-date-heading {
+  font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+  letter-spacing: 0.04em; margin: 18px 2px 8px;
+}
+.bm-date-heading:first-child { margin-top: 4px; }
 .bm-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);

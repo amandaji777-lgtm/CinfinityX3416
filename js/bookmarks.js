@@ -110,9 +110,43 @@ const Bookmarks = (() => {
         </select>
       </div>
       <div class="bm-list">
-        ${list.length === 0 ? emptyState('还没有收藏', '点右上角 ＋ 新建，或在对话里收藏一条消息') : list.map(bookmarkCard).join('')}
+        ${list.length === 0 ? emptyState('还没有收藏', '点右上角 ＋ 新建，或在对话里收藏一条消息') : renderGroupedByDate(list)}
       </div>
     `;
+  }
+
+  // 收藏按日期分组：list 已按 createdAt 倒序排好，这里只需要按"同一天"切段插入
+  // 日期小标题即可，不用重新排序。
+  function renderGroupedByDate(list) {
+    let lastKey = null;
+    let html = '';
+    for (const b of list) {
+      const key = dayKey(b.createdAt);
+      if (key !== lastKey) {
+        html += `<div class="bm-date-heading">${dayLabel(b.createdAt)}</div>`;
+        lastKey = key;
+      }
+      html += bookmarkCard(b);
+    }
+    return html;
+  }
+
+  function dayKey(iso) {
+    const d = iso ? new Date(iso) : new Date();
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+
+  function dayLabel(iso) {
+    const d = iso ? new Date(iso) : new Date();
+    const now = new Date();
+    const startOf = (dt) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+    const diffDays = Math.round((startOf(now) - startOf(d)) / 86400000);
+    if (diffDays === 0) return '今天';
+    if (diffDays === 1) return '昨天';
+    const sameYear = d.getFullYear() === now.getFullYear();
+    return sameYear
+      ? `${d.getMonth() + 1}月${d.getDate()}日`
+      : `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
   }
 
   // 星空视图：每条记忆是一颗星，没记录到的位置是空心占位星（点了直接去新建），
