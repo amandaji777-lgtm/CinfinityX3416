@@ -784,11 +784,18 @@ body.keyboard-open .composer { padding-bottom: 10px; }
   padding: 9px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface);
 }
 .bm-list { padding: 0 16px 16px; }
+.bm-day-list { padding-bottom: 16px; }
 .bm-date-heading {
-  font-size: 12.5px; font-weight: 600; color: var(--text-muted);
-  letter-spacing: 0.04em; margin: 18px 2px 8px;
+  display: flex; align-items: center; gap: 5px; width: 100%;
+  background: transparent; border: 0; text-align: left;
+  font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+  letter-spacing: 0.04em; margin: 18px 0 8px; padding: 2px;
 }
 .bm-date-heading:first-child { margin-top: 4px; }
+.bm-date-heading::after {
+  content: '›'; font-size: 15px; font-weight: 400; opacity: 0.55;
+}
+.bm-date-heading:active { opacity: 0.6; }
 .bm-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);

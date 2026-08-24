@@ -88,12 +88,9 @@ const Bookmarks = (() => {
     } else {
       container.querySelector('#bm-search').addEventListener('input', (e) => { query = e.target.value; render(); });
       container.querySelector('#bm-filter').addEventListener('change', (e) => { filterType = e.target.value; render(); });
-      container.querySelectorAll('.bm-card').forEach((el) => {
-        const id = el.dataset.id;
-        const item = all.find((b) => b.id === id);
-        el.querySelector('[data-act="edit"]')?.addEventListener('click', () => openEditor(item));
-        el.querySelector('[data-act="delete"]')?.addEventListener('click', () => removeBookmark(item));
-        el.querySelector('[data-act="jump"]')?.addEventListener('click', () => jumpToSource(item));
+      bindCardActions(container, all);
+      container.querySelectorAll('.bm-date-heading').forEach((btn) => {
+        btn.addEventListener('click', () => openDayPage(btn.dataset.dayKey, btn.textContent));
       });
       setupPhotoLazyLoad();
     }
@@ -116,19 +113,64 @@ const Bookmarks = (() => {
   }
 
   // 收藏按日期分组：list 已按 createdAt 倒序排好，这里只需要按"同一天"切段插入
-  // 日期小标题即可，不用重新排序。
+  // 日期小标题即可，不用重新排序。日期小标题本身可以点开，进一个整页列出那一天
+  // 的全部收藏（复用 Pages.open 的抽屉页容器，跟"更多"里其他子页面是同一套壳）。
   function renderGroupedByDate(list) {
     let lastKey = null;
     let html = '';
     for (const b of list) {
       const key = dayKey(b.createdAt);
       if (key !== lastKey) {
-        html += `<div class="bm-date-heading">${dayLabel(b.createdAt)}</div>`;
+        html += `<button type="button" class="bm-date-heading" data-day-key="${key}">${dayLabel(b.createdAt)}</button>`;
         lastKey = key;
       }
       html += bookmarkCard(b);
     }
     return html;
+  }
+
+  function openDayPage(key, label) {
+    const items = all.filter((b) => dayKey(b.createdAt) === key);
+    const page = Pages.open(label, `<div class="bm-day-list">${items.map(bookmarkCard).join('')}</div>`);
+    bindCardActions(page, items, page);
+    loadPhotosEagerIn(page, items);
+  }
+
+  // 主列表的卡片操作（编辑/删除/跳转）跟日期详情子页共用同一套绑定逻辑；子页传入
+  // 自己的 page 元素时，编辑保存/删除成功后顺手把子页关掉，回到已经刷新过的主列表，
+  // 不在子页内维护第二份实时数据。
+  function bindCardActions(root, items, page) {
+    root.querySelectorAll('.bm-card').forEach((el) => {
+      const id = el.dataset.id;
+      const item = items.find((b) => b.id === id);
+      if (!item) return;
+      el.querySelector('[data-act="edit"]')?.addEventListener('click', () => {
+        openEditor(item, page ? () => Pages.close(page) : undefined);
+      });
+      el.querySelector('[data-act="delete"]')?.addEventListener('click', async () => {
+        const deleted = await removeBookmark(item);
+        if (deleted && page) Pages.close(page);
+      });
+      el.querySelector('[data-act="jump"]')?.addEventListener('click', () => jumpToSource(item));
+    });
+  }
+
+  // 日期详情子页里的照片不走主列表那套懒加载观察者（子页一次性关闭重开，条目也
+  // 不多），直接同步创建好全部预览 URL；子页关闭时统一释放。
+  function loadPhotosEagerIn(root, items) {
+    const urls = [];
+    root.querySelectorAll('.bm-photo[data-bm-id]').forEach((el) => {
+      const item = items.find((b) => b.id === el.dataset.bmId);
+      const blob = storableToBlob(item?.image);
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      urls.push(url);
+      el.style.backgroundImage = `url("${url}")`;
+      el.classList.add('is-loaded');
+    });
+    if (!urls.length) return;
+    const revoke = () => urls.forEach((u) => URL.revokeObjectURL(u));
+    root.querySelector('.page-back')?.addEventListener('click', revoke, { once: true });
   }
 
   function dayKey(iso) {
@@ -227,7 +269,7 @@ const Bookmarks = (() => {
     `;
   }
 
-  function openEditor(item) {
+  function openEditor(item, onSaved) {
     const isNew = !item;
     let pendingImage = storableToBlob(item?.image);
     let editPreviewUrl = null;
@@ -324,11 +366,12 @@ const Bookmarks = (() => {
       closeDialog();
       await refresh();
       render();
+      if (onSaved) onSaved();
     });
   }
 
   async function removeBookmark(item) {
-    if (!await UIDialog.confirm('删除这条收藏？', { danger: true, okLabel: '删除' })) return;
+    if (!await UIDialog.confirm('删除这条收藏？', { danger: true, okLabel: '删除' })) return false;
     await DB.delete('bookmarks', item.id);
     if (item.type === 'message' && item.messageId) {
       const msg = await DB.get('messages', item.messageId);
@@ -336,6 +379,7 @@ const Bookmarks = (() => {
     }
     await refresh();
     render();
+    return true;
   }
 
   function jumpToSource(item) {
