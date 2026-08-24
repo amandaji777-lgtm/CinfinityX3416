@@ -6,8 +6,6 @@ const Bookmarks = (() => {
   let filterType = 'all'; // all | message | custom
   let viewMode = 'list'; // list | sky
   const SKY_MIN_SLOTS = 42; // 星星太少会显得空，没记录的位置补成空心占位星
-  const photoUrls = new Map(); // bookmark id -> object URL，每次 render() 前统一 revoke 再按需重建
-  let photoObserver = null;
 
   // 照片降采样：手机相机原图动辄 10MB+，直接存 IndexedDB 存几十张就很吃内存/容易卡顿，
   // 上传时先压到长边 900px、转 JPEG 存起来（通常几十到一百多 KB）。
@@ -55,14 +53,7 @@ const Bookmarks = (() => {
     });
   }
 
-  function revokePhotoUrls() {
-    if (photoObserver) { photoObserver.disconnect(); photoObserver = null; }
-    photoUrls.forEach((url) => URL.revokeObjectURL(url));
-    photoUrls.clear();
-  }
-
   function render() {
-    revokePhotoUrls(); // 上一轮渲染创建的图片预览 URL 先全部释放，避免每次搜索/筛选都叠加泄漏
     const list = filtered();
     container.innerHTML = `
       <div class="bookmarks-view">
@@ -88,11 +79,9 @@ const Bookmarks = (() => {
     } else {
       container.querySelector('#bm-search').addEventListener('input', (e) => { query = e.target.value; render(); });
       container.querySelector('#bm-filter').addEventListener('change', (e) => { filterType = e.target.value; render(); });
-      bindCardActions(container, all);
-      container.querySelectorAll('.bm-date-heading').forEach((btn) => {
-        btn.addEventListener('click', () => openDayPage(btn.dataset.dayKey, btn.textContent));
+      container.querySelectorAll('.bm-day-row').forEach((btn) => {
+        btn.addEventListener('click', () => openDayPage(btn.dataset.dayKey, btn.querySelector('.bm-day-row-date').textContent));
       });
-      setupPhotoLazyLoad();
     }
   }
 
@@ -107,38 +96,44 @@ const Bookmarks = (() => {
         </select>
       </div>
       <div class="bm-list">
-        ${list.length === 0 ? emptyState('还没有收藏', '点右上角 ＋ 新建，或在对话里收藏一条消息') : renderGroupedByDate(list)}
+        ${list.length === 0 ? emptyState('还没有收藏', '点右上角 ＋ 新建，或在对话里收藏一条消息') : renderDayIndex(list)}
       </div>
     `;
   }
 
-  // 收藏按日期分组：list 已按 createdAt 倒序排好，这里只需要按"同一天"切段插入
-  // 日期小标题即可，不用重新排序。日期小标题本身可以点开，进一个整页列出那一天
-  // 的全部收藏（复用 Pages.open 的抽屉页容器，跟"更多"里其他子页面是同一套壳）。
-  function renderGroupedByDate(list) {
-    let lastKey = null;
-    let html = '';
+  // 主页面只列日期（今天/昨天/M月D日），不直接铺开内容——点开某一天才进整页看
+  // 那天收藏的具体条目。list 已按 createdAt 倒序排好，按"同一天"切分成组即可。
+  // dayGroups 记下每个分组当前实际是哪些条目，供点开时直接用（跟着当前的
+  // 搜索/筛选走，不会点进去又看到跟筛选条件不符的内容）。
+  let dayGroups = new Map();
+  function renderDayIndex(list) {
+    dayGroups = new Map();
     for (const b of list) {
       const key = dayKey(b.createdAt);
-      if (key !== lastKey) {
-        html += `<button type="button" class="bm-date-heading" data-day-key="${key}">${dayLabel(b.createdAt)}</button>`;
-        lastKey = key;
-      }
-      html += bookmarkCard(b);
+      if (!dayGroups.has(key)) dayGroups.set(key, []);
+      dayGroups.get(key).push(b);
     }
+    let html = '';
+    dayGroups.forEach((items, key) => {
+      html += `
+        <button type="button" class="bm-day-row" data-day-key="${key}">
+          <span class="bm-day-row-date">${dayLabel(items[0].createdAt)}</span>
+          <span class="bm-day-row-count">${items.length} 条</span>
+        </button>
+      `;
+    });
     return html;
   }
 
   function openDayPage(key, label) {
-    const items = all.filter((b) => dayKey(b.createdAt) === key);
+    const items = dayGroups.get(key) || [];
     const page = Pages.open(label, `<div class="bm-day-list">${items.map(bookmarkCard).join('')}</div>`);
     bindCardActions(page, items, page);
     loadPhotosEagerIn(page, items);
   }
 
-  // 主列表的卡片操作（编辑/删除/跳转）跟日期详情子页共用同一套绑定逻辑；子页传入
-  // 自己的 page 元素时，编辑保存/删除成功后顺手把子页关掉，回到已经刷新过的主列表，
-  // 不在子页内维护第二份实时数据。
+  // 日期详情子页里的卡片操作（编辑/删除/跳转）：编辑保存/删除成功后顺手把子页
+  // 关掉，回到已经刷新过的主列表，不在子页内维护第二份实时数据。
   function bindCardActions(root, items, page) {
     root.querySelectorAll('.bm-card').forEach((el) => {
       const id = el.dataset.id;
@@ -155,8 +150,8 @@ const Bookmarks = (() => {
     });
   }
 
-  // 日期详情子页里的照片不走主列表那套懒加载观察者（子页一次性关闭重开，条目也
-  // 不多），直接同步创建好全部预览 URL；子页关闭时统一释放。
+  // 日期详情子页的条目不多，不需要 IntersectionObserver 懒加载那一套，直接
+  // 同步创建好全部照片预览 URL；子页关闭时统一释放。
   function loadPhotosEagerIn(root, items) {
     const urls = [];
     root.querySelectorAll('.bm-photo[data-bm-id]').forEach((el) => {
@@ -222,29 +217,6 @@ const Bookmarks = (() => {
     container.querySelectorAll('.bm-star.is-empty').forEach((el) => {
       el.addEventListener('click', () => openEditor(null));
     });
-  }
-
-  // 照片懒加载：卡片上的照片占位真正滚动进视口才创建预览 URL、插入 <img>，不是一次性
-  // 把整页收藏的图全部解码——收藏多了也不会一下子把内存吃满。
-  function setupPhotoLazyLoad() {
-    const placeholders = container.querySelectorAll('.bm-photo[data-bm-id]');
-    if (!placeholders.length) return;
-    photoObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        const el = entry.target;
-        photoObserver.unobserve(el);
-        const id = el.dataset.bmId;
-        const item = all.find((b) => b.id === id);
-        const imgBlob = storableToBlob(item?.image);
-        if (!imgBlob) return;
-        const url = URL.createObjectURL(imgBlob);
-        photoUrls.set(id, url);
-        el.style.backgroundImage = `url("${url}")`;
-        el.classList.add('is-loaded');
-      });
-    }, { rootMargin: '200px 0px' });
-    placeholders.forEach((el) => photoObserver.observe(el));
   }
 
   function bookmarkCard(b) {

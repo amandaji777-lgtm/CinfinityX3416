@@ -785,17 +785,22 @@ body.keyboard-open .composer { padding-bottom: 10px; }
 }
 .bm-list { padding: 0 16px 16px; }
 .bm-day-list { padding-bottom: 16px; }
-.bm-date-heading {
-  display: flex; align-items: center; gap: 5px; width: 100%;
-  background: transparent; border: 0; text-align: left;
-  font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
-  letter-spacing: 0.04em; margin: 18px 0 8px; padding: 2px;
+/* 记忆收藏主页只列日期，一天一行，点开才看具体内容——跟"更多"里那些子页面
+   入口是同一个视觉母题（左边文字、右边数量+箭头）。 */
+.bm-day-row {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  font-family: inherit; text-align: left; color: var(--text);
+  padding: 14px 16px; margin-bottom: 10px;
 }
-.bm-date-heading:first-child { margin-top: 4px; }
-.bm-date-heading::after {
-  content: '›'; font-size: 15px; font-weight: 400; opacity: 0.55;
+.bm-day-row:active { opacity: 0.75; }
+.bm-day-row-date { font-size: 14.5px; font-weight: 600; }
+.bm-day-row-count {
+  font-size: 12.5px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 4px;
 }
-.bm-date-heading:active { opacity: 0.6; }
+.bm-day-row-count::after { content: '›'; font-size: 16px; opacity: 0.6; }
 .bm-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
