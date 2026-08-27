@@ -108,6 +108,9 @@ const Calendar = (() => {
     `;
   }
 
+  // 点一天先看这一天已经记的东西（没记录就是空状态提示），"加一条"是单独按钮
+  // 点开才出现的表单——不再是打开就直接杵着一个输入框，之前那样，过去有记录
+  // 的日子点开也好像永远只看到"添加"，看不出这天本来记了什么。
   function openDayEditor(dateStr) {
     const dayNotes = notesForDate(dateStr);
     const dialog = document.createElement('div');
@@ -115,20 +118,40 @@ const Calendar = (() => {
     dialog.innerHTML = `
       <div class="modal-card">
         <h3>${formatDateHuman(dateStr)}</h3>
-        <div id="cal-day-notes">${dayNotes.map(dayNoteRow).join('')}</div>
-        <form id="cal-note-form">
-          <label class="field"><span>加一条备注</span><input name="text" maxlength="60" placeholder="例如：例假第一天 / 吃药" required></label>
+        <div id="cal-day-notes">${dayNotes.length ? dayNotes.map(dayNoteRow).join('') : '<div class="empty-sub">这天还没有备注</div>'}</div>
+        <button type="button" class="btn-secondary" id="cal-add-toggle">＋ 加一条备注</button>
+        <form id="cal-note-form" hidden>
+          <label class="field"><input name="text" maxlength="60" placeholder="例如：例假第一天 / 吃药" required></label>
           <div class="modal-actions">
-            <button type="button" class="btn-secondary" id="cal-close">关闭</button>
+            <button type="button" class="btn-secondary" id="cal-add-cancel">取消</button>
             <button type="submit" class="btn-primary">添加</button>
           </div>
         </form>
+        <div class="modal-actions" id="cal-close-row">
+          <button type="button" class="btn-secondary" id="cal-close">关闭</button>
+        </div>
       </div>
     `;
     document.body.appendChild(dialog);
     dialog.querySelector('#cal-close').addEventListener('click', () => dialog.remove());
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.remove(); });
     bindDayNoteDeletes(dialog);
-    dialog.querySelector('#cal-note-form').addEventListener('submit', async (e) => {
+    const form = dialog.querySelector('#cal-note-form');
+    const toggleBtn = dialog.querySelector('#cal-add-toggle');
+    const closeRow = dialog.querySelector('#cal-close-row');
+    toggleBtn.addEventListener('click', () => {
+      form.hidden = false;
+      toggleBtn.hidden = true;
+      closeRow.hidden = true;
+      form.querySelector('input').focus();
+    });
+    dialog.querySelector('#cal-add-cancel').addEventListener('click', () => {
+      form.reset();
+      form.hidden = true;
+      toggleBtn.hidden = false;
+      closeRow.hidden = false;
+    });
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const text = fd.get('text')?.trim();
@@ -137,7 +160,10 @@ const Calendar = (() => {
       await refresh();
       dialog.querySelector('#cal-day-notes').innerHTML = notesForDate(dateStr).map(dayNoteRow).join('');
       bindDayNoteDeletes(dialog);
-      e.target.reset();
+      form.reset();
+      form.hidden = true;
+      toggleBtn.hidden = false;
+      closeRow.hidden = false;
       render();
     });
   }

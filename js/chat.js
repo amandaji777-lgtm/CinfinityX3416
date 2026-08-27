@@ -439,6 +439,8 @@ const Chat = (() => {
           <div class="msg-actions">
             <button class="msg-act" data-act="copy" title="复制">复制</button>
             <button class="msg-act ${m.bookmarked ? 'active' : ''}" data-act="bookmark" title="收藏">${m.bookmarked ? '★ 已收藏' : '☆ 收藏'}</button>
+            ${!m.archived ? '<button class="msg-act" data-act="edit-content" title="编辑">编辑</button>' : ''}
+            ${!m.archived ? '<button class="msg-act" data-act="delete" title="删除">删除</button>' : ''}
             ${isUser && !m.archived ? '<button class="msg-act" data-act="edit" title="回溯编辑">回溯编辑</button>' : ''}
             ${!isUser && !m.archived && !m.isGreeting ? '<button class="msg-act" data-act="retry" title="让他重说">让他重说</button>' : ''}
           </div>
@@ -464,6 +466,10 @@ const Chat = (() => {
           await toggleBookmarkMessage(conv, msg);
           await loadMessages();
           render();
+        } else if (act === 'edit-content') {
+          openMessageEditDialog(msg);
+        } else if (act === 'delete') {
+          await deleteMessage(conv, msg);
         } else if (act === 'edit') {
           await archiveFrom(msg.createdAt, true);
           window.__pendingComposerText = msg.content;
@@ -478,6 +484,54 @@ const Chat = (() => {
         }
       });
     });
+  }
+
+  // 直接原地改内容，不牵动这条之后的任何消息（跟"回溯编辑"不一样——那个是
+  // 连带后面一起封存、重新走一遍生成流程；这里单纯改错字/改措辞）。
+  function openMessageEditDialog(msg) {
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-overlay';
+    dialog.innerHTML = `
+      <div class="modal-card">
+        <h3>编辑消息</h3>
+        <form id="msg-edit-form">
+          <label class="field"><textarea name="content" rows="5" required>${escapeHtml(msg.content)}</textarea></label>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" id="msg-edit-cancel">取消</button>
+            <button type="submit" class="btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(dialog);
+    dialog.querySelector('#msg-edit-cancel').addEventListener('click', () => dialog.remove());
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.remove(); });
+    dialog.querySelector('#msg-edit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const content = new FormData(e.target).get('content')?.trim();
+      if (!content) return;
+      msg.content = content;
+      await DB.put('messages', msg);
+      // 收藏时存的是当时内容的快照，这条消息原文改了之后快照就跟不上了，
+      // 标一下 stale（跟对话/消息被删时的处理是同一套逻辑），不动收藏本身。
+      const bookmarks = await DB.getAllByIndex('bookmarks', 'conversationId', state.currentConversationId);
+      const match = bookmarks.find((b) => b.messageId === msg.id);
+      if (match && match.content !== content) { match.stale = true; await DB.put('bookmarks', match); }
+      dialog.remove();
+      await loadMessages();
+      render();
+    });
+  }
+
+  async function deleteMessage(conv, msg) {
+    if (!await UIDialog.confirm('删除这条消息？删除后无法恢复。', { danger: true, okLabel: '删除' })) return;
+    await DB.delete('messages', msg.id);
+    const bookmarks = await DB.getAllByIndex('bookmarks', 'conversationId', conv.id);
+    const match = bookmarks.find((b) => b.messageId === msg.id);
+    if (match) { match.stale = true; match.sourceDeleted = true; await DB.put('bookmarks', match); }
+    if (window.Memory) await window.Memory.markStaleForMessages(conv.id, [msg.id]);
+    await loadMessages();
+    render();
   }
 
   // 把 fromTime 之后（inclusive 由 includeSelf 决定）的消息标记为已封存，物理保留、可恢复。
