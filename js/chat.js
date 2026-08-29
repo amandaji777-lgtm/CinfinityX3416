@@ -429,6 +429,7 @@ const Chat = (() => {
     const avatarHtml = `<div class="msg-avatar">${avatarInner(avatarUrl, isUser ? '你' : character?.name)}</div>`;
     const bubbleHtml = `
         <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''} ${isGroupLast ? 'is-group-last' : 'is-group-mid'}" data-id="${m.id}">
+          ${m.isProactive ? '<div class="msg-proactive-tag">✨ AI 主动消息</div>' : ''}
           ${m.thinking ? `
           <button class="msg-thinking-toggle" data-act="toggle-thinking">💭 思考过程${m.thinkingSeconds ? ` · ${m.thinkingSeconds}s` : ''} <span class="chevron">▾</span></button>
           <div class="msg-thinking-body" hidden>${escapeHtml(m.thinking)}</div>` : ''}
@@ -953,7 +954,7 @@ const Chat = (() => {
   }
 
   return {
-    init, refreshConnections, characterOf, buildContext,
+    init, refreshConnections, characterOf, buildContext, splitThinking,
     get state() { return state; },
     requestAssistantReply,
     async refreshList() { await refreshConversations(); if (state.view === 'list') render(); },

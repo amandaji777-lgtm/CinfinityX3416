@@ -27,6 +27,25 @@ function explainHttpError(status, provider) {
   }
 }
 
+// HTTP 状态码是 200 不代表这条连接真的能用——Base URL 填错、或者服务商在
+// CORS/网关那层拦截后直接吐一个 200 的错误提示网页，都会让 res.ok 为 true，
+// 但拿到的其实是一段 HTML 或者不成形的数据，不是真正的聊天回复。之前只查
+// res.ok 就判定"连接成功"，测试通过了但实际发消息一条都收不到，正是这个漏洞。
+function isHtmlBody(text) {
+  return /^\s*<(!doctype|html)/i.test(text || '');
+}
+
+function explainBadBody(text) {
+  const preview = (text || '').slice(0, 160).replace(/\s+/g, ' ').trim();
+  if (isHtmlBody(text)) {
+    return new AIError(
+      `API 返回的是一个网页（HTML）而不是数据，通常说明 Base URL 填错了（比如填成了官网地址而不是 API 地址），或者这家服务商拦截了浏览器直连请求（CORS）、返回了一个错误提示页而不是真正的接口响应。请核对地址；如果确认地址无误，通常需要配置一个你自己的安全 Relay 后端来转发请求，不能绕过浏览器的安全策略。返回内容开头：${preview || '（空）'}`,
+      'bad_response'
+    );
+  }
+  return new AIError(`API 返回为空或格式不对，不是预期的聊天回复数据，请检查地址/模型名是否正确。返回内容开头：${preview || '（空）'}`, 'bad_response');
+}
+
 function explainNetworkError(err) {
   if (err instanceof AIError) return err;
   const msg = String(err && err.message || err);
@@ -69,6 +88,10 @@ const Providers = {
           }),
         });
         if (!res.ok) throw explainHttpError(res.status);
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch (_) { throw explainBadBody(text); }
+        if (!json?.choices?.[0]) throw explainBadBody(text);
         return { ok: true };
       } catch (e) {
         throw explainNetworkError(e);
@@ -139,6 +162,10 @@ const Providers = {
           }),
         });
         if (!res.ok) throw explainHttpError(res.status);
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch (_) { throw explainBadBody(text); }
+        if (!json?.candidates?.[0]) throw explainBadBody(text);
         return { ok: true };
       } catch (e) {
         throw explainNetworkError(e);
@@ -193,6 +220,11 @@ const Providers = {
         const { url, method, headers, body } = buildCustomRequest(conn, apiKey, [{ role: 'user', content: 'ping' }], '');
         const res = await fetch(url, { method, headers, body });
         if (!res.ok) throw explainHttpError(res.status);
+        // 自定义协议的响应格式五花八门（有的本来就是 SSE 纯文本流），不能强求
+        // 整段都是合法 JSON，但不管什么格式，返回一整页 HTML 肯定不对——通常
+        // 是地址填错或者被 CORS 网关拦下来吐了个提示页，这个还是能提前拦一下。
+        const text = await res.text();
+        if (isHtmlBody(text)) throw explainBadBody(text);
         return { ok: true };
       } catch (e) {
         throw explainNetworkError(e);
@@ -254,6 +286,10 @@ const Providers = {
           }),
         });
         if (!res.ok) throw explainHttpError(res.status);
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch (_) { throw explainBadBody(text); }
+        if (!json?.content?.[0]) throw explainBadBody(text);
         return { ok: true };
       } catch (e) {
         throw explainNetworkError(e);

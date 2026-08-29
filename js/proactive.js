@@ -111,18 +111,23 @@ const Proactive = (() => {
       '语气自然、简短，不要说教，不要制造愧疚、威胁或道德绑架来让对方必须回应。只输出这一句话本身，不要加任何解释或标签。';
     const promptMessages = [{ role: 'user', content: instruction }];
 
-    let content = '';
+    let raw = '';
     try {
       if (connection.provider === 'anthropic' || connection.provider === 'gemini') {
-        for await (const chunk of provider.streamChat(connection, apiKey, promptMessages, undefined, systemText)) content += chunk;
+        for await (const chunk of provider.streamChat(connection, apiKey, promptMessages, undefined, systemText)) raw += chunk;
       } else {
         const msgs = [{ role: 'system', content: systemText }, ...promptMessages];
-        for await (const chunk of provider.streamChat(connection, apiKey, msgs, undefined)) content += chunk;
+        for await (const chunk of provider.streamChat(connection, apiKey, msgs, undefined)) raw += chunk;
       }
     } catch (_) {
       return; // 生成失败就静默放弃这一次，不打扰用户
     }
-    content = content.trim();
+    // ai.js 那边有些供应商（比如 DeepSeek-R1 这类会输出思维链的模型）会把推理过程
+    // 用 <think>…</think> 混进同一条流里——常规聊天那条路径会把这段拆出来单独
+    // 显示成"思考过程"折叠条，这里直接攒了整段字符串就存，之前漏了这一步，
+    // 导致主动消息把没拆过的原始 <think> 标签也一起显示了出来。
+    const { content: contentOnly } = Chat.splitThinking(raw.trim());
+    const content = contentOnly.trim();
     if (!content) return;
 
     const now = nowISO();
