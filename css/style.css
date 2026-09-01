@@ -664,20 +664,26 @@ html[data-theme="soft-dark"] .empty-state {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }
 .msg-bubble {
+  /* 之前每个气泡都单独开一层 backdrop-filter 模糊——别的页面最多几张卡片同时
+     模糊，聊天室是唯一一个"模糊层数跟着消息条数涨"的地方，消息一多，iOS
+     Safari 很容易撑爆它自己那套 GPU 合成层预算，撑爆之后的已知表现就是整块
+     区域直接退化成不透明的纯色，壁纸被整个盖掉——跟之前那次"底部白边"是
+     同一类"层数太多 iOS 直接摆烂"的坑。这次直接不让单条气泡自己模糊，只靠
+     底色本身的透明度（调高一点点保证可读性），把"会不会模糊"这件事收窄到
+     只有顶部/输入框两个固定数量的地方，聊天室不会再因为消息条数把这套预算
+     吃满。 */
   max-width: 82%;
   margin-bottom: 14px;
   padding: 10px 12px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.45);
-  -webkit-backdrop-filter: blur(22px) saturate(1.7);
-  backdrop-filter: blur(22px) saturate(1.7);
   box-shadow: 0 8px 26px rgba(120, 90, 100, 0.08);
   transition: box-shadow 0.3s;
   animation: bubble-in 0.28s cubic-bezier(.2,.8,.3,1);
 }
 html[data-theme="soft-dark"] .msg-bubble {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(30, 30, 30, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
 }
@@ -687,10 +693,10 @@ html[data-theme="soft-dark"] .msg-bubble {
 /* 自己发的气泡跟对方的气泡稍微区分一下：叠一层很淡的暗色，颜色/材质其他都不变，
    幅度控制得很轻，不做成实心深色块。 */
 .msg-bubble.from-user {
-  background: linear-gradient(rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.07)), rgba(255, 255, 255, 0.32);
+  background: linear-gradient(rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.07)), rgba(255, 255, 255, 0.52);
 }
 html[data-theme="soft-dark"] .msg-bubble.from-user {
-  background: linear-gradient(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.14)), rgba(255, 255, 255, 0.06);
+  background: linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16)), rgba(30, 30, 30, 0.62);
 }
 
 /* 分组气泡：同一发言方连续消息只有最后一条保留完整圆角，中间的贴角变方一点。 */

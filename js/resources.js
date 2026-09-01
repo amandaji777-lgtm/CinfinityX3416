@@ -1,5 +1,7 @@
 // 第6部分：AI 资料库。对方角色卡 / 我的角色卡 / 预设 / 世界书 / 手工长记忆 五个独立区域。
-// 每个区域都支持：文字新建（逐项填写或整段粘贴）、编辑、复制、上传 JSON、导出 JSON。
+// 每个区域都支持：逐项填写新建、编辑、复制、上传 JSON、导出 JSON。
+// （曾经还有个"整段粘贴"模式，保存时会用粘贴的原文整个替换掉逐项字段——两种
+// 填法混着用很容易把已经填好的字段意外清空，权衡之后去掉了，只留逐项填写。）
 // 统一资源格式：{ $schema, kind, id, name, version, data, source:{type, originalText, createdAt} }
 const RESOURCE_SCHEMA = 'workbuddy-ai-resource-v1';
 
@@ -140,7 +142,7 @@ const Resources = (() => {
         <label class="btn-secondary file-btn">上传 JSON<input type="file" id="res-import" accept="application/json" hidden></label>
       </div>
       <div class="res-list">
-        ${list.length === 0 ? emptyState('这个区域还没有内容', '点上面"文字新建"逐项填写，或粘贴一段自然语言') :
+        ${list.length === 0 ? emptyState('这个区域还没有内容', '点上面"文字新建"逐项填写') :
           list.map(resCard).join('')}
       </div>
     `;
@@ -202,13 +204,11 @@ const Resources = (() => {
     return r.source?.originalText || '';
   }
 
-  // ---- 编辑器：逐项填写 / 粘贴文本 两种模式，确认前都会有 JSON 预览 ----
+  // ---- 编辑器：逐项填写，确认前都会有 JSON 预览 ----
   function openEditor(kind, item) {
     const isNew = !item;
     // 角色卡/我的角色卡/手工长记忆这三类的"名字"就用它们各自专属的字段（姓名/标题）——
-    // 那个字段单独拎到"逐项填写/整段粘贴"两个模式切换的上面，两种模式下都看得见、
-    // 填得到，不会切到"整段粘贴"就找不到填名字的地方。预设/世界书没有专属名字字段，
-    // 还是用通用的"资源名称"。
+    // 单独拎到字段表单最上面。预设/世界书没有专属名字字段，还是用通用的"资源名称"。
     const derivedField = NAME_DERIVED_FROM_FIELD[kind];
     const nameLabel = derivedField ? FIELD_SCHEMAS[kind].find(([k]) => k === derivedField)[1] : '资源名称';
     // 兼容这次改版之前存的旧数据：那时候"资源名称"和这个专属字段是分开填的，
@@ -225,18 +225,9 @@ const Resources = (() => {
           </div>
         </div>
       ` : ''}
-      <div class="seg-row" id="mode-row">
-        <label class="seg-option"><input type="radio" name="mode" value="fields" checked><span>逐项填写</span></label>
-        <label class="seg-option"><input type="radio" name="mode" value="paste"><span>整段粘贴</span></label>
-      </div>
       <label class="field"><span>${nameLabel}</span><input id="res-name" ${derivedField ? `data-field="${derivedField}"` : ''} value="${escapeAttr(nameValue)}" maxlength="30" required></label>
       <div id="fields-mode">
         ${kind === 'lorebook' ? lorebookEntriesEditor(item) : fieldsForm(kind, item?.data || {}, derivedField)}
-      </div>
-      <div id="paste-mode" style="display:none">
-        <label class="field"><span>粘贴自然语言描述（缺项就空着，系统不会编造）</span>
-          <textarea id="paste-text" rows="8" placeholder="把你已有的设定原文粘贴进来...">${escapeHtml(item?.source?.originalText || '')}</textarea>
-        </label>
       </div>
       <div class="modal-actions">
         ${!isNew ? '<button type="button" class="btn-danger" id="res-delete">删除</button>' : ''}
@@ -245,10 +236,6 @@ const Resources = (() => {
       </div>
     `);
 
-    dialog.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', (e) => {
-      dialog.querySelector('#fields-mode').style.display = e.target.value === 'fields' ? '' : 'none';
-      dialog.querySelector('#paste-mode').style.display = e.target.value === 'paste' ? '' : 'none';
-    }));
     if (kind === 'lorebook') bindLorebookEntryEvents(dialog);
 
     let pendingAvatarFile = null;
@@ -300,17 +287,9 @@ const Resources = (() => {
     dialog.querySelector('#res-preview').addEventListener('click', async () => {
       const name = dialog.querySelector('#res-name').value.trim();
       if (!name) { await UIDialog.alert(`请填写${nameLabel}`); return; }
-      const mode = dialog.querySelector('input[name=mode]:checked').value;
-      let data, originalText = '', sourceType;
-      if (mode === 'paste') {
-        originalText = dialog.querySelector('#paste-text').value.trim();
-        data = kind === 'lorebook' ? { entries: [] } : {};
-        sourceType = 'manual-text';
-      } else {
-        data = kind === 'lorebook' ? { entries: collectLorebookEntries(dialog) } : collectFields(kind, dialog);
-        sourceType = item?.source?.type === 'imported-json' ? 'imported-json' : 'manual-text';
-        originalText = item?.source?.originalText || '';
-      }
+      const data = kind === 'lorebook' ? { entries: collectLorebookEntries(dialog) } : collectFields(kind, dialog);
+      const sourceType = item?.source?.type === 'imported-json' ? 'imported-json' : 'manual-text';
+      const originalText = item?.source?.originalText || '';
       const avatarChange = kind === 'character' && (pendingAvatarFile || pendingAvatarClear)
         ? { file: pendingAvatarFile, clear: pendingAvatarClear } : null;
       showPreviewThenSave(dialog, {
