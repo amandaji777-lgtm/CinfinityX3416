@@ -73,19 +73,31 @@ const Memory = (() => {
     } else {
       for await (const chunk of provider.streamChat(connection, apiKey, promptMessages, undefined)) raw += chunk;
     }
+    // 有些模型（尤其带思考链的）不老实按"只回复 JSON"执行，会在前面加一段
+    // 大白话的"好的，根据用户提到的事情，我来总结一下……"之类的开场白，甚至
+    // 混着 <think> 标签。这段"没听话"的原始文本之前会被 catch 兜底整段存成
+    // 记忆内容，下一轮又被塞回聊天的系统提示词里——角色看到这段"记忆"里写着
+    // 一段很像指令的大白话，会把它当成真事复述出来，这正是"记忆内容突然
+    // 冒进聊天里"的源头。现在解析失败就直接放弃这次总结，不生成半成品记忆，
+    // 从源头掐断这条泄漏链路。
+    const { content: withoutThinking } = Chat.splitThinking(raw.trim());
 
     let parsed;
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+      const jsonMatch = withoutThinking.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('模型没有按要求返回 JSON 格式');
+      parsed = JSON.parse(jsonMatch[0]);
     } catch (_) {
-      parsed = { content: raw.trim(), keywords: [], object: '' };
+      throw new Error('总结失败：这次模型的回复不是有效的 JSON 格式，跳过，不生成记忆（避免半成品混进对话）');
+    }
+    if (!parsed.content || typeof parsed.content !== 'string') {
+      throw new Error('总结失败：返回的 JSON 里没有 content 字段，跳过，不生成记忆');
     }
 
     const record = {
       id: uuid(),
       conversationId: conv.id,
-      content: parsed.content || raw.trim(),
+      content: parsed.content,
       keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
       object: parsed.object || '',
       timeRangeFrom: slice[0].createdAt,
