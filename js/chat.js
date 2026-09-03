@@ -858,8 +858,10 @@ const Chat = (() => {
           <label class="field"><span>每 N 条消息自动总结一次（0 为关闭）</span><input type="number" name="lmEveryN" value="${lm.summarizeEveryN || 0}" min="0"></label>
           <label class="field"><span>最大记忆条数</span><input type="number" name="lmMaxCount" value="${lm.maxCount || 200}" min="1"></label>
           <label class="field"><span>注入上限（每轮最多注入几条）</span><input type="number" name="lmInjectionCap" value="${lm.injectionCap ?? 6}" min="0"></label>
-          <label class="field"><span>总结提示词</span><textarea name="lmSummaryPrompt" rows="2">${escapeHtml(lm.summaryPrompt || '')}</textarea></label>
-          <label class="field"><span>注入提示词</span><textarea name="lmInjectionPrompt" rows="2">${escapeHtml(lm.injectionPrompt || '')}</textarea></label>
+          <label class="field"><span>总结提示词</span><textarea name="lmSummaryPrompt" rows="2" placeholder="例如：多关注情绪变化和约定">${escapeHtml(lm.summaryPrompt || '')}</textarea></label>
+          <p class="section-hint">这段只用在"背后总结成 JSON 记忆"那一次单独调用里，角色看不到、不会出现在聊天中。</p>
+          <label class="field"><span>注入提示词</span><textarea name="lmInjectionPrompt" rows="2" placeholder="例如：以下是你们之间的重要记忆，自然地记在心里，不要生硬提起">${escapeHtml(lm.injectionPrompt || '')}</textarea></label>
+          <p class="section-hint">⚠️ 这段会跟着记忆内容一起塞进每轮正常聊天的系统提示词，角色会当真看到——写"总结成 JSON"这类格式要求放到这里，角色会把这当成任务去执行，在聊天里复述格式说明（不是 bug，是填错了地方）。</p>
           <div class="modal-actions" style="justify-content:flex-start">
             <button type="button" class="btn-secondary" id="btn-summarize-now">立即总结</button>
             <button type="button" class="btn-secondary" id="btn-open-memories">查看/管理长记忆</button>
