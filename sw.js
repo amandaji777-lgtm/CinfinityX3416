@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xingji-shell-v56';
+const CACHE_NAME = 'xingji-shell-v57';
 const APP_SHELL = [
   './',
   './index.html',

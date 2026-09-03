@@ -3,6 +3,26 @@
 const Memory = (() => {
   let cache = [];
 
+  // 提取总结模型回复里的第一个完整 JSON 对象。之前用的是贪婪正则 /\{[\s\S]*\}/，
+  // 从第一个 { 一路吃到最后一个 } ——只要回复里在 JSON 前后多说了几句话、或者
+  // 用 ```json 代码块包了一层，稍微复杂一点的情况就容易连带把无关文字也吞
+  // 进去，解析直接失败。改成从第一个 { 开始数括号配对，配对上就截止，不管
+  // 前后多了什么大白话或者代码块标记都不受影响。
+  function extractFirstJsonObject(text) {
+    const stripped = text.replace(/```(?:json)?/gi, '').trim();
+    const start = stripped.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0;
+    for (let i = start; i < stripped.length; i++) {
+      if (stripped[i] === '{') depth++;
+      else if (stripped[i] === '}') {
+        depth--;
+        if (depth === 0) return stripped.slice(start, i + 1);
+      }
+    }
+    return null;
+  }
+
   async function refresh(conversationId) {
     cache = conversationId ? await DB.getAllByIndex('ai_memories', 'conversationId', conversationId) : await DB.getAll('ai_memories');
     await quarantineGarbledMemories();
@@ -82,16 +102,22 @@ const Memory = (() => {
     if (slice.length === 0) throw new Error('还没有足够的对话内容可以总结');
 
     const transcript = slice.map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n');
+    // 格式指令挪到系统提示词里单独给（而不是跟对话记录混在同一条 user 消息里）——
+    // 像 Claude 这类模型，"只回复 JSON"这种硬性格式要求放在系统提示词里遵守
+    // 得明显更好，混在一大段 user 消息末尾反而更容易被当成对话内容的一部分，
+    // 顺手多聊两句、或者用 ```json 代码块包一层（这两种都会让下面的 JSON 提取
+    // 失败）。
     const instruction = (lm.summaryPrompt ? lm.summaryPrompt + '\n' : '') +
       '只提取稳定偏好、重要信息、重要事件、关系变化、约定和禁忌，不要编造没有出现过的内容。' +
-      '用 JSON 格式回复，且只回复 JSON，不要任何其他文字：{"content":"一段总结文字","keywords":["关键词1","关键词2"],"object":"这段记忆关于谁/什么"}';
-
-    const promptMessages = [{ role: 'user', content: `${instruction}\n\n对话记录：\n${transcript}` }];
+      '用 JSON 格式回复，且只回复 JSON 本身：{"content":"一段总结文字","keywords":["关键词1","关键词2"],"object":"这段记忆关于谁/什么"}。' +
+      '不要加任何解释、开场白，也不要用 ```json 这样的代码块包裹，直接从 { 开始、到 } 结束。';
+    const promptMessages = [{ role: 'user', content: `请总结以下对话记录：\n\n${transcript}` }];
     let raw = '';
     if (connection.provider === 'anthropic' || connection.provider === 'gemini') {
-      for await (const chunk of provider.streamChat(connection, apiKey, promptMessages, undefined, '')) raw += chunk;
+      for await (const chunk of provider.streamChat(connection, apiKey, promptMessages, undefined, instruction)) raw += chunk;
     } else {
-      for await (const chunk of provider.streamChat(connection, apiKey, promptMessages, undefined)) raw += chunk;
+      const msgs = [{ role: 'system', content: instruction }, ...promptMessages];
+      for await (const chunk of provider.streamChat(connection, apiKey, msgs, undefined)) raw += chunk;
     }
     // 有些模型（尤其带思考链的）不老实按"只回复 JSON"执行，会在前面加一段
     // 大白话的"好的，根据用户提到的事情，我来总结一下……"之类的开场白，甚至
@@ -101,12 +127,12 @@ const Memory = (() => {
     // 冒进聊天里"的源头。现在解析失败就直接放弃这次总结，不生成半成品记忆，
     // 从源头掐断这条泄漏链路。
     const { content: withoutThinking } = Chat.splitThinking(raw.trim());
+    const jsonText = extractFirstJsonObject(withoutThinking);
 
     let parsed;
     try {
-      const jsonMatch = withoutThinking.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('模型没有按要求返回 JSON 格式');
-      parsed = JSON.parse(jsonMatch[0]);
+      if (!jsonText) throw new Error('模型没有按要求返回 JSON 格式');
+      parsed = JSON.parse(jsonText);
     } catch (_) {
       throw new Error('总结失败：这次模型的回复不是有效的 JSON 格式，跳过，不生成记忆（避免半成品混进对话）');
     }
