@@ -114,14 +114,12 @@ const Memory = (() => {
     }
   }
 
+  // 之前是浮层弹窗，"关闭"按钮跟列表内容挤在同一个可滚动区域里——记忆条数一多，
+  // 关闭按钮被挤到最底下，每次想关都得先滑到底。改用 Pages 那套抽屉容器：
+  // 标题栏（含返回/关闭箭头）单独固定在顶部，不在滚动区域里，列表再长也不影响关闭。
   function openManager(conv) {
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-overlay';
-    dialog.innerHTML = `<div class="modal-card"><h3>长记忆管理 · ${escapeHtml(conv.title)}</h3><div id="mem-list"></div>
-      <div class="modal-actions"><button type="button" class="btn-secondary" id="mem-close">关闭</button></div></div>`;
-    document.body.appendChild(dialog);
-    dialog.querySelector('#mem-close').addEventListener('click', () => dialog.remove());
-    renderMemoryList(dialog, conv);
+    const page = Pages.open(`长记忆管理 · ${escapeHtml(conv.title)}`, `<div id="mem-list"></div>`);
+    renderMemoryList(page, conv);
   }
 
   async function renderMemoryList(dialog, conv) {
