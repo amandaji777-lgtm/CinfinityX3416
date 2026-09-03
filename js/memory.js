@@ -5,6 +5,26 @@ const Memory = (() => {
 
   async function refresh(conversationId) {
     cache = conversationId ? await DB.getAllByIndex('ai_memories', 'conversationId', conversationId) : await DB.getAll('ai_memories');
+    await quarantineGarbledMemories();
+  }
+
+  // summarizeNow() 现在生成的那一步已经堵住了"模型没听话就把原始 JSON 字符串
+  // 整段存成记忆内容"这个口子，但堵不住已经存在库里的旧记录——那些记录很可能
+  // 已经被点过"批准"，会一直被注入到之后的对话里，光关掉"自动总结"这个开关
+  // 并不会让这些已经存在的旧记录停止生效，用户只能自己一条条去长记忆管理里
+  // 翻出来删，体验很差。这里补一次数据层面的自检：内容长得明显像"没解析过的
+  // 原始 JSON"（同时带着 content/keywords/object 这三个字段名）的记录，
+  // 自动标成停用，每次打开对话/长记忆管理都会顺手查一遍。
+  function looksLikeUnparsedJson(content) {
+    return typeof content === 'string' &&
+      /"content"\s*:/.test(content) && /"keywords"\s*:/.test(content) && /"object"\s*:/.test(content);
+  }
+  async function quarantineGarbledMemories() {
+    const bad = cache.filter((m) => !m.stale && looksLikeUnparsedJson(m.content));
+    for (const m of bad) {
+      m.stale = true;
+      await DB.put('ai_memories', m);
+    }
   }
 
   function getInjectableMemories(conv, recentMessages) {
