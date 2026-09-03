@@ -406,11 +406,13 @@ const Chat = (() => {
     } else {
       const sendBtn = container.querySelector('#btn-send');
       const input = container.querySelector('#composer-input');
-      sendBtn.addEventListener('click', () => sendMessage(conv, input.value));
+      sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; sendMessage(conv, v); });
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          sendMessage(conv, input.value);
+          const v = input.value;
+          input.value = '';
+          sendMessage(conv, v);
         }
       });
       if (window.__pendingComposerText) {
@@ -464,9 +466,13 @@ const Chat = (() => {
           await copyToClipboard(msg.content);
           toast('已复制');
         } else if (act === 'bookmark') {
+          // 收藏这个动作特别高频，之前跟别的动作一样走整条消息列表重新渲染——
+          // 消息一多，光是收藏一下就要重建全部气泡的 DOM，点哪个按钮都感觉卡。
+          // 其实只有这一个按钮自己的文字/高亮状态变了，直接改这一个元素就够。
           await toggleBookmarkMessage(conv, msg);
           await loadMessages();
-          render();
+          btn.textContent = msg.bookmarked ? '★ 已收藏' : '☆ 收藏';
+          btn.classList.toggle('active', msg.bookmarked);
         } else if (act === 'edit-content') {
           openMessageEditDialog(msg);
         } else if (act === 'delete') {
@@ -520,7 +526,10 @@ const Chat = (() => {
       if (match && match.content !== content) { match.stale = true; await DB.put('bookmarks', match); }
       dialog.remove();
       await loadMessages();
-      render();
+      // 编辑不改这条消息的角色/前后位置，跟收藏一样不需要重建整条消息列表——
+      // 只更新这一条气泡自己的正文。
+      const contentEl = container.querySelector(`.msg-bubble[data-id="${msg.id}"] .msg-content`);
+      if (contentEl) contentEl.innerHTML = renderMarkdownish(msg.content);
     });
   }
 
@@ -587,8 +596,30 @@ const Chat = (() => {
     conv.lastMessagePreview = trimmed.slice(0, 40);
     await DB.put('conversations', conv);
     await loadMessages();
-    render();
+    // 发一条消息只需要在列表末尾添一条气泡，不用把已经在屏幕上的所有消息
+    // 全部拆了重建一遍——对话越长这个开销越明显，"发消息卡""点哪个按钮
+    // 都卡"很大一部分就是从这种全量重渲染攒出来的。
+    if (!appendMessageRow(userMsg, characterOf(conv))) render();
     await requestAssistantReply(conv);
+  }
+
+  // 跟 updateStreamingBubble 是同一个思路：直接插入新的 DOM 节点，不重建
+  // 整个列表；只有前一条同发言方的气泡需要把"结尾圆角"样式让给新的这条。
+  function appendMessageRow(m, character) {
+    const list = container.querySelector('#message-list');
+    if (!list) return false;
+    list.querySelector('.empty-state')?.remove();
+    const bubbles = list.querySelectorAll('.msg-bubble');
+    const prevBubble = bubbles[bubbles.length - 1];
+    if (prevBubble && prevBubble.closest('.msg-row')?.classList.contains(m.role === 'user' ? 'from-user' : 'from-ai')) {
+      prevBubble.classList.remove('is-group-last');
+      prevBubble.classList.add('is-group-mid');
+    }
+    list.insertAdjacentHTML('beforeend', messageBubble(m, true, character));
+    const el = list.querySelector(`[data-id="${m.id}"]`);
+    bindMessageActions(el, currentConversation());
+    list.scrollTop = list.scrollHeight;
+    return true;
   }
 
   // ---- 第 6.2 部分：上下文编排 ----
