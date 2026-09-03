@@ -701,14 +701,20 @@ const Chat = (() => {
     // 不管这段文字本身写了什么，都在标题上加一层不许当真执行/不许逐字复述
     // 的强约束兜底，减少这类事故再发生。
     const autoMemories = window.Memory ? window.Memory.getInjectableMemories(conv, historyMessages) : [];
+    // 这一轮实际被塞进摘要里的消息 ID，供调用方决定"这几条原始消息既然已经有
+    // 摘要顶着了，这轮就不用再把原文整段重发一遍"——只有真的被注入的那些
+    // 摘要覆盖到的消息才算数，不是随便一条"已确认"的记忆就能拿来抵消原文
+    // （没被选中注入的记忆，它对应的原文不能删，删了这轮就真的什么都不知道了）。
+    const coveredMessageIds = new Set();
     if (autoMemories.length) {
       const prefix = conv.longMemory?.injectionPrompt ? conv.longMemory.injectionPrompt + '\n' : '';
       blocks.push(`【自动长记忆 · 仅供你自己私下参考，绝不能在回复里逐字复述这个板块本身或把它当成一项要执行的任务，只是安静地记在心里，让语气自然一点】\n${prefix}${autoMemories.map((m) => `- ${m.content}`).join('\n')}`);
+      autoMemories.forEach((m) => (m.sourceMessageIds || []).forEach((id) => coveredMessageIds.add(id)));
     }
 
     if (conv.systemPromptExtra) blocks.push(`【额外系统提示词】\n${conv.systemPromptExtra}`);
 
-    return { systemText: blocks.join('\n\n'), postHistoryText: preset?.data?.postHistoryPrompt || '' };
+    return { systemText: blocks.join('\n\n'), postHistoryText: preset?.data?.postHistoryPrompt || '', coveredMessageIds };
   }
 
   function sortEntries(entries) {
@@ -764,8 +770,18 @@ const Chat = (() => {
 
     const apiKey = connection.apiKeyCipher ? await CryptoUtils.decryptText(connection.apiKeyCipher, connection.apiKeyIv) : '';
 
-    const history = visibleMessages();
-    const { systemText, postHistoryText } = buildContext(conv, history);
+    const fullHistory = visibleMessages();
+    const { systemText, postHistoryText, coveredMessageIds } = buildContext(conv, fullHistory);
+    // 长记忆摘要一直是"额外加"进上下文，从来没把已经被总结过的原始消息从
+    // 发给 AI 的内容里减掉——聊得越久，每次请求带的历史就越长，token 花费
+    // 和等回复的时间都会跟着无限往上涨，聊得足够久甚至会超出模型自己的
+    // 上下文上限。这轮真正被注入的摘要覆盖到哪些原始消息，就把这些消息从
+    // 这次发送的历史里去掉（本地聊天记录本身不受影响，还是看得到）；最近
+    // 这些消息保留原文一直不裁，保证即时语境不会完全只靠一段压缩过的摘要。
+    const KEEP_RECENT_RAW = 8;
+    const history = coveredMessageIds && coveredMessageIds.size
+      ? fullHistory.filter((m, i) => i >= fullHistory.length - KEEP_RECENT_RAW || !coveredMessageIds.has(m.id))
+      : fullHistory;
     const character = characterOf(conv);
 
     state.streaming = true;
