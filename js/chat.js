@@ -956,7 +956,10 @@ const Chat = (() => {
         await window.Memory.summarizeNow(conv);
         toast('已生成新的长记忆，去"查看/管理长记忆"确认');
       } catch (err) {
-        await UIDialog.alert('总结失败：' + (err.message || err));
+        // summarizeNow() 抛出来的错误信息本身已经是完整的中文句子（"总结失败：
+        // ……"/"还没有配置连接"这种），这里不再重复加一遍"总结失败："前缀，
+        // 不然会变成"总结失败：总结失败：……"这种重复的怪话。
+        await UIDialog.alert(err.message || String(err));
       }
     });
     dialog.querySelector('#btn-open-memories').addEventListener('click', () => {
