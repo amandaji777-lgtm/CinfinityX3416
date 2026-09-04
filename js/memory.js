@@ -28,19 +28,29 @@ const Memory = (() => {
     await quarantineGarbledMemories();
   }
 
-  // summarizeNow() 现在生成的那一步已经堵住了"模型没听话就把原始 JSON 字符串
-  // 整段存成记忆内容"这个口子，但堵不住已经存在库里的旧记录——那些记录很可能
+  // summarizeNow() 现在生成的那一步已经堵住了"模型没听话就把原始输出整段
+  // 存成记忆内容"这个口子，但堵不住已经存在库里的旧记录——那些记录很可能
   // 已经被点过"批准"，会一直被注入到之后的对话里，光关掉"自动总结"这个开关
   // 并不会让这些已经存在的旧记录停止生效，用户只能自己一条条去长记忆管理里
-  // 翻出来删，体验很差。这里补一次数据层面的自检：内容长得明显像"没解析过的
-  // 原始 JSON"（同时带着 content/keywords/object 这三个字段名）的记录，
-  // 自动标成停用，每次打开对话/长记忆管理都会顺手查一遍。
+  // 翻出来删，体验很差。这里补一次数据层面的自检，两种"看着不像真记忆"的
+  // 情况都算：
+  // 1. 内容本身就是没解析过的原始 JSON（带着 content/keywords/object 这三个
+  //    字段名，形如 "content":"..." 这种语法）。
+  // 2. 内容是模型对着"怎么总结成 JSON"这个任务本身自言自语的思考过程（不是
+  //    严格的 JSON 语法，是大白话，比如 DeepSeek 这类模型常见的英文思考链：
+  //    "We need parse the long conversation... produce JSON... content/
+  //    keywords/object"）——这种一眼看不出是"没解析过的 JSON"，但一段真正
+  //    描述用户/关系的记忆内容，正常情况下不会需要提到"JSON"这个词，出现
+  //    就基本可以断定是任务思考过程混进来了，不是真记忆。
   function looksLikeUnparsedJson(content) {
     return typeof content === 'string' &&
       /"content"\s*:/.test(content) && /"keywords"\s*:/.test(content) && /"object"\s*:/.test(content);
   }
+  function looksLikeTaskReasoning(content) {
+    return typeof content === 'string' && /\bJSON\b/.test(content);
+  }
   async function quarantineGarbledMemories() {
-    const bad = cache.filter((m) => !m.stale && looksLikeUnparsedJson(m.content));
+    const bad = cache.filter((m) => !m.stale && (looksLikeUnparsedJson(m.content) || looksLikeTaskReasoning(m.content)));
     for (const m of bad) {
       m.stale = true;
       await DB.put('ai_memories', m);
