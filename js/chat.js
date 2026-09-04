@@ -622,6 +622,53 @@ const Chat = (() => {
     return true;
   }
 
+  // 流式结束、AI 一条长回复拆成好几条气泡定稿的这一下：把 updateStreamingBubble
+  // 留在原地的那一条临时气泡，原地换成定稿后的一条或多条正式气泡，不重建
+  // 整个消息列表。
+  function replaceStreamingBubbleWithFinal(originalId, finalMsgs, character) {
+    const list = container.querySelector('#message-list');
+    if (!list) return false;
+    const oldBubble = list.querySelector(`[data-id="${originalId}"]`);
+    const oldRow = oldBubble?.closest('.msg-row');
+    if (!oldRow) return false;
+    const html = finalMsgs.map((m, i) => messageBubble(m, i === finalMsgs.length - 1, character)).join('');
+    oldRow.insertAdjacentHTML('afterend', html);
+    oldRow.remove();
+    const conv = currentConversation();
+    finalMsgs.forEach((m) => {
+      const el = list.querySelector(`[data-id="${m.id}"]`);
+      if (el) bindMessageActions(el, conv);
+    });
+    list.scrollTop = list.scrollHeight;
+    return true;
+  }
+
+  // 只把"停止"按钮换回"发送"，输入框这个 DOM 节点全程不换——用户可能在
+  // AI 还没念完的时候就已经提前打字回复了，输入框一旦被整体重建，草稿就
+  // 没了，还得重打一遍。
+  function syncComposerAfterStreaming(conv) {
+    const composer = container.querySelector('.composer');
+    const stopBtn = composer?.querySelector('#btn-stop');
+    const input = composer?.querySelector('#composer-input');
+    if (!composer || !input) return false;
+    if (!stopBtn) return true; // 已经是发送按钮，不用换
+    const sendBtn = document.createElement('button');
+    sendBtn.className = 'btn-primary';
+    sendBtn.id = 'btn-send';
+    sendBtn.textContent = '发送';
+    stopBtn.replaceWith(sendBtn);
+    sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; sendMessage(conv, v); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const v = input.value;
+        input.value = '';
+        sendMessage(conv, v);
+      }
+    });
+    return true;
+  }
+
   // ---- 第 6.2 部分：上下文编排 ----
   // 顺序：事实与边界 → 预设 → 对方卡 → 我的卡 → 常驻世界书 → 命中关键词世界书 →
   //      手工长记忆 → 自动长记忆 → 最近聊天 → 当前消息 → 历史后指令
@@ -833,6 +880,7 @@ const Chat = (() => {
     } finally {
       state.streaming = false;
       state.abortController = null;
+      let finalMsgs = null;
       if (appended && assistantMsg.content) {
         // 拆出思考过程；标签万一没闭合（生成被打断之类），别把内容藏没了，
         // 退回成普通正文照常显示。
@@ -841,7 +889,7 @@ const Chat = (() => {
         const thinkingSeconds = (thinking && thinkStartAt && thinkEndAt) ? Math.round((thinkEndAt - thinkStartAt) / 100) / 10 : null;
 
         const segments = splitIntoSegments(content);
-        const finalMsgs = (segments.length > 1 ? segments : [content]).map((seg, i) => ({
+        finalMsgs = (segments.length > 1 ? segments : [content]).map((seg, i) => ({
           id: i === 0 ? assistantMsg.id : uuid(),
           conversationId: conv.id,
           role: 'assistant',
@@ -863,7 +911,16 @@ const Chat = (() => {
         await refreshConversations();
         if (window.Memory) await window.Memory.maybeAutoSummarize(conv);
       }
-      render();
+      // 之前这里也是无脑一次 render()，把整个聊天室（包括输入框）连着重建
+      // 一遍——AI 回复念完、拆成一条条气泡的这一下，正好是用户最容易已经
+      // 提前开始打字回复的时机（看着长文字念完就想接话了），输入框一旦被
+      // 整个换成新的空框，刚打的字全跟着旧框一起消失，还得重打。改成只
+      // 换消息本身、只把"停止"按钮换回"发送"，输入框这个 DOM 节点全程
+      // 不重建，用户的草稿不会被打断。只有找不到房间容器（比如已经切走）
+      // 时才退回整体重渲染。
+      const replaced = finalMsgs ? replaceStreamingBubbleWithFinal(assistantMsg.id, finalMsgs, character) : true;
+      const composerSynced = syncComposerAfterStreaming(conv);
+      if (!replaced || !composerSynced) render();
     }
     return assistantMsg;
   }
