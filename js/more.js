@@ -613,7 +613,15 @@ const More = (() => {
         </div>
         <p class="section-hint">备份文件不包含 API Key（出于安全考虑）、自定义壁纸和头像（图片不适合塞进纯文本备份），恢复后需要重新填写密钥、重新上传壁纸和头像。</p>
       </div>
+      <div class="more-section">
+        <h3>异常消息排查</h3>
+        <p class="section-hint">之前总结记忆失败时，有些坏消息被当成角色的真实回复存了下来，散落在各个对话的历史记录里，不是每次都会自己冒出来提醒你。这里一次性扫描所有对话，把这类消息都找出来，不用再一条条自己翻。</p>
+        <div class="backup-actions">
+          <button class="btn-secondary" id="btn-scan-leaks">扫描全部对话</button>
+        </div>
+      </div>
     `);
+    dialog.querySelector('#btn-scan-leaks').addEventListener('click', openLeakScanPage);
     dialog.querySelector('#btn-export').addEventListener('click', async () => {
       await Backup.exportToFile();
       toast('已导出备份文件');
@@ -636,6 +644,66 @@ const More = (() => {
     });
     updateBackupStatusIn(dialog);
     refreshCountsIn(dialog);
+  }
+
+  // 跟 memory.js 里筛"看着不像真记忆"的记忆记录是同一套判断标准：内容里
+  // 带着没解析过的原始 JSON 语法，或者出现了"JSON"这个词——一条真正的聊天
+  // 回复没有理由说这个词。之前总结失败留下的坏消息，散落在各个对话、各个
+  // 时间点，不会自己冒出来提醒用户，只能一次性全部扫一遍。
+  function looksLikeLeakedTaskText(content) {
+    if (typeof content !== 'string') return false;
+    const hasJsonFieldSyntax = /"content"\s*:/.test(content) && /"keywords"\s*:/.test(content) && /"object"\s*:/.test(content);
+    const mentionsJsonWord = /\bJSON\b/.test(content);
+    return hasJsonFieldSyntax || mentionsJsonWord;
+  }
+
+  async function openLeakScanPage() {
+    const [allMessages, allConvs] = await Promise.all([DB.getAll('messages'), DB.getAll('conversations')]);
+    const convById = new Map(allConvs.map((c) => [c.id, c]));
+    const hits = allMessages
+      .filter((m) => looksLikeLeakedTaskText(m.content))
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    function leakRow(m) {
+      const conv = convById.get(m.conversationId);
+      return `
+        <div class="bm-card" data-id="${m.id}">
+          <div class="bm-card-top">
+            <span class="bm-type-tag">${escapeHtml(conv?.title || '（对话已删除）')}</span>
+          </div>
+          <div class="bm-content">${escapeHtml(truncate(m.content, 160))}</div>
+          <div class="bm-card-actions">
+            <span class="bm-time">${formatRelativeTime(m.createdAt)}</span>
+            <button class="msg-act" data-act="delete">删除</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // "全部删除"放在页面固定的标题栏里（跟长记忆管理那次改的道理一样），
+    // 不用滑到列表最下面才够得着——这批要清的东西本来就可能有好几条。
+    const headerActions = hits.length
+      ? `<button type="button" class="btn-danger btn-sm" id="btn-delete-all-leaks">全部删除（${hits.length}）</button>` : '';
+    const page = Pages.open('异常消息排查', `
+      <p class="section-hint">扫描了全部对话——内容里带着没解析过的原始 JSON、或者提到"JSON"这个词的消息，基本可以确定是之前总结失败时留下的坏消息，不是角色真正想说的话。</p>
+      <div id="leak-list">
+        ${hits.length === 0 ? emptyState('没有发现可疑消息', '目前看起来是干净的') : hits.map(leakRow).join('')}
+      </div>
+    `, { headerActions });
+
+    page.querySelectorAll('#leak-list [data-act="delete"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const card = btn.closest('.bm-card');
+        await DB.delete('messages', card.dataset.id);
+        card.remove();
+      });
+    });
+    page.querySelector('#btn-delete-all-leaks')?.addEventListener('click', async () => {
+      if (!await UIDialog.confirm(`确定删除这 ${hits.length} 条可疑消息？删除后无法恢复。`, { danger: true, okLabel: '全部删除' })) return;
+      for (const m of hits) await DB.delete('messages', m.id);
+      toast('已清理');
+      Pages.close(page);
+    });
   }
 
   async function updateBackupStatusIn(dialog) {
