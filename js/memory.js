@@ -49,8 +49,27 @@ const Memory = (() => {
   function looksLikeTaskReasoning(content) {
     return typeof content === 'string' && /\bJSON\b/.test(content);
   }
+  // 前两种检测抓的是"语法上还没解析成功的 JSON"和"内容里直接提到 JSON 这个词"，
+  // 但还有第三种更隐蔽的泄漏：语法完全正常、也不提 JSON，但整段其实是模型在对着
+  // "这次总结任务该怎么写"自说自话——比如"要用总结性段落呈现而不是列表""不需要
+  // 提稳定偏好这个标签""要确保涵盖这些维度"。这些话原本是说给总结模型自己听的
+  // 格式要求，不是真的在描述用户/两人关系。这类文本的共同点是：会照抄或改写发给
+  // 总结模型的指令原文（下面这些词组本身就摘自 summarizeNow() 里的 instruction
+  // 常量）。一段真正描述用户的记忆，正常不会同时命中两个以上这种指令用词。
+  const INSTRUCTION_ECHO_PHRASES = [
+    '稳定偏好', '重要信息', '重要事件', '关系变化', '约定和禁忌', '不要编造',
+    '只回复 JSON', '只回复JSON', '不要加任何解释', '开场白', '总结性段落',
+    '不是列表', '涵盖这些维度', '只基于对话', '这段总结', '总结文字',
+  ];
+  function looksLikeInstructionEcho(content) {
+    if (typeof content !== 'string') return false;
+    return INSTRUCTION_ECHO_PHRASES.filter((p) => content.includes(p)).length >= 2;
+  }
+  function looksLikeLeakedMemory(content) {
+    return looksLikeUnparsedJson(content) || looksLikeTaskReasoning(content) || looksLikeInstructionEcho(content);
+  }
   async function quarantineGarbledMemories() {
-    const bad = cache.filter((m) => !m.stale && (looksLikeUnparsedJson(m.content) || looksLikeTaskReasoning(m.content)));
+    const bad = cache.filter((m) => !m.stale && looksLikeLeakedMemory(m.content));
     for (const m of bad) {
       m.stale = true;
       await DB.put('ai_memories', m);
@@ -60,7 +79,13 @@ const Memory = (() => {
   function getInjectableMemories(conv, recentMessages) {
     const cap = conv.longMemory?.injectionCap ?? 6;
     if (!cap) return [];
-    const pool = cache.filter((m) => m.conversationId === conv.id && m.userConfirmed && !m.stale);
+    // quarantineGarbledMemories() 只在 refresh() 触发的那几个时间点（打开对话、
+    // 主动消息检查、总结成功之后）扫一遍——如果正好是在同一个长时间开着没
+    // 关过的对话里，中间产生的坏记录会有一段时间没被扫到，靠"事后清理"接不
+    // 住这个时间差。这里在真正拿去注入的这一刻再兜底判断一次，不管上一次
+    // 清理是什么时候跑的，坏内容永远不会真的被喂给角色。
+    const pool = cache.filter((m) => m.conversationId === conv.id && m.userConfirmed && !m.stale &&
+      !looksLikeLeakedMemory(m.content));
     const recentText = recentMessages.slice(-6).map((m) => m.content).join('\n').toLowerCase();
     const scored = pool.map((m) => {
       const keywordHits = (m.keywords || []).filter((k) => k && recentText.includes(k.toLowerCase())).length;
@@ -148,6 +173,15 @@ const Memory = (() => {
     }
     if (!parsed.content || typeof parsed.content !== 'string') {
       throw new Error('总结失败：返回的 JSON 里没有 content 字段，跳过，不生成记忆');
+    }
+    // 光校验"这确实是一段合法 JSON"还不够——模型可能老老实实按格式包了一层
+    // JSON，但塞进 content 字段里的却是它自己对着"怎么完成这次总结任务"的
+    // 思考文字（比如"我们需要输出JSON...任务描述是要提取稳定偏好..."），格式
+    // 完全合法，但内容本身就是废的。这种货一旦被批准，会跟真记忆一样被注入
+    // 到之后的对话里、被角色照着念出来。用跟"扫描全部对话"清理工具同一套
+    // 判断标准，在生成这一步就先拦一次，不等它混进数据库里再靠事后扫描。
+    if (looksLikeLeakedMemory(parsed.content)) {
+      throw new Error('总结失败：这次生成的内容看着像是模型在思考"怎么完成总结任务"本身，不是真正的总结，跳过，不生成记忆');
     }
 
     const record = {
@@ -277,6 +311,6 @@ const Memory = (() => {
     });
   }
 
-  return { refresh, getInjectableMemories, markStaleForMessages, maybeAutoSummarize, summarizeNow, openManager };
+  return { refresh, getInjectableMemories, markStaleForMessages, maybeAutoSummarize, summarizeNow, openManager, looksLikeLeakedMemory };
 })();
 window.Memory = Memory;

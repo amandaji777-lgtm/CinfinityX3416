@@ -646,15 +646,12 @@ const More = (() => {
     refreshCountsIn(dialog);
   }
 
-  // 跟 memory.js 里筛"看着不像真记忆"的记忆记录是同一套判断标准：内容里
-  // 带着没解析过的原始 JSON 语法，或者出现了"JSON"这个词——一条真正的聊天
-  // 回复没有理由说这个词。之前总结失败留下的坏消息，散落在各个对话、各个
-  // 时间点，不会自己冒出来提醒用户，只能一次性全部扫一遍。
+  // 直接复用 memory.js 里筛"看着不像真记忆"的同一套判断（未解析的 JSON 语法、
+  // 提到"JSON"这个词、或者照抄总结指令原文的自说自话），避免两处各写一份、
+  // 后面改一处漏改另一处又出现新的检测缺口。之前总结失败留下的坏消息，散落
+  // 在各个对话、各个时间点，不会自己冒出来提醒用户，只能一次性全部扫一遍。
   function looksLikeLeakedTaskText(content) {
-    if (typeof content !== 'string') return false;
-    const hasJsonFieldSyntax = /"content"\s*:/.test(content) && /"keywords"\s*:/.test(content) && /"object"\s*:/.test(content);
-    const mentionsJsonWord = /\bJSON\b/.test(content);
-    return hasJsonFieldSyntax || mentionsJsonWord;
+    return Memory.looksLikeLeakedMemory(content);
   }
 
   async function openLeakScanPage() {
