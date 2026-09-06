@@ -97,7 +97,7 @@ const Providers = {
         throw explainNetworkError(e);
       }
     },
-    async *streamChat(conn, apiKey, messages, signal) {
+    async *streamChat(conn, apiKey, messages, signal, _systemPrompt, meta) {
       const url = joinUrl(conn.baseUrl, '/chat/completions');
       let res;
       try {
@@ -110,7 +110,7 @@ const Providers = {
             messages,
             temperature: conn.temperature ?? 0.8,
             top_p: conn.topP ?? 1,
-            max_tokens: conn.maxTokens ?? 1024,
+            max_tokens: conn.maxTokens ?? 4096,
             stream: true,
           }),
         });
@@ -143,6 +143,11 @@ const Providers = {
             if (inReasoning) { inReasoning = false; yield '</think>'; }
             yield content;
           }
+          // finish_reason 是 'length' 说明模型不是自己说完的，是被 max_tokens
+          // 这个上限硬生生截断的——回复会卡在半句话中间，看着像 bug，其实是
+          // 配额不够用。这里把这个信号透出去，让上层能在消息末尾补一句提示，
+          // 而不是让用户对着一句突然断掉的话一头雾水。
+          if (meta && json.choices?.[0]?.finish_reason === 'length') meta.truncated = true;
         } catch (_) { /* 忽略无法解析的心跳行 */ }
       }
     },
@@ -171,7 +176,7 @@ const Providers = {
         throw explainNetworkError(e);
       }
     },
-    async *streamChat(conn, apiKey, messages, signal, systemPrompt) {
+    async *streamChat(conn, apiKey, messages, signal, systemPrompt, meta) {
       const url = geminiUrl(conn, apiKey, 'streamGenerateContent') + '&alt=sse';
       const contents = messages.map((m) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
@@ -189,7 +194,7 @@ const Providers = {
             generationConfig: {
               temperature: conn.temperature ?? 0.8,
               topP: conn.topP ?? 1,
-              maxOutputTokens: conn.maxTokens ?? 1024,
+              maxOutputTokens: conn.maxTokens ?? 4096,
             },
           }),
         });
@@ -207,6 +212,8 @@ const Providers = {
           const json = JSON.parse(data);
           const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('');
           if (text) yield text;
+          // finishReason 是 MAX_TOKENS 说明是被长度上限截断的，不是模型自己说完的。
+          if (meta && json.candidates?.[0]?.finishReason === 'MAX_TOKENS') meta.truncated = true;
         } catch (_) { /* 忽略无法解析的行 */ }
       }
     },
@@ -295,7 +302,7 @@ const Providers = {
         throw explainNetworkError(e);
       }
     },
-    async *streamChat(conn, apiKey, messages, signal, systemPrompt) {
+    async *streamChat(conn, apiKey, messages, signal, systemPrompt, meta) {
       const url = joinUrl(conn.baseUrl, '/v1/messages');
       let res;
       try {
@@ -305,7 +312,7 @@ const Providers = {
           signal,
           body: JSON.stringify({
             model: conn.model,
-            max_tokens: conn.maxTokens ?? 1024,
+            max_tokens: conn.maxTokens ?? 4096,
             temperature: conn.temperature ?? 0.8,
             system: systemPrompt || undefined,
             messages,
@@ -326,6 +333,8 @@ const Providers = {
           if (json.type === 'content_block_delta' && json.delta?.text) {
             yield json.delta.text;
           }
+          // stop_reason 是 max_tokens 说明是被长度上限截断的，不是自然说完。
+          if (meta && json.type === 'message_delta' && json.delta?.stop_reason === 'max_tokens') meta.truncated = true;
           if (json.type === 'message_stop') return;
         } catch (_) { /* 忽略无法解析的行 */ }
       }
@@ -370,7 +379,7 @@ function buildCustomRequest(conn, apiKey, messages, systemPrompt) {
     system: JSON.stringify(systemPrompt || ''),
     messagesJSON: JSON.stringify(messages),
     temperature: String(conn.temperature ?? 0.8),
-    maxTokens: String(conn.maxTokens ?? 1024),
+    maxTokens: String(conn.maxTokens ?? 4096),
   };
   const url = fillTemplate(conn.customUrl, vars);
   const headers = { 'Content-Type': 'application/json' };

@@ -757,6 +757,8 @@ const More = (() => {
           <label class="field"><span>模型</span><input name="model" value="${escapeAttr(item?.model || '')}" placeholder="例如 gpt-4o-mini"></label>
         </div>
         <label class="field"><span>API Key ${item ? '（留空则不修改）' : ''}</span><input name="apiKey" type="password" placeholder="sk-..." autocomplete="off"></label>
+        <label class="field"><span>最大回复长度（token 数）</span><input name="maxTokens" type="number" min="256" step="1" value="${item?.maxTokens ?? 4096}"></label>
+        <p class="section-hint">回复太长被硬生生截断、卡在半句话中间，通常就是这个数值不够用——用带思考过程的模型（比如 DeepSeek-R1）时，思考内容也算在这个额度里，更容易不够。调大一点。</p>
         <fieldset class="fieldset" id="custom-fields" style="display:none">
           <legend>自定义协议映射</legend>
           <p class="section-hint">仅做声明式模板替换，不会执行任何脚本。占位符：{{model}} {{apiKey}} {{system}} {{messagesJSON}} {{temperature}} {{maxTokens}}</p>
@@ -824,6 +826,7 @@ const More = (() => {
         model: (fd.get('model') || '').trim(),
         apiKeyCipher,
         apiKeyIv,
+        maxTokens: Number(fd.get('maxTokens')) || 4096,
         customMethod: fd.get('customMethod') || 'POST',
         customUrl: (fd.get('customUrl') || '').trim(),
         customAuthHeaderName: (fd.get('customAuthHeaderName') || '').trim(),

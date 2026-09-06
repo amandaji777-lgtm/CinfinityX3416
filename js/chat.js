@@ -848,23 +848,28 @@ const Chat = (() => {
     let thinkStartAt = null;
     let thinkEndAt = null;
 
+    // streamChat 检测到"这条回复是被 max_tokens 长度上限截断的，不是模型自己
+    // 说完的"时，会把结果写进这个对象——for-await-of 拿不到生成器的 return
+    // 值，只能靠这种共享对象把信号带出循环，好在结束后给用户补一句说明，而
+    // 不是让一句话卡在半中间、看着像故障。
+    const streamMeta = {};
     try {
       let stream;
       if (connection.provider === 'anthropic') {
         const msgs = mergeConsecutiveRoles(history);
         const fullSystem = [systemText, postHistoryText].filter(Boolean).join('\n\n');
-        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem);
+        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem, streamMeta);
       } else if (connection.provider === 'gemini') {
         const msgs = mergeConsecutiveRoles(history);
         const fullSystem = [systemText, postHistoryText].filter(Boolean).join('\n\n');
-        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem);
+        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, fullSystem, streamMeta);
       } else {
         const msgs = [
           ...(systemText ? [{ role: 'system', content: systemText }] : []),
           ...mergeConsecutiveRoles(history),
           ...(postHistoryText ? [{ role: 'system', content: postHistoryText }] : []),
         ];
-        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal);
+        stream = provider.streamChat(connection, apiKey, msgs, state.abortController.signal, undefined, streamMeta);
       }
 
       for await (const chunk of stream) {
@@ -875,6 +880,10 @@ const Chat = (() => {
           state.messages.push(assistantMsg);
           appended = true;
         }
+        updateStreamingBubble(assistantMsg, character);
+      }
+      if (streamMeta.truncated) {
+        assistantMsg.content += '\n\n（这条回复被"最大回复长度"限制截断了，没说完——可以去对话设置的连接里调大这个数值）';
         updateStreamingBubble(assistantMsg, character);
       }
     } catch (err) {
