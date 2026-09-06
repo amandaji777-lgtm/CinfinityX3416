@@ -55,6 +55,19 @@ function explainNetworkError(err) {
   );
 }
 
+// 各家协议标记"这条回复是被 max_tokens 截断的，不是模型自己说完的"用的字段名
+// 都不一样，这里统一收在一处判断——DeepSeek 这类走 OpenAI 兼容协议的服务商，
+// 用的就是这同一套 choices[0].finish_reason，跟自定义协议对接的服务商多半
+// 也是照抄这套字段名，所以自定义协议这边一并按这几种常见形状兜底探测一次，
+// 不需要用户自己在"响应文本路径"之外还要另外配置一个"截断标志路径"。
+function looksTruncated(json) {
+  if (!json || typeof json !== 'object') return false;
+  if (json.choices?.[0]?.finish_reason === 'length') return true;
+  if (json.candidates?.[0]?.finishReason === 'MAX_TOKENS') return true;
+  if (json.delta?.stop_reason === 'max_tokens' || json.stop_reason === 'max_tokens') return true;
+  return false;
+}
+
 async function* parseSSELines(reader) {
   const decoder = new TextDecoder();
   let buffer = '';
@@ -143,11 +156,11 @@ const Providers = {
             if (inReasoning) { inReasoning = false; yield '</think>'; }
             yield content;
           }
-          // finish_reason 是 'length' 说明模型不是自己说完的，是被 max_tokens
-          // 这个上限硬生生截断的——回复会卡在半句话中间，看着像 bug，其实是
-          // 配额不够用。这里把这个信号透出去，让上层能在消息末尾补一句提示，
-          // 而不是让用户对着一句突然断掉的话一头雾水。
-          if (meta && json.choices?.[0]?.finish_reason === 'length') meta.truncated = true;
+          // 回复会卡在半句话中间，看着像 bug，其实是配额不够用——DeepSeek 等
+          // 一切走这套协议的服务商都用同一个 finish_reason 字段。这里把这个
+          // 信号透出去，让上层能在消息末尾补一句提示，而不是让用户对着一句
+          // 突然断掉的话一头雾水。
+          if (meta && looksTruncated(json)) meta.truncated = true;
         } catch (_) { /* 忽略无法解析的心跳行 */ }
       }
     },
@@ -212,8 +225,7 @@ const Providers = {
           const json = JSON.parse(data);
           const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('');
           if (text) yield text;
-          // finishReason 是 MAX_TOKENS 说明是被长度上限截断的，不是模型自己说完的。
-          if (meta && json.candidates?.[0]?.finishReason === 'MAX_TOKENS') meta.truncated = true;
+          if (meta && looksTruncated(json)) meta.truncated = true;
         } catch (_) { /* 忽略无法解析的行 */ }
       }
     },
@@ -237,7 +249,7 @@ const Providers = {
         throw explainNetworkError(e);
       }
     },
-    async *streamChat(conn, apiKey, messages, signal, systemPrompt) {
+    async *streamChat(conn, apiKey, messages, signal, systemPrompt, meta) {
       const { url, method, headers, body } = buildCustomRequest(conn, apiKey, messages, systemPrompt);
       let res;
       try {
@@ -252,6 +264,7 @@ const Providers = {
         const json = await res.json();
         const text = getPath(json, path);
         if (text) yield String(text);
+        if (meta && looksTruncated(json)) meta.truncated = true;
         return;
       }
       const reader = res.body.getReader();
@@ -262,16 +275,20 @@ const Providers = {
           const data = trimmed.slice(5).trim();
           if (!data || data === '[DONE]') continue;
           try {
-            const text = getPath(JSON.parse(data), path);
+            const json = JSON.parse(data);
+            const text = getPath(json, path);
             if (text) yield String(text);
+            if (meta && looksTruncated(json)) meta.truncated = true;
           } catch (_) { /* 忽略无法解析的行 */ }
         }
       } else if (format === 'ndjson-json-path') {
         for await (const line of parseSSELines(reader)) {
           if (!line.trim()) continue;
           try {
-            const text = getPath(JSON.parse(line), path);
+            const json = JSON.parse(line);
+            const text = getPath(json, path);
             if (text) yield String(text);
+            if (meta && looksTruncated(json)) meta.truncated = true;
           } catch (_) { /* 忽略无法解析的行 */ }
         }
       }
@@ -333,8 +350,7 @@ const Providers = {
           if (json.type === 'content_block_delta' && json.delta?.text) {
             yield json.delta.text;
           }
-          // stop_reason 是 max_tokens 说明是被长度上限截断的，不是自然说完。
-          if (meta && json.type === 'message_delta' && json.delta?.stop_reason === 'max_tokens') meta.truncated = true;
+          if (meta && json.type === 'message_delta' && looksTruncated(json)) meta.truncated = true;
           if (json.type === 'message_stop') return;
         } catch (_) { /* 忽略无法解析的行 */ }
       }
