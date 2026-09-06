@@ -407,8 +407,14 @@ const Chat = (() => {
       const sendBtn = container.querySelector('#btn-send');
       const input = container.querySelector('#composer-input');
       sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; sendMessage(conv, v); });
+      // 中文拼音输入法选字上屏那一下，浏览器也会触发一次 key === 'Enter' 的
+      // keydown——这时候文字其实还没真正提交进 input.value（要等 compositionend
+      // 才会），如果不认这是"输入法在确认候选词"，就会被当成"用户按了发送"，
+      // 拿着还没接上后半段的半截 value 直接发出去、清空输入框，后半句就跟着
+      // 丢了。用 e.isComposing（老版 Android WebView 上没有这个属性，退回看
+      // keyCode === 229，是输入法组合期间的通用标记）把这种情况挡在发送之外。
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
           e.preventDefault();
           const v = input.value;
           input.value = '';
@@ -658,8 +664,10 @@ const Chat = (() => {
     sendBtn.textContent = '发送';
     stopBtn.replaceWith(sendBtn);
     sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; sendMessage(conv, v); });
+    // 同上面 #composer-input 首次绑定那处一样，要挡住输入法选字上屏时误触发
+    // 的 Enter，不然半截消息被提前发出去、后半段就丢了。
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         const v = input.value;
         input.value = '';
