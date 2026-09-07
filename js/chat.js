@@ -677,6 +677,27 @@ const Chat = (() => {
     return true;
   }
 
+  // 跟上面反过来——开始生成回复的这一下，只需要把"发送"换成"停止"，之前
+  // 这里是无脑一次 render()，把整个消息列表连着重建一遍，只为了换一个按钮。
+  // 消息列表本身根本不需要动：updateStreamingBubble() 自己会在第一个 chunk
+  // 到达时把占位气泡插进 #message-list，不依赖这次 render() 提前搭好节点。
+  // 对话越聊越长，这个白白重建全部气泡的开销就越明显——"聊得越久越卡"
+  // 很大一部分就是每发一条消息都要重新跑一遍全部历史消息的 markdown 解析、
+  // 转义、头像查找拼出来的。
+  function syncComposerToStreaming(conv) {
+    const composer = container.querySelector('.composer');
+    const sendBtn = composer?.querySelector('#btn-send');
+    if (!composer) return false;
+    if (!sendBtn) return true; // 已经是停止按钮，不用换
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'btn-primary btn-stop';
+    stopBtn.id = 'btn-stop';
+    stopBtn.textContent = '停止';
+    sendBtn.replaceWith(stopBtn);
+    stopBtn.addEventListener('click', () => { state.abortController?.abort(); });
+    return true;
+  }
+
   // ---- 第 6.2 部分：上下文编排 ----
   // 顺序：事实与边界 → 预设 → 对方卡 → 我的卡 → 常驻世界书 → 命中关键词世界书 →
   //      手工长记忆 → 自动长记忆 → 最近聊天 → 当前消息 → 历史后指令
@@ -841,7 +862,7 @@ const Chat = (() => {
 
     state.streaming = true;
     state.abortController = new AbortController();
-    render();
+    if (!syncComposerToStreaming(conv)) render();
 
     const assistantMsg = { id: uuid(), conversationId: conv.id, role: 'assistant', content: '', createdAt: nowISO(), archived: false, bookmarked: false };
     let appended = false;
