@@ -1090,8 +1090,42 @@ const Chat = (() => {
     get state() { return state; },
     requestAssistantReply,
     async refreshList() { await refreshConversations(); if (state.view === 'list') render(); },
+    // 角色的主动消息是后台定时检查触发的，跟用户当下在干什么完全无关——
+    // 用户很可能正在往输入框里打一大段字，这时候一条主动消息冒出来，之前
+    // 无脑一次 render() 会把整个聊天室（包括输入框）连着重建一遍，正在打的
+    // 字全跟着消失，一点预兆都没有。这里改成跟"AI 回复念完定稿"那次修复
+    // 同一个思路：能只插入新气泡就只插入，不重建输入框；万一走到非走 render()
+    // 不可的分支（比如手动审核模式下要弹出"待发送草稿"这个提示条，这个不在
+    // messages 表里，只能整页重渲染才会出现），也要先把输入框里的草稿和光标
+    // 位置存一下，重渲染完了再原样塞回去，用户完全无感。
     async reloadIfCurrent(conversationId) {
-      if (state.currentConversationId === conversationId) { await loadMessages(); render(); }
+      if (state.currentConversationId !== conversationId) return;
+      const prevIds = new Set(state.messages.map((m) => m.id));
+      await loadMessages();
+      if (state.view !== 'room') { render(); return; }
+
+      const composerBefore = container.querySelector('#composer-input');
+      const draftText = composerBefore ? composerBefore.value : null;
+      const selStart = composerBefore ? composerBefore.selectionStart : null;
+      const selEnd = composerBefore ? composerBefore.selectionEnd : null;
+
+      const conv = currentConversation();
+      const character = characterOf(conv);
+      const newMsgs = visibleMessages().filter((m) => !prevIds.has(m.id));
+      const hasDraftBanner = !!window.Proactive?.getPendingDraft(conversationId);
+      if (newMsgs.length > 0 && !hasDraftBanner) {
+        const ok = newMsgs.every((m) => appendMessageRow(m, character));
+        if (ok) return; // 全部走 DOM 局部插入成功，输入框这个节点根本没被动过
+      }
+
+      render();
+      if (draftText != null) {
+        const composerAfter = container.querySelector('#composer-input');
+        if (composerAfter) {
+          composerAfter.value = draftText;
+          if (selStart != null) composerAfter.setSelectionRange(selStart, selEnd);
+        }
+      }
     },
     async refreshAvatars() { await refreshAvatarUrls(); render(); },
   };
