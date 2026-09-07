@@ -855,9 +855,19 @@ const Chat = (() => {
     // 这次发送的历史里去掉（本地聊天记录本身不受影响，还是看得到）；最近
     // 这些消息保留原文一直不裁，保证即时语境不会完全只靠一段压缩过的摘要。
     const KEEP_RECENT_RAW = 8;
-    const history = coveredMessageIds && coveredMessageIds.size
+    let history = coveredMessageIds && coveredMessageIds.size
       ? fullHistory.filter((m, i) => i >= fullHistory.length - KEEP_RECENT_RAW || !coveredMessageIds.has(m.id))
       : fullHistory;
+    // 上面这层裁剪只在"长记忆确实总结覆盖到了这些消息"时才生效——没开长记忆、
+    // 或者还没攒够触发总结的条数时，一条都不会被裁，等于每一轮都把从这段
+    // 对话第一句话开始的全部历史原文带给模型。对话越聊越久，这份历史就
+    // 越长，模型要先读完这么长的输入才能开始说话，"思考"时间跟着一起变长，
+    // 输入 token 花费也跟着涨——这才是真正的瓶颈，不是前端卡顿。这里再加
+    // 一道无条件的硬上限，不管长记忆开没开、覆盖没覆盖，单轮最多只带最近
+    // 这么多条原始消息（超出的部分本地聊天记录还在，只是这一轮不再发给
+    // 模型），可以在对话设置里调整。
+    const maxRawHistory = conv.maxRawHistory ?? 40;
+    if (history.length > maxRawHistory) history = history.slice(-maxRawHistory);
     const character = characterOf(conv);
 
     state.streaming = true;
@@ -1000,6 +1010,11 @@ const Chat = (() => {
         <label class="field"><span>标题</span><input name="title" value="${escapeAttr(conv.title)}" maxlength="24"></label>
         ${bindingFieldsHTML(conv)}
 
+        <fieldset class="fieldset"><legend>上下文</legend>
+          <label class="field"><span>单轮最多携带的原始聊天记录条数</span><input type="number" name="maxRawHistory" value="${conv.maxRawHistory ?? 40}" min="4"></label>
+          <p class="section-hint">每次发消息，聊天记录不会无限往前带——超过这个条数的更早消息这一轮就不会发给 AI（本地记录不受影响，还是看得到），避免聊得越久、每次都要处理的内容越多、越慢越贵。想让更早的内容还能影响回复，去下面开启"独立长记忆"，让它总结进去。</p>
+        </fieldset>
+
         <fieldset class="fieldset"><legend>独立长记忆（第8部分）</legend>
           <label class="field-inline"><input type="checkbox" name="lmEnabled" ${lm.enabled ? 'checked' : ''}><span>启用自动总结长记忆</span></label>
           <label class="field"><span>总结连接（不选则用聊天连接）</span><select name="lmSummaryConnectionId"><option value="">（同聊天连接）</option>${summaryConnOptions}</select></label>
@@ -1075,6 +1090,7 @@ const Chat = (() => {
       conv.title = fields.title || conv.title;
       Object.assign(conv, fields);
       delete conv.title_unused;
+      conv.maxRawHistory = Number(fd.get('maxRawHistory')) || 40;
       conv.longMemory = {
         ...lm,
         enabled: fd.get('lmEnabled') === 'on',
