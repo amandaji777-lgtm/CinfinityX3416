@@ -26,6 +26,16 @@
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-shadow: 0 14px 34px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   --glass-blur: blur(18px) saturate(1.5);
+  /* 聊天室的头部条和输入框条，只有这两处是"整段对话期间一直挂在屏幕上、
+     背后内容还在持续变化（滚动/AI逐字流式输出）"的 backdrop-filter——不像
+     底部导航栏、弹窗这些大多数时候画面是静止的。backdrop-filter 本身就是
+     手机上数一数二耗电耗热的 CSS 效果，模糊半径越大、背后内容变化越频繁，
+     GPU 要重新采样合成的次数就越多。聊得越久、AI 回复越长（意味着流式更新
+     次数越多），这两条毛玻璃条子被迫重新合成的次数也跟着涨——这正是"长
+     对话聊着聊着手机发烫"背后真实的成本来源，不是错觉。单独给这两处用
+     轻一点的模糊半径，画面上几乎看不出差别，但少了很大一块持续性的
+     GPU 开销。 */
+  --glass-blur-chat: blur(10px) saturate(1.3);
 
   /* 背景漂浮光斑：中性灰白，呼吸感贯穿全站，不分深浅色模式 */
   /* 之前这三个灰阶跟底色太接近，磨砂玻璃几乎照不出纹理——调深调实一点，
@@ -263,7 +273,7 @@ button { cursor: pointer; }
 }
 html[data-theme="soft-dark"] #wallpaper-layer::after { background: rgba(0, 0, 0, 0.18); }
 html.has-wallpaper .bg-orbs { display: none; }
-html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); }
+html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); --glass-blur-chat: blur(14px) saturate(1.3); }
 /* 玻璃卡片明暗不再靠这条死板规则撑——js/wallpaper.js 会在上传壁纸时取这张照片
    本身的平均亮度，直接把 --glass-bg / --text 等换成跟这张照片相配的深浅组合
    （写成内联 style，优先级天然高于这里，不用再叠一层 [data-theme] 选择器）。 */
@@ -640,8 +650,8 @@ html[data-theme="soft-dark"] .empty-state {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 12px;
   background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur-chat);
+  backdrop-filter: var(--glass-blur-chat);
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
@@ -759,8 +769,8 @@ html[data-theme="soft-dark"] .msg-bubble.from-user {
   display: flex; align-items: flex-end; gap: 8px;
   padding: 10px 12px calc(var(--safe-bottom) + 10px);
   background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur-chat);
+  backdrop-filter: var(--glass-blur-chat);
   border-top: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
