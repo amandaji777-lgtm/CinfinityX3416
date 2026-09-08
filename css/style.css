@@ -673,6 +673,11 @@ html[data-theme="soft-dark"] .empty-state {
   mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }
+.msg-load-older {
+  display: block; width: 100%; margin-bottom: 14px; padding: 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 12px; text-align: center;
+}
 .msg-bubble {
   /* 之前每个气泡都单独开一层 backdrop-filter 模糊——别的页面最多几张卡片同时
      模糊，聊天室是唯一一个"模糊层数跟着消息条数涨"的地方，消息一多，iOS

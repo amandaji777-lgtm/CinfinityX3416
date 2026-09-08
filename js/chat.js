@@ -9,6 +9,13 @@ const Chat = (() => {
     currentConversationId: null,
     messages: [],
     showArchived: false,
+    // 聊了很久的对话，本地攒的消息可能有几百上千条——loadMessages() 仍然要
+    // 全部读出来（编辑/封存/长记忆这些逻辑要用到完整历史），但没道理把这么
+    // 多气泡全部一次性画进 DOM：节点一多，光是打字、滚动这些最基础的交互
+    // 都会跟着变卡，这是"发给 AI 的内容"之外、之前完全没处理过的另一个
+    // 卡顿源头。默认只画最近这些条，更早的折成一个"加载更早的消息"按钮，
+    // 点开再展开，需要时才把 DOM 撑大。每次切换对话都会重置回默认值。
+    visibleWindow: 60,
     showContextPreview: false,
     streaming: false,
     abortController: null,
@@ -308,6 +315,7 @@ const Chat = (() => {
     state.currentConversationId = id;
     state.view = 'room';
     state.showArchived = false;
+    state.visibleWindow = 60;
     await Resources.refresh();
     await refreshAvatarUrls();
     if (window.Memory) await window.Memory.refresh(id);
@@ -332,7 +340,9 @@ const Chat = (() => {
   function renderRoom() {
     const conv = currentConversation();
     if (!conv) { state.view = 'list'; return render(); }
-    const msgs = visibleMessages();
+    const allMsgs = visibleMessages();
+    const msgs = allMsgs.length > state.visibleWindow ? allMsgs.slice(-state.visibleWindow) : allMsgs;
+    const hiddenOlderCount = allMsgs.length - msgs.length;
     const character = characterOf(conv);
     const draft = window.Proactive?.getPendingDraft(conv.id);
     container.innerHTML = `
@@ -363,6 +373,7 @@ const Chat = (() => {
           ${state.showContextPreview ? `<pre class="context-preview-body">${escapeHtml(buildContext(conv, visibleMessages()).systemText || '（空）')}</pre>` : ''}
         </div>
         <div class="message-list" id="message-list">
+          ${hiddenOlderCount > 0 ? `<button class="msg-load-older" id="btn-load-older">加载更早的消息（还有 ${hiddenOlderCount} 条）</button>` : ''}
           ${msgs.length === 0 ? emptyState('开始聊天吧', '在下方输入框发送第一条消息') :
             msgs.map((m, i) => messageBubble(m, !msgs[i + 1] || msgs[i + 1].role !== m.role, character)).join('')}
         </div>
@@ -387,6 +398,22 @@ const Chat = (() => {
     const list = container.querySelector('#message-list');
     list.scrollTop = list.scrollHeight;
     list.querySelectorAll('.msg-bubble').forEach((el) => bindMessageActions(el, conv));
+    // 点"加载更早的消息"是唯一一种"故意往回翻"的场景——render() 默认会把
+    // 列表滚到最底部（正常打开/发消息都想看最新的），但这里用户明明是想看
+    // 更早的内容，滚到底部反而把刚展开的这些直接顶飞出视野。展开前先记住
+    // 当时的滚动位置和总高度，展开后按差值补回去，让原本正在看的那些消息
+    // 视觉上停在原地不动，只是上面多出来一截可以继续往上翻。
+    const loadOlderBtn = container.querySelector('#btn-load-older');
+    if (loadOlderBtn) {
+      loadOlderBtn.addEventListener('click', () => {
+        const prevScrollHeight = list.scrollHeight;
+        const prevScrollTop = list.scrollTop;
+        state.visibleWindow += 100;
+        render();
+        const newList = container.querySelector('#message-list');
+        if (newList) newList.scrollTop = newList.scrollHeight - prevScrollHeight + prevScrollTop;
+      });
+    }
     // 用事件代理挂在 message-list 上，而不是逐条气泡绑定——流式输出过程中
     // 新插进来的那条气泡不会经过完整 render()，代理这样才能一直管用。
     list.addEventListener('click', (e) => {
