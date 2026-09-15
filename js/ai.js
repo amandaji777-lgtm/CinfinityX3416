@@ -327,13 +327,23 @@ const Providers = {
           method: 'POST',
           headers: buildAnthropicHeaders(conn, apiKey),
           signal,
+          // 角色卡/预设/世界书/长记忆这些拼进 systemPrompt 的内容，每一轮聊天
+          // 里几乎原封不动——但之前这里是当成一个普通字符串发过去，等于每
+          // 发一条消息，这一整段都按"从没出现过的新内容"全价计费一次，这正是
+          // Claude API 用起来比想象中贵得多的一个常见原因。Anthropic 支持"提示词
+          // 缓存"：把这段内容标记为可缓存后，5 分钟内的后续请求命中缓存的部分
+          // 只按约 1/10 的价格计费，对这种"系统提示词长期不变、只有最近几句
+          // 聊天在变"的场景基本是量身定做。system 这里从纯字符串改成带
+          // cache_control 标记的内容块数组，再给整个请求加一个顶层的自动缓存
+          // 标记，让越聊越长的历史部分也能搭上缓存，而不只是系统提示词这一段。
           body: JSON.stringify({
             model: conn.model,
             max_tokens: conn.maxTokens ?? 4096,
             temperature: conn.temperature ?? 0.8,
-            system: systemPrompt || undefined,
+            system: systemPrompt ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }] : undefined,
             messages,
             stream: true,
+            cache_control: { type: 'ephemeral' },
           }),
         });
       } catch (e) {
