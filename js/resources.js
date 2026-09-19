@@ -237,6 +237,11 @@ const Resources = (() => {
     `);
 
     if (kind === 'lorebook') bindLorebookEntryEvents(dialog);
+    dialog.addEventListener('click', (e) => {
+      const btn = e.target.closest('.field-expand-btn');
+      if (!btn) return;
+      openExpandEditor(btn.dataset.label || '', btn.closest('.field').querySelector('input, textarea'));
+    });
 
     let pendingAvatarFile = null;
     let pendingAvatarClear = false;
@@ -302,12 +307,47 @@ const Resources = (() => {
 
   function fieldsForm(kind, data, excludeKey) {
     return (FIELD_SCHEMAS[kind] || []).filter(([key]) => key !== excludeKey).map(([key, label, type]) => `
-      <label class="field"><span>${label}</span>
+      <label class="field">
+        ${fieldLabelRow(label, type)}
         ${type === 'long'
           ? `<textarea data-field="${key}" rows="2">${escapeHtml(data[key] || '')}</textarea>`
           : `<input data-field="${key}" value="${escapeAttr(data[key] || '')}">`}
       </label>
     `).join('');
+  }
+
+  // 短/长文本字段标题旁边加一个"展开编辑"按钮：单行输入框内容一长就会被裁掉看不全、
+  // 光标也挪不到中间去改，多行框默认只有 2 行也经常不够看完整段文字。点这个按钮弹出
+  // 一个大号文本框，能看到全部内容，改完点完成写回原来的输入框。
+  function fieldLabelRow(label, type) {
+    if (type === 'number' || type === 'checkbox') return `<span>${label}</span>`;
+    return `<span class="field-label-row">${label}<button type="button" class="field-expand-btn" data-label="${escapeAttr(label)}">⤢ 展开编辑</button></span>`;
+  }
+
+  function openExpandEditor(label, fieldEl) {
+    if (!fieldEl) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-card field-expand-card">
+        <h3>${escapeHtml(label)}</h3>
+        <textarea class="field-expand-textarea">${escapeHtml(fieldEl.value)}</textarea>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="expand-cancel">取消</button>
+          <button type="button" class="btn-primary" id="expand-done">完成</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const textarea = overlay.querySelector('.field-expand-textarea');
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    overlay.querySelector('#expand-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#expand-done').addEventListener('click', () => {
+      fieldEl.value = textarea.value;
+      fieldEl.dispatchEvent(new Event('input', { bubbles: true }));
+      overlay.remove();
+    });
   }
 
   function collectFields(kind, dialog) {
@@ -349,7 +389,8 @@ const Resources = (() => {
           </select>
         </label>
         ${LOREBOOK_ENTRY_FIELDS.map(([key, label, type]) => `
-          <label class="field"><span>${label}</span>
+          <label class="field">
+            ${fieldLabelRow(label, type)}
             ${type === 'long'
               ? `<textarea data-lbfield="${key}" rows="2">${escapeHtml(entry[key] || '')}</textarea>`
               : `<input data-lbfield="${key}" type="${type === 'number' ? 'number' : 'text'}" value="${escapeAttr(entry[key] ?? '')}">`}

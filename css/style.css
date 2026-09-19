@@ -500,6 +500,20 @@ html[data-theme="soft-dark"] .empty-state {
   border-color: var(--accent-strong);
 }
 .field textarea { resize: vertical; }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.field-expand-btn {
+  border: none; background: none; color: var(--accent-strong); font-size: 12px;
+  padding: 2px 0; cursor: pointer; flex-shrink: 0; white-space: nowrap;
+}
+.field-expand-card { max-width: 560px; max-height: 88vh; width: 100%; display: flex; flex-direction: column; }
+.field-expand-card h3 { font-size: 15px; }
+.field-expand-textarea {
+  width: 100%; flex: 1; min-height: 42vh; resize: vertical;
+  padding: 12px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+  background: var(--glass-bg); color: var(--text); font-size: 14.5px; line-height: 1.6;
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
+.field-expand-textarea:focus { outline: none; border-color: var(--accent-strong); background: var(--glass-bg-strong); }
 .field-inline { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13.5px; }
 .fieldset { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px; }
 .fieldset legend { padding: 0 6px; font-size: 12.5px; color: var(--text-muted); }
