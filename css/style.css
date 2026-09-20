@@ -810,7 +810,16 @@ body.keyboard-open .composer { padding-bottom: 10px; }
   border: 1px solid var(--border);
   background: var(--surface);
 }
-.btn-stop { background: var(--danger); }
+/* "停止"之前是实心红色块，太扎眼——改成半透明的玻璃质感，颜色上还是用
+   danger 红提示"这是终止操作"，但不再是一整块不透明的红，跟 iMessage 那种
+   浅浅一层玻璃感更接近。 */
+.btn-stop {
+  background: rgba(192, 85, 63, 0.16);
+  color: var(--danger);
+  border: 1px solid rgba(192, 85, 63, 0.4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
 
 /* ---------- 记忆收藏 ---------- */
 .bm-toolbar { display: flex; gap: 8px; padding: 0 16px 10px; flex-shrink: 0; }
