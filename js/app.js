@@ -90,6 +90,21 @@ const App = (() => {
   async function boot() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
+      // sw.js 换了新版本号之后，新 worker 会用 skipWaiting()+clients.claim() 立刻
+      // "接管"当前页面，但这只是换了以后由谁来处理网络请求——页面里已经在跑的那份
+      // 旧 HTML/JS/CSS 不会因为接管就自动变成新的。之前每次发新版本都得靠用户自己
+      // 关两次、开两次 App 才能刷到最新（第一次重开时新 worker 可能还没接管完，看到
+      // 的还是旧版；这也是为什么之前几次"关了重开就好"的建议时灵时不灵）。这里补上
+      // 标准做法：接管发生时自动刷新一次页面，不用再靠用户反复重开去撞运气。
+      // 第一次安装时还没有 controller，那次"接管"不算更新，不用刷新；只有已经有
+      // 旧 controller 在管着、现在换成新的，才是真的发布了新版本。
+      const hadController = !!navigator.serviceWorker.controller;
+      let refreshedOnce = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || refreshedOnce) return;
+        refreshedOnce = true;
+        window.location.reload();
+      });
     }
 
     settings = await loadSettings();
