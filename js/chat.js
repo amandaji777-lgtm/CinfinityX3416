@@ -441,7 +441,11 @@ const Chat = (() => {
     } else {
       const sendBtn = container.querySelector('#btn-send');
       const input = container.querySelector('#composer-input');
-      sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; sendMessage(conv, v); });
+      // 点"发送"按钮，焦点会从输入框移到这个按钮上，手机上这一下就会把软键盘
+      // 收起去——安全区那圈留白（body.keyboard-open 没了）就跟着露出来，
+      // 每发一条消息键盘就闪一下收起再弹起，跟 iMessage 连续发消息键盘全程
+      // 不收起完全不是一回事。点完立刻把焦点还给输入框，键盘全程留在原地。
+      sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; input.focus(); sendMessage(conv, v); });
       // 中文拼音输入法选字上屏那一下，浏览器也会触发一次 key === 'Enter' 的
       // keydown——这时候文字其实还没真正提交进 input.value（要等 compositionend
       // 才会），如果不认这是"输入法在确认候选词"，就会被当成"用户按了发送"，
@@ -453,6 +457,7 @@ const Chat = (() => {
           e.preventDefault();
           const v = input.value;
           input.value = '';
+          input.focus();
           sendMessage(conv, v);
         }
       });
@@ -696,7 +701,9 @@ const Chat = (() => {
     sendBtn.id = 'btn-send';
     sendBtn.textContent = '发送';
     stopBtn.replaceWith(sendBtn);
-    sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; sendMessage(conv, v); });
+    // 同上面首次绑定那处一样，点完立刻把焦点还给输入框，别让键盘跟着这次
+    // 点击收起去——不然连续聊天，每条消息之间键盘都要收一下再弹一下。
+    sendBtn.addEventListener('click', () => { const v = input.value; input.value = ''; input.focus(); sendMessage(conv, v); });
     // 同上面 #composer-input 首次绑定那处一样，要挡住输入法选字上屏时误触发
     // 的 Enter，不然半截消息被提前发出去、后半段就丢了。
     input.addEventListener('keydown', (e) => {
@@ -704,6 +711,7 @@ const Chat = (() => {
         e.preventDefault();
         const v = input.value;
         input.value = '';
+        input.focus();
         sendMessage(conv, v);
       }
     });
