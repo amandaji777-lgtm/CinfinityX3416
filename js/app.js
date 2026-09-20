@@ -50,10 +50,6 @@
       wallpaper.style.top = (top - 0.06 * h) + 'px';
       wallpaper.style.height = (1.12 * h) + 'px';
     }
-    // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
-    // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
-    // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
-    document.body.classList.toggle('keyboard-open', gap > 100);
     // 键盘弹起时 message-list 的可视高度跟着变矮了，但它的滚动位置不会自动
     // 跟着调整——如果之前刚好停在底部附近，外壳一变矮，最后几条消息就会被
     // 新冒出来的输入框正好挡住/压住。聊天室里，只要还大致停在底部，就跟着
