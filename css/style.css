@@ -1,4 +1,4 @@
-/* ---------- 基础与主题变量（玻璃拟态 · 白金 / 黑银 两种基础模式，中性黑白灰为主，
+/* ---------- 基础与主题变量（玻璃拟态 · 白金，中性黑白灰为主，
    颜色只出现在"点击光辉"和"自定义壁纸"这两个地方，不再有暖金色调） ---------- */
 :root {
   /* 白金：中性近白底 + 近黑强调色 */
@@ -49,29 +49,7 @@
   --ripple-glow: var(--accent-strong);
 }
 
-/* 黑银：近黑底 + 近白强调色。深色模式下自定义强调色只影响点按光辉/壁纸，
-   不改变这套底色，保持"深邃呼吸感"的整体氛围结构不被打乱。 */
-html[data-theme="soft-dark"] {
-  --accent: #262626;
-  --accent-strong: #ececeb;
-  --on-accent-strong: #16161a;
-  --bg: #0a0a0a;
-  --surface: #141414;
-  --surface-2: #1c1c1c;
-  --text: #f0f0ee;
-  --text-muted: #969692;
-  --border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(20, 20, 20, 0.55);
-  --glass-bg-strong: rgba(24, 24, 24, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 20px 54px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --orb-1: #d8d8d6; --orb-2: #a0a09c; --orb-3: #707068;
-  --orb-opacity-low: 0.2; --orb-opacity-high: 0.38;
-
-  --ripple-glow: var(--accent-strong);
-}
-
-/* 呼吸感光斑：浅/深两种模式都启用，只是强弱不同——这是全站的氛围底色，不是深色模式专属。 */
+/* 呼吸感光斑：全站的氛围底色。 */
 @keyframes orb-breathe {
   0%, 100% { transform: translate(0, 0) scale(1); opacity: var(--orb-opacity-low); }
   50% { transform: translate(3vw, -4vw) scale(1.1); opacity: var(--orb-opacity-high); }
@@ -271,7 +249,6 @@ button { cursor: pointer; }
   position: absolute; inset: 0;
   background: rgba(255, 255, 255, 0.14);
 }
-html[data-theme="soft-dark"] #wallpaper-layer::after { background: rgba(0, 0, 0, 0.18); }
 html.has-wallpaper .bg-orbs { display: none; }
 html.has-wallpaper { --glass-blur: blur(26px) saturate(1.4); --glass-blur-chat: blur(14px) saturate(1.3); }
 /* 玻璃卡片明暗不再靠这条死板规则撑——js/wallpaper.js 会在上传壁纸时取这张照片
@@ -372,7 +349,6 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
   transition: background 0.25s, color 0.25s;
 }
 .nav-btn.active { color: var(--text); background: var(--accent); }
-html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1); color: var(--text); }
 .nav-icon { display: flex; }
 .nav-icon svg { width: 23px; height: 23px; }
 
@@ -472,9 +448,6 @@ html[data-theme="soft-dark"] .nav-btn.active { background: rgba(255,255,255,0.1)
 .empty-state {
   padding: 60px 24px; text-align: center; color: var(--text-muted);
   text-shadow: 0 0 3px rgba(255, 255, 255, 0.9), 0 1px 8px rgba(255, 255, 255, 0.55);
-}
-html[data-theme="soft-dark"] .empty-state {
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 1px 8px rgba(0, 0, 0, 0.5);
 }
 .empty-title { font-size: 15px; margin-bottom: 4px; color: var(--text); }
 .empty-sub { font-size: 13px; }
@@ -692,50 +665,52 @@ html[data-theme="soft-dark"] .empty-state {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
   color: var(--text-muted); font-size: 12px; text-align: center;
 }
+/* iMessage 风格气泡：自己发的实心蓝，对方的深色磨砂，形状/尾巴都照着
+   iMessage 的样子做——尾巴用一个跟气泡同色的小圆角方块贴在最后一条气泡的
+   外侧角上，颜色直接写死跟气泡一致（不透明度也一致），不依赖背后是什么
+   壁纸都能拼接得严丝合缝。 */
 .msg-bubble {
-  /* 之前每个气泡都单独开一层 backdrop-filter 模糊——别的页面最多几张卡片同时
-     模糊，聊天室是唯一一个"模糊层数跟着消息条数涨"的地方，消息一多，iOS
-     Safari 很容易撑爆它自己那套 GPU 合成层预算，撑爆之后的已知表现就是整块
-     区域直接退化成不透明的纯色，壁纸被整个盖掉——跟之前那次"底部白边"是
-     同一类"层数太多 iOS 直接摆烂"的坑。这次直接不让单条气泡自己模糊，只靠
-     底色本身的透明度（调高一点点保证可读性），把"会不会模糊"这件事收窄到
-     只有顶部/输入框两个固定数量的地方，聊天室不会再因为消息条数把这套预算
-     吃满。 */
-  max-width: 82%;
+  position: relative;
+  max-width: 78%;
   margin-bottom: 14px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.52);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 8px 26px rgba(120, 90, 100, 0.08);
+  padding: 9px 14px;
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   transition: box-shadow 0.3s;
   animation: bubble-in 0.28s cubic-bezier(.2,.8,.3,1);
 }
-html[data-theme="soft-dark"] .msg-bubble {
-  background: rgba(30, 30, 30, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
-}
-.msg-bubble.from-user { margin-left: auto; }
-.msg-bubble.from-ai { margin-right: auto; }
-.msg-bubble.is-archived { opacity: 0.5; }
-/* 自己发的气泡跟对方的气泡稍微区分一下：叠一层很淡的暗色，颜色/材质其他都不变，
-   幅度控制得很轻，不做成实心深色块。 */
 .msg-bubble.from-user {
-  background: linear-gradient(rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.07)), rgba(255, 255, 255, 0.52);
+  --bubble-bg: #0b84ff;
+  background: var(--bubble-bg);
+  color: #ffffff;
+  margin-left: auto;
 }
-html[data-theme="soft-dark"] .msg-bubble.from-user {
-  background: linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16)), rgba(30, 30, 30, 0.62);
+.msg-bubble.from-ai {
+  --bubble-bg: rgba(28, 28, 30, 0.68);
+  background: var(--bubble-bg);
+  color: #f5f5f7;
+  margin-right: auto;
 }
+.msg-bubble.is-archived { opacity: 0.5; }
 
-/* 分组气泡：同一发言方连续消息只有最后一条保留完整圆角，中间的贴角变方一点。 */
+/* 分组气泡：同一发言方连续消息只有最后一条保留完整圆角+尾巴，中间的贴角变方一点。 */
 .msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
 .msg-row.from-user { justify-content: flex-end; }
 .msg-row .msg-bubble { margin: 0 0 3px; }
-.msg-row.from-ai .msg-bubble.is-group-mid { border-bottom-left-radius: 4px; }
-.msg-row.from-user .msg-bubble.is-group-mid { border-bottom-right-radius: 4px; }
-.msg-row.from-ai .msg-bubble.is-group-last { margin-bottom: 14px; }
-.msg-row.from-user .msg-bubble.is-group-last { margin-bottom: 14px; }
+.msg-row.from-ai .msg-bubble.is-group-mid { border-bottom-left-radius: 6px; }
+.msg-row.from-user .msg-bubble.is-group-mid { border-bottom-right-radius: 6px; }
+.msg-row.from-ai .msg-bubble.is-group-last { margin-bottom: 14px; border-bottom-left-radius: 4px; }
+.msg-row.from-user .msg-bubble.is-group-last { margin-bottom: 14px; border-bottom-right-radius: 4px; }
+.msg-row .msg-bubble.is-group-last::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 12px;
+  height: 14px;
+  background: var(--bubble-bg);
+}
+.msg-row.from-user .msg-bubble.is-group-last::after { right: -6px; border-bottom-left-radius: 12px; }
+.msg-row.from-ai .msg-bubble.is-group-last::after { left: -6px; border-bottom-right-radius: 12px; }
 .msg-avatar {
   width: 34px; height: 34px; flex-shrink: 0;
   border-radius: 50%;
@@ -752,37 +727,44 @@ html[data-theme="soft-dark"] .msg-bubble.from-user {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.msg-content { font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.msg-content { font-size: 14.5px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
 
 /* 思考过程：默认折叠，像"对方在想事情"的小提示条，点开才看得到内容——
-   收起来更有等对方说话的感觉，不是每次都要看长长的推理过程。 */
+   收起来更有等对方说话的感觉，不是每次都要看长长的推理过程。气泡现在是
+   实心蓝/深色磨砂，这些次要文字改用半透明白，不然会跟原来给浅色卡片用的
+   灰色一样糊在深色底上看不清。 */
 .msg-thinking-toggle {
   display: flex; align-items: center; gap: 4px;
   background: none; border: none; padding: 0; margin-bottom: 6px;
-  font-size: 11.5px; color: var(--text-muted);
-  opacity: 0.85;
+  font-size: 11.5px; color: rgba(255, 255, 255, 0.75);
+  opacity: 0.9;
 }
 .msg-thinking-toggle .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 9px; }
 .msg-thinking-toggle.is-open .chevron { transform: rotate(180deg); }
 .msg-thinking-body {
   font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
-  color: var(--text-muted); font-style: italic;
-  border-left: 2px solid var(--glass-border);
+  color: rgba(255, 255, 255, 0.75); font-style: italic;
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
   padding: 2px 0 2px 10px; margin-bottom: 8px;
 }
-.msg-thinking-live {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12.5px; color: var(--text-muted); font-style: italic;
+/* "正在输入"：模仿 iMessage 的三个跳动圆点，代替原来那句"思考中…"文字。 */
+.typing-dots { display: inline-flex; align-items: center; gap: 4px; padding: 3px 0; }
+.typing-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: typing-bounce 1.2s ease-in-out infinite;
 }
-.msg-thinking-live::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--accent-strong);
-  animation: silentsync-heartbeat 1.1s ease-in-out infinite;
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
 }
-.msg-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); }
+.msg-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 10.5px; color: rgba(255, 255, 255, 0.6); }
 .msg-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
-.msg-act { background: none; border: none; font-size: 11.5px; color: var(--text-muted); padding: 0; }
-.msg-act.active { color: var(--accent-strong); font-weight: 600; }
+.msg-act { background: none; border: none; font-size: 11.5px; color: rgba(255, 255, 255, 0.75); padding: 0; }
+.msg-act.active { color: #ffffff; font-weight: 600; }
 
 .composer {
   display: flex; align-items: flex-end; gap: 8px;
@@ -948,10 +930,6 @@ body.keyboard-open .composer { padding-bottom: 10px; }
 #view-calendar .day-label, .cal-weekdays span, .cal-upcoming-title {
   text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 0 5px rgba(255, 255, 255, 0.85), 0 1px 10px rgba(255, 255, 255, 0.65), 0 1px 18px rgba(0, 0, 0, 0.15);
 }
-html[data-theme="soft-dark"] #view-calendar .day-label, html[data-theme="soft-dark"] .cal-weekdays span,
-html[data-theme="soft-dark"] .cal-upcoming-title {
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.8), 0 1px 10px rgba(0, 0, 0, 0.6), 0 1px 18px rgba(0, 0, 0, 0.35);
-}
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 22px; }
 .cal-cell {
   position: relative; aspect-ratio: 1; border: none; border-radius: 10px;
@@ -987,8 +965,8 @@ html[data-theme="soft-dark"] .cal-upcoming-title {
 .more-section h3 { margin: 0 0 14px; font-size: 15px; }
 .section-hint { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
 
-/* 更多页：星野壁纸抽屉。canvas 画背景，玻璃卡片列表盖在上面——两套主题都是
-   纯中性灰阶（黑银=星空月晕，白金=铂金晨光+柔雾），不引入任何暖色调。 */
+/* 更多页：星野壁纸抽屉。canvas 画背景，玻璃卡片列表盖在上面——纯中性灰阶
+   （铂金晨光+柔雾），不引入任何暖色调。 */
 /* 之前 .more-scroll 自己是嵌套的第二层滚动容器（.view 是第一层）——先后试过静态画布、
    绝对定位、JS 实测 --vh 三种方式修真机裁切问题，都没能根治，怀疑就是"嵌套滚动容器"这个
    结构本身在部分 WebKit/内嵌浏览器上不可靠。这次直接去掉内层滚动：.more-view 不再限高、
@@ -1001,9 +979,6 @@ html[data-theme="soft-dark"] .cal-upcoming-title {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.1) 100%);
 }
-html[data-theme="soft-dark"] .more-scrim {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.07) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.24) 100%);
-}
 .more-scroll {
   position: relative; z-index: 2;
   padding: calc(var(--safe-top) + 30px) 18px calc(var(--safe-bottom) + 110px);
@@ -1014,26 +989,17 @@ html[data-theme="soft-dark"] .more-scrim {
   mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
-/* 顶部签名文字直接坐在星野画布/壁纸照片上，没有玻璃卡片垫底——文字颜色跟主题走
-   （白金深字/黑银浅字），不知道壁纸照片会不会在这块区域出现相反明暗的区块，所以
-   加一圈跟文字反色的光晕当保底：白金主题的深字配白色光晕，黑银主题的浅字配黑色
-   光晕，不管照片这块区域亮不亮，文字轮廓始终能看出来。 */
+/* 顶部签名文字直接坐在星野画布/壁纸照片上，没有玻璃卡片垫底——白金主题固定是深字，
+   不知道壁纸照片会不会在这块区域出现较暗的区块，所以加一圈白色反色光晕当保底，
+   不管照片这块区域亮不亮，文字轮廓始终能看出来。 */
 .more-hero { margin-bottom: 22px; }
 .more-hero-name, .more-hero-caption, .more-hero-stat, .more-hero-stat b {
   text-shadow: 0 0 3px rgba(255, 255, 255, 0.9), 0 1px 10px rgba(255, 255, 255, 0.6), 0 1px 18px rgba(0, 0, 0, 0.12);
-}
-html[data-theme="soft-dark"] .more-hero-name, html[data-theme="soft-dark"] .more-hero-caption,
-html[data-theme="soft-dark"] .more-hero-stat, html[data-theme="soft-dark"] .more-hero-stat b {
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.85), 0 1px 10px rgba(0, 0, 0, 0.55), 0 1px 18px rgba(0, 0, 0, 0.3);
 }
 /* 星纪下面的小字（副标题/天数统计）本身字号更小，同样粗细的光晕相对更弱，
    看反馈还是会在某些照片区域读不清——单独再叠一层更近距离的光晕加强轮廓。 */
 .more-hero-caption, .more-hero-stat, .more-hero-stat b {
   text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 0 5px rgba(255, 255, 255, 0.85), 0 1px 10px rgba(255, 255, 255, 0.65), 0 1px 18px rgba(0, 0, 0, 0.15);
-}
-html[data-theme="soft-dark"] .more-hero-caption, html[data-theme="soft-dark"] .more-hero-stat,
-html[data-theme="soft-dark"] .more-hero-stat b {
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.8), 0 1px 10px rgba(0, 0, 0, 0.6), 0 1px 18px rgba(0, 0, 0, 0.35);
 }
 .more-hero-name { margin: 0 0 2px; font-size: clamp(30px, 9vw, 38px); font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
 .more-hero-caption { margin: 0 0 12px; font-family: "Pinyon Script", cursive; font-size: 21px; color: var(--text-muted); }
@@ -1063,17 +1029,31 @@ html[data-theme="soft-dark"] .more-hero-stat b {
 .more-row-label { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
 .more-row-sub { font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .more-row-chevron { color: var(--text-muted); font-size: 16px; flex-shrink: 0; opacity: 0.6; }
-.wallpaper-row { display: flex; gap: 12px; }
-.wallpaper-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.wallpaper-item { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 12px; }
 .wallpaper-preview {
-  width: 100%; aspect-ratio: 3/4; border-radius: var(--radius-md);
+  width: 100%; aspect-ratio: 16/9; border-radius: var(--radius-md);
   background: var(--surface-2); background-size: cover; background-position: center;
   border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; color: var(--text-muted);
 }
-.wallpaper-label { font-size: 12.5px; font-weight: 600; }
 .wallpaper-actions { display: flex; align-items: center; gap: 10px; }
+/* 快速选项：最近用过的几张图缩略图，点一下直接切回去，不用重新上传。 */
+.wallpaper-quick-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.wallpaper-thumb-wrap { position: relative; }
+.wallpaper-thumb {
+  width: 56px; height: 56px; border-radius: var(--radius-sm);
+  background-size: cover; background-position: center;
+  border: 2px solid transparent; padding: 0;
+}
+.wallpaper-thumb.is-active { border-color: var(--accent-strong); }
+.wallpaper-thumb-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 12px; line-height: 1; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
 .bm-photo-edit { display: flex; align-items: center; gap: 12px; }
 .bm-photo-preview {
   width: 84px; height: 60px; flex-shrink: 0; border-radius: var(--radius-sm);
@@ -1137,7 +1117,7 @@ html[data-theme="soft-dark"] .more-hero-stat b {
 /* 已经真正发出来、混在正常消息流里的主动消息，加个小标签跟对方"自己开口"的
    普通回复区分开，不然收到之后完全看不出这条是它自己主动说的还是回复你的。 */
 .msg-proactive-tag {
-  font-size: 10.5px; color: var(--text-muted); margin-bottom: 5px;
+  font-size: 10.5px; color: rgba(255, 255, 255, 0.7); margin-bottom: 5px;
   display: flex; align-items: center; gap: 4px;
 }
 
@@ -1171,7 +1151,7 @@ html[data-theme="soft-dark"] .more-hero-stat b {
 
 /* ---------- 开屏：星空流光 + 可选自定义背景照片（模糊压暗当氛围，不再是被叠加装饰的
    主角），中间"Welcome Home"，手指从底部横杠往上一划才真正进入——不是被动等定时器。
-   没设自定义照片时，背景就是当前主题的纯色（黑银黑色/白金白色），不再有内置默认图。 ---------- */
+   没设自定义照片时，背景就是白金主题的纯白色，不再有内置默认图。 ---------- */
 .splash-screen {
   /* 同 .app-shell 那条：iOS 独立模式下 inset:0 走的是会被系统偷偷扣掉
      几十像素的动态视口算法，写死 100vh 才是真正躲开这个坑的办法。 */
@@ -1189,9 +1169,8 @@ html[data-theme="soft-dark"] .more-hero-stat b {
    改动的东西了（外壳/壁纸/照片每一层的尺寸都反复验证过是对的，画面还是会
    在同一个位置停住）——干脆把这圈"停下来"的边界，做成一段收束到底色的
    渐隐，看起来像是氛围图本来就设计成往下收束变暗/变淡，而不是没铺满。
-   一开始直接淡到主题底色（黑银是纯黑）太重、跟浅色照片不搭——改成淡到
-   半透明黑做"变暗"的氛围渐隐，不管什么主题、什么照片色调都不会显得突兀，
-   也比纯色柔和很多。 */
+   一开始直接淡到纯黑底色太重、跟浅色照片不搭——改成淡到半透明黑做
+   "变暗"的氛围渐隐，不管照片色调深浅都不会显得突兀，也比纯色柔和很多。 */
 .splash-bottom-fade {
   position: absolute; left: 0; right: 0; bottom: 0; height: 130px;
   background: linear-gradient(to bottom, transparent, rgba(10, 8, 6, 0.4));

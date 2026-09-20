@@ -3,7 +3,10 @@ const Backup = (() => {
   // 壁纸/头像/开屏背景图都是图片数据（Blob，或者为了绕开 Safari 的 Blob 存储 bug 包了一层
   // {__blob,buf,type} 的 ArrayBuffer），JSON.stringify 序列化不了也没必要塞进纯文本备份——
   // 和不导出 API Key 一个道理。
-  const EXCLUDED_SETTING_KEYS = ['wallpaperLight', 'wallpaperDark', 'splashPhotoLight', 'splashPhotoDark', 'userAvatar'];
+  const EXCLUDED_SETTING_KEYS = [
+    'wallpaperLight', 'wallpaperDark', 'splashPhotoLight', 'splashPhotoDark', 'userAvatar',
+    'wallpaperHistory', 'wallpaperCurrentId', 'splashPhotoHistory', 'splashPhotoCurrentId',
+  ];
   function isExcludedSetting(row) {
     return EXCLUDED_SETTING_KEYS.includes(row.key) || row.key.startsWith('charAvatar:') ||
       row.value instanceof Blob || (row.value && row.value.__blob);

@@ -5,10 +5,10 @@ const More = (() => {
   let container;
   let connections = [];
   let storageInfo = null;
-  let wallpaperBlobs = { light: null, 'soft-dark': null };
-  let wallpaperPreviewUrls = { light: null, 'soft-dark': null };
-  let splashPhotoBlobs = { light: null, 'soft-dark': null };
-  let splashPhotoPreviewUrls = { light: null, 'soft-dark': null };
+  let wallpaperItems = []; // [{ id, blob, isCurrent }]，最近使用在前
+  let wallpaperThumbUrls = {}; // id -> object url
+  let splashPhotoItems = [];
+  let splashPhotoThumbUrls = {};
   let userAvatarBlob = null;
   let userAvatarPreviewUrl = null;
   let characters = [];
@@ -59,13 +59,11 @@ const More = (() => {
   }
 
   async function refreshWallpaperBlobs() {
-    wallpaperBlobs.light = storableToBlob(await DB.getSetting('wallpaperLight'));
-    wallpaperBlobs['soft-dark'] = storableToBlob(await DB.getSetting('wallpaperDark'));
+    wallpaperItems = await Wallpaper.list();
   }
 
   async function refreshSplashPhotoBlobs() {
-    splashPhotoBlobs.light = storableToBlob(await DB.getSetting('splashPhotoLight'));
-    splashPhotoBlobs['soft-dark'] = storableToBlob(await DB.getSetting('splashPhotoDark'));
+    splashPhotoItems = await SplashPhoto.list();
   }
 
   async function refreshUserAvatarBlob() {
@@ -78,17 +76,15 @@ const More = (() => {
   }
 
   function rebuildWallpaperPreviews() {
-    for (const t of ['light', 'soft-dark']) {
-      if (wallpaperPreviewUrls[t]) URL.revokeObjectURL(wallpaperPreviewUrls[t]);
-      wallpaperPreviewUrls[t] = wallpaperBlobs[t] instanceof Blob ? URL.createObjectURL(wallpaperBlobs[t]) : null;
-    }
+    Object.values(wallpaperThumbUrls).forEach((url) => URL.revokeObjectURL(url));
+    wallpaperThumbUrls = {};
+    wallpaperItems.forEach((item) => { wallpaperThumbUrls[item.id] = URL.createObjectURL(item.blob); });
   }
 
   function rebuildSplashPhotoPreviews() {
-    for (const t of ['light', 'soft-dark']) {
-      if (splashPhotoPreviewUrls[t]) URL.revokeObjectURL(splashPhotoPreviewUrls[t]);
-      splashPhotoPreviewUrls[t] = splashPhotoBlobs[t] instanceof Blob ? URL.createObjectURL(splashPhotoBlobs[t]) : null;
-    }
+    Object.values(splashPhotoThumbUrls).forEach((url) => URL.revokeObjectURL(url));
+    splashPhotoThumbUrls = {};
+    splashPhotoItems.forEach((item) => { splashPhotoThumbUrls[item.id] = URL.createObjectURL(item.blob); });
   }
 
   // ---------------- 顶层列表：星野壁纸抽屉 ----------------
@@ -192,7 +188,7 @@ const More = (() => {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${icons[name] || ''}</svg>`;
   }
 
-  // ---------------- 背景：星野画布（黑银=星空月晕，白金=中性铂金晨光，绝不引入暖黄色相） ----------------
+  // ---------------- 背景：星野画布（中性铂金晨光，绝不引入暖黄色相） ----------------
   function initSky() {
     if (skyResizeHandler) { window.removeEventListener('resize', skyResizeHandler); skyResizeHandler = null; }
     const canvas = container.querySelector('.more-sky');
@@ -218,42 +214,33 @@ const More = (() => {
     // （尤其是 iOS Safari）非常吃性能，是列表滚动卡顿的头号嫌疑。星星就用
     // 各自随机的固定亮度，不做逐帧闪烁。
     function draw(w, h) {
-      const isDark = document.documentElement.dataset.theme === 'soft-dark';
       // 设了自定义壁纸时，这块画布底下的 #wallpaper-layer 才是真正该看见的背景——
       // 之前这里无条件画一层不透明的渐变底色，会把壁纸整个盖住（用户反馈"更多"页
       // 看不到壁纸的根因）。有壁纸就跳过这层不透明填充，把画布留透明，只保留
       // 星星/月晕这些本来就是低透明度的装饰，叠在壁纸上面。
-      const hasWallpaper = wallpaperBlobs[isDark ? 'soft-dark' : 'light'] instanceof Blob;
+      const hasWallpaper = wallpaperItems.some((item) => item.isCurrent);
       if (!hasWallpaper) {
         const bg = ctx.createLinearGradient(0, 0, 0, h);
-        if (isDark) { bg.addColorStop(0, '#0d0d0d'); bg.addColorStop(0.6, '#161616'); bg.addColorStop(1, '#050505'); }
-        else { bg.addColorStop(0, '#fbfbfa'); bg.addColorStop(0.6, '#f0f0ee'); bg.addColorStop(1, '#e2e2df'); }
+        bg.addColorStop(0, '#fbfbfa'); bg.addColorStop(0.6, '#f0f0ee'); bg.addColorStop(1, '#e2e2df');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
       }
 
       const mx = w * 0.26, my = h * 0.15;
-      const glow = ctx.createRadialGradient(mx, my, 2, mx, my, isDark ? w * 0.55 : w * 0.4);
-      glow.addColorStop(0, isDark ? 'rgba(240,240,238,.16)' : 'rgba(163,163,156,.13)');
+      const glow = ctx.createRadialGradient(mx, my, 2, mx, my, w * 0.4);
+      glow.addColorStop(0, 'rgba(163,163,156,.13)');
       glow.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
 
       skyStars.forEach((st) => {
         const b = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(st.p * 3));
-        if (isDark) {
-          ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(240,240,238,${(0.25 + b * 0.55).toFixed(3)})`;
-          ctx.fill();
-        } else {
-          ctx.beginPath(); ctx.arc(st.x, st.y, st.r * 3.2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(163,163,156,${(0.04 + b * 0.04).toFixed(3)})`;
-          ctx.fill();
-        }
+        ctx.beginPath(); ctx.arc(st.x, st.y, st.r * 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(163,163,156,${(0.04 + b * 0.04).toFixed(3)})`;
+        ctx.fill();
       });
 
       ctx.beginPath(); ctx.arc(mx, my, 14, 0, Math.PI * 2);
       const moonG = ctx.createRadialGradient(mx, my, 1, mx, my, 14);
-      if (isDark) { moonG.addColorStop(0, 'rgba(240,240,238,.95)'); moonG.addColorStop(1, 'rgba(240,240,238,.2)'); }
-      else { moonG.addColorStop(0, 'rgba(163,163,156,.45)'); moonG.addColorStop(1, 'rgba(163,163,156,.04)'); }
+      moonG.addColorStop(0, 'rgba(163,163,156,.45)'); moonG.addColorStop(1, 'rgba(163,163,156,.04)');
       ctx.fillStyle = moonG; ctx.fill();
     }
 
@@ -371,17 +358,10 @@ const More = (() => {
         <label class="field"><span>昵称</span><input name="nickname" value="${escapeAttr(s.nickname || '')}" maxlength="16"></label>
         <label class="field"><span>纪念日 · 第几天从这天算起</span><input type="date" name="createdAt" value="${escapeAttr(s.createdAt ? localDateInputValue(s.createdAt) : '')}"></label>
 
-        <div class="field"><span>基础模式</span>
-          <div class="seg-row">
-            <label class="seg-option"><input type="radio" name="theme" value="light" ${s.theme !== 'soft-dark' ? 'checked' : ''}><span>白金</span></label>
-            <label class="seg-option"><input type="radio" name="theme" value="soft-dark" ${s.theme === 'soft-dark' ? 'checked' : ''}><span>黑银</span></label>
-          </div>
-        </div>
-
         <fieldset class="fieldset"><legend>点按时的光辉颜色</legend>
-          <p class="section-hint">整体配色固定为白金/黑银这两种呼吸感玻璃质感，不再有其他配色方案；这里只能调"点击卡片/按钮时散开的那圈光晕"用什么颜色。</p>
+          <p class="section-hint">整体配色固定为白金这一套呼吸感玻璃质感，不再有其他配色方案；这里只能调"点击卡片/按钮时散开的那圈光晕"用什么颜色。</p>
           <label class="field-inline"><input type="checkbox" name="useCustomColors" id="use-custom-colors" ${s.customAccent ? 'checked' : ''}><span>自定义光辉颜色</span></label>
-          <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || (s.theme === 'soft-dark' ? '#ececeb' : '#232320')}" ${s.customAccent ? '' : 'disabled'}></label>
+          <label class="field"><span>光辉颜色</span><input type="color" name="customAccent" value="${s.customAccent || '#232320'}" ${s.customAccent ? '' : 'disabled'}></label>
         </fieldset>
 
         <label class="field-inline"><input type="checkbox" name="aiEnabled" ${s.aiEnabled !== false ? 'checked' : ''}><span>启用 AI 对话功能</span></label>
@@ -403,7 +383,6 @@ const More = (() => {
         subtitle: fd.get('subtitle') || '',
         nickname: fd.get('nickname') || '',
         createdAt: createdAtDate ? new Date(`${createdAtDate}T00:00:00`).toISOString() : App.settings.createdAt,
-        theme: fd.get('theme') || 'light',
         customAccent: useCustom ? fd.get('customAccent') : null,
         aiEnabled: fd.get('aiEnabled') === 'on',
         proactiveMessagesEnabled: fd.get('proactiveMessagesEnabled') === 'on',
@@ -419,129 +398,96 @@ const More = (() => {
   }
 
   // ---------------- 自定义壁纸 + 开屏背景照片 ----------------
+  // 现在只有白金一套主题，壁纸/开屏背景各自都是"当前生效一张 + 最近几张快速选项"，
+  // 不用再分光/暗两份分别上传。
   function openWallpaperPage() {
     const dialog = Pages.open('外观 · 自定义壁纸', `
       <div class="more-section">
         <h3>壁纸</h3>
-        <p class="section-hint">白金和黑银可以各自设一张背景照片，毛玻璃卡片盖在上面（不会存进备份文件，换设备后需要重新上传）。</p>
-        <div class="wallpaper-row">
-          ${wallpaperItem('light', '白金')}
-          ${wallpaperItem('soft-dark', '黑银')}
-        </div>
+        <p class="section-hint">桌面壁纸盖在整个工作台底下，毛玻璃卡片叠在上面（不会存进备份文件，换设备后需要重新上传）。最近用过的几张留在下面，点一下就能切回去，不用重新翻相册。</p>
+        ${wallpaperSection('wallpaper', wallpaperItems)}
       </div>
       <div class="more-section">
         <h3>开屏背景照片</h3>
-        <p class="section-hint">开屏页也可以各自设一张照片（会模糊压暗当氛围背景，不设就用主题自己的纯色）。</p>
-        <div class="wallpaper-row">
-          ${splashPhotoItem('light', '白金')}
-          ${splashPhotoItem('soft-dark', '黑银')}
-        </div>
+        <p class="section-hint">开屏页也可以设一张照片当氛围背景（会模糊压暗，不设就用白金主题自己的纯色），同样会保留最近几张。</p>
+        ${wallpaperSection('splash', splashPhotoItems)}
       </div>
     `);
-    bindWallpaperEvents(dialog);
-    bindSplashPhotoEvents(dialog);
+    bindWallpaperSectionEvents(dialog, 'wallpaper', Wallpaper, refreshWallpaperBlobs, '壁纸');
+    bindWallpaperSectionEvents(dialog, 'splash', SplashPhoto, refreshSplashPhotoBlobs, '开屏背景');
   }
 
-  function wallpaperItem(theme, label) {
-    const url = wallpaperPreviewUrls[theme];
-    const idSafe = theme.replace(/[^a-z]/g, '');
+  function wallpaperSection(prefix, items) {
+    const thumbUrls = prefix === 'wallpaper' ? wallpaperThumbUrls : splashPhotoThumbUrls;
+    const current = items.find((it) => it.isCurrent);
+    const currentUrl = current ? thumbUrls[current.id] : null;
     return `
       <div class="wallpaper-item">
-        <div class="wallpaper-preview" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '未设置'}</div>
-        <span class="wallpaper-label">${label}</span>
+        <div class="wallpaper-preview" style="${currentUrl ? `background-image:url('${currentUrl}')` : ''}">${currentUrl ? '' : '未设置'}</div>
         <div class="wallpaper-actions">
-          <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-wallpaper-input="${theme}" id="wallpaper-${idSafe}-input" hidden></label>
-          ${url ? `<button type="button" class="msg-act" data-wallpaper-clear="${theme}">清除</button>` : ''}
+          <label class="btn-secondary file-btn">上传新图片<input type="file" accept="image/*" data-${prefix}-upload hidden></label>
+          ${current ? `<button type="button" class="msg-act" data-${prefix}-clear>清除</button>` : ''}
         </div>
       </div>
+      ${items.length ? `
+        <div class="wallpaper-quick-row">
+          ${items.map((it) => `
+            <div class="wallpaper-thumb-wrap">
+              <button type="button" class="wallpaper-thumb ${it.isCurrent ? 'is-active' : ''}" data-${prefix}-pick="${it.id}" style="background-image:url('${thumbUrls[it.id]}')" title="${it.isCurrent ? '当前使用中' : '设为当前'}"></button>
+              <button type="button" class="wallpaper-thumb-remove" data-${prefix}-remove="${it.id}" title="从最近选项里删掉">×</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
     `;
   }
 
-  function splashPhotoItem(theme, label) {
-    const url = splashPhotoPreviewUrls[theme];
-    const idSafe = theme.replace(/[^a-z]/g, '');
-    return `
-      <div class="wallpaper-item">
-        <div class="wallpaper-preview" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '未设置'}</div>
-        <span class="wallpaper-label">${label}</span>
-        <div class="wallpaper-actions">
-          <label class="btn-secondary file-btn">上传<input type="file" accept="image/*" data-splash-input="${theme}" id="splash-${idSafe}-input" hidden></label>
-          ${url ? `<button type="button" class="msg-act" data-splash-clear="${theme}">清除</button>` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  function bindWallpaperEvents(dialog) {
-    dialog.querySelectorAll('[data-wallpaper-input]').forEach((input) => {
-      input.addEventListener('change', (e) => handleWallpaperUpload(dialog, input.dataset.wallpaperInput, e));
+  function bindWallpaperSectionEvents(dialog, prefix, module, refresh, label) {
+    dialog.querySelector(`[data-${prefix}-upload]`)?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
+      try {
+        const resized = await resizeImageFile(file, 1600, 0.85);
+        await module.set(resized);
+        await refresh();
+        Pages.close(dialog);
+        render();
+        openWallpaperPage();
+        toast(`${label}已更新`);
+      } catch (err) {
+        await UIDialog.alert(`${label}设置失败：` + (err?.message || '未知错误') + '，换一张小一点的图片试试');
+      }
     });
-    dialog.querySelectorAll('[data-wallpaper-clear]').forEach((btn) => {
-      btn.addEventListener('click', () => handleWallpaperClear(dialog, btn.dataset.wallpaperClear));
-    });
-  }
-
-  async function handleWallpaperUpload(dialog, theme, e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
-    try {
-      const resized = await resizeImageFile(file, 1600, 0.85);
-      await Wallpaper.set(theme, resized);
-      await refreshWallpaperBlobs();
+    dialog.querySelector(`[data-${prefix}-clear]`)?.addEventListener('click', async () => {
+      await module.clear();
+      await refresh();
       Pages.close(dialog);
       render();
       openWallpaperPage();
-      toast('壁纸已更新');
-    } catch (err) {
-      await UIDialog.alert('壁纸设置失败：' + (err?.message || '未知错误') + '，换一张小一点的图片试试');
-    }
-  }
-
-  async function handleWallpaperClear(dialog, theme) {
-    await Wallpaper.clear(theme);
-    await refreshWallpaperBlobs();
-    Pages.close(dialog);
-    render();
-    openWallpaperPage();
-    toast('已清除壁纸');
-  }
-
-  function bindSplashPhotoEvents(dialog) {
-    dialog.querySelectorAll('[data-splash-input]').forEach((input) => {
-      input.addEventListener('change', (e) => handleSplashPhotoUpload(dialog, input.dataset.splashInput, e));
+      toast(`已清除${label}`);
     });
-    dialog.querySelectorAll('[data-splash-clear]').forEach((btn) => {
-      btn.addEventListener('click', () => handleSplashPhotoClear(dialog, btn.dataset.splashClear));
+    dialog.querySelectorAll(`[data-${prefix}-pick]`).forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await module.selectFromHistory(btn.dataset[`${prefix}Pick`]);
+        await refresh();
+        Pages.close(dialog);
+        render();
+        openWallpaperPage();
+        toast(`${label}已切换`);
+      });
     });
-  }
-
-  async function handleSplashPhotoUpload(dialog, theme, e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { await UIDialog.alert('请选择图片文件'); return; }
-    try {
-      const resized = await resizeImageFile(file, 1600, 0.85);
-      await SplashPhoto.set(theme, resized);
-      await refreshSplashPhotoBlobs();
-      Pages.close(dialog);
-      render();
-      openWallpaperPage();
-      toast('开屏背景已更新');
-    } catch (err) {
-      await UIDialog.alert('开屏背景设置失败：' + (err?.message || '未知错误') + '，换一张小一点的图片试试');
-    }
-  }
-
-  async function handleSplashPhotoClear(dialog, theme) {
-    await SplashPhoto.clear(theme);
-    await refreshSplashPhotoBlobs();
-    Pages.close(dialog);
-    render();
-    openWallpaperPage();
-    toast('已清除开屏背景');
+    dialog.querySelectorAll(`[data-${prefix}-remove]`).forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await module.removeFromHistory(btn.dataset[`${prefix}Remove`]);
+        await refresh();
+        Pages.close(dialog);
+        render();
+        openWallpaperPage();
+      });
+    });
   }
 
   // ---------------- API 连接 ----------------

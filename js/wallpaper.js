@@ -1,20 +1,53 @@
-// 自定义壁纸：浅色/深色主题可以各自设置一张背景照片，毛玻璃卡片盖在上面。
-// 图片存成 Blob 直接放进 settings 表（IndexedDB 原生支持存 Blob，不用转 base64）。
-// 不进 JSON 备份——原因和不导出 API Key 一样：图片会让备份文件变得很大又不便于纯文本比对。
+// 自定义壁纸：现在只有白金一套主题，不用再分深浅色两份。壁纸存成一份"最近使用
+// 历史"（最多 MAX_HISTORY 张，Blob 直接放进 settings 表），外加一个"当前生效"的
+// id——换壁纸不再是"覆盖掉唯一那一张"，新上传的图会加进历史最前面，之前用过的
+// 图还留在历史里，随时能从"快速选项"里一键切回去，不用重新翻相册上传一遍。
+// 不进 JSON 备份——原因和不导出 API Key 一样：图片会让备份文件变得很大又不便于
+// 纯文本比对。
 const Wallpaper = (() => {
-  const KEYS = { light: 'wallpaperLight', 'soft-dark': 'wallpaperDark' };
+  const HISTORY_KEY = 'wallpaperHistory';
+  const CURRENT_KEY = 'wallpaperCurrentId';
+  const MAX_HISTORY = 6;
   let currentObjectUrl = null;
+  let migrated = null;
 
-  function keyFor(theme) {
-    return KEYS[theme] || KEYS.light;
+  // 兼容这次改版之前的数据：那时候壁纸是按"白金/黑银"两个主题分别存一份
+  // （wallpaperLight / wallpaperDark），现在只保留一套主题，把旧数据一次性
+  // 搬进新的历史列表里，不会让用户升级后发现自己设的壁纸突然消失。
+  async function ensureMigrated() {
+    if (migrated) return migrated;
+    migrated = (async () => {
+      const existingHistory = await DB.getSetting(HISTORY_KEY);
+      if (existingHistory !== undefined) return;
+      const history = [];
+      let currentId = null;
+      for (const oldKey of ['wallpaperLight', 'wallpaperDark']) {
+        const storable = await DB.getSetting(oldKey);
+        if (!storableToBlob(storable)) continue;
+        const id = uuid();
+        history.push({ id, storable, createdAt: nowISO() });
+        if (!currentId) currentId = id;
+      }
+      await DB.setSetting(HISTORY_KEY, history);
+      await DB.setSetting(CURRENT_KEY, currentId);
+    })();
+    return migrated;
+  }
+
+  async function getHistory() {
+    await ensureMigrated();
+    return (await DB.getSetting(HISTORY_KEY)) || [];
+  }
+
+  async function getCurrentId() {
+    await ensureMigrated();
+    return (await DB.getSetting(CURRENT_KEY)) || null;
   }
 
   // 壁纸自适应取色：把照片画到一块 24×24 的小画布上求平均色相，给玻璃卡片轻轻带一点
-  // 照片的色调（12% 权重），但明暗永远跟着"你选的主题"走，不跟着"这张照片亮不亮"走——
-  // 之前的版本反过来了：深色照片会把 --text/--surface 这些全站共用的变量强制翻成浅色，
-  // 结果输入框/分段控件这些底色仍然是主题原来的浅色的地方，文字也变浅了，直接读不到
-  // （用户反馈"选项完全看不见"）。现在只调玻璃卡片自己的透明度和一点点色相，不透明度
-  // 调得比之前更高，保证不管照片多亮多暗，主题自己的文字颜色始终读得清楚。
+  // 照片的色调（12% 权重），明暗固定跟着白金主题走，不跟着照片亮不亮走——避免深色
+  // 照片把 --text/--surface 这些全站共用的变量强制翻暗，导致输入框/分段控件这些
+  // 地方文字读不清。
   function sampleAverageColor(url) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -47,28 +80,19 @@ const Wallpaper = (() => {
       ['--glass-bg', '--glass-bg-strong', '--glass-border'].forEach((k) => root.removeProperty(k));
       return;
     }
-    // 明暗跟着当前选的主题走（不是跟着照片走），只把色相朝照片平均色带一点点（12% 权重）。
-    const dark = document.documentElement.dataset.theme === 'soft-dark';
-    const base = dark ? 20 : 248;
+    const base = 248;
     const rr = mix(sample.r, base, 0.88), gg = mix(sample.g, base, 0.88), bb = mix(sample.b, base, 0.88);
-    // 不透明度比这次修复之前（0.60/0.62）略高一点留安全余量，但不像修复当天那版
-    // （0.82/0.84）那么闷——用户反馈"想要更通透一点"，这版两边各退一步。
-    if (dark) {
-      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.68)`);
-      root.setProperty('--glass-bg-strong', `rgba(${Math.max(rr - 4, 0)},${Math.max(gg - 4, 0)},${Math.max(bb - 4, 0)},0.84)`);
-      root.setProperty('--glass-border', 'rgba(255,255,255,0.14)');
-    } else {
-      root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.70)`);
-      root.setProperty('--glass-bg-strong', `rgba(${Math.min(rr + 4, 255)},${Math.min(gg + 4, 255)},${Math.min(bb + 4, 255)},0.85)`);
-      root.setProperty('--glass-border', 'rgba(0,0,0,0.10)');
-    }
+    root.setProperty('--glass-bg', `rgba(${rr},${gg},${bb},0.70)`);
+    root.setProperty('--glass-bg-strong', `rgba(${Math.min(rr + 4, 255)},${Math.min(gg + 4, 255)},${Math.min(bb + 4, 255)},0.85)`);
+    root.setProperty('--glass-border', 'rgba(0,0,0,0.10)');
   }
 
-  async function apply(theme) {
+  async function apply() {
     const layer = document.getElementById('wallpaper-layer');
     if (!layer) return;
-    let blob = null;
-    try { blob = storableToBlob(await DB.getSetting(keyFor(theme))); } catch (_) { blob = null; }
+    const [history, currentId] = [await getHistory(), await getCurrentId()];
+    const entry = history.find((h) => h.id === currentId);
+    const blob = entry ? storableToBlob(entry.storable) : null;
 
     if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
 
@@ -87,21 +111,61 @@ const Wallpaper = (() => {
     }
   }
 
-  async function set(theme, file) {
-    await DB.setSetting(keyFor(theme), await blobToStorable(file));
-    await apply(document.documentElement.dataset.theme || 'light');
+  // 新上传一张图：加进历史最前面并立即设为当前，超过 MAX_HISTORY 张就把最旧的
+  // 挤出去（正在用的那张即使排到末尾也不会被挤掉，保证"当前壁纸"永远还在历史里）。
+  async function set(file) {
+    await ensureMigrated();
+    const storable = await blobToStorable(file);
+    const id = uuid();
+    let history = await getHistory();
+    history = [{ id, storable, createdAt: nowISO() }, ...history];
+    if (history.length > MAX_HISTORY) {
+      const currentId = await getCurrentId();
+      const keep = history.slice(0, MAX_HISTORY);
+      if (!keep.some((h) => h.id === currentId)) {
+        const currentEntry = history.find((h) => h.id === currentId);
+        if (currentEntry) keep[keep.length - 1] = currentEntry;
+      }
+      history = keep;
+    }
+    await DB.setSetting(HISTORY_KEY, history);
+    await DB.setSetting(CURRENT_KEY, id);
+    await apply();
   }
 
-  async function clear(theme) {
-    await DB.setSetting(keyFor(theme), null);
-    await apply(document.documentElement.dataset.theme || 'light');
+  // 快速选项：直接从历史里挑一张设为当前，不用重新上传。
+  async function selectFromHistory(id) {
+    await ensureMigrated();
+    await DB.setSetting(CURRENT_KEY, id);
+    await apply();
   }
 
-  async function has(theme) {
-    const blob = storableToBlob(await DB.getSetting(keyFor(theme)));
-    return blob instanceof Blob;
+  async function removeFromHistory(id) {
+    await ensureMigrated();
+    let history = await getHistory();
+    history = history.filter((h) => h.id !== id);
+    await DB.setSetting(HISTORY_KEY, history);
+    const currentId = await getCurrentId();
+    if (currentId === id) await DB.setSetting(CURRENT_KEY, null);
+    await apply();
   }
 
-  return { apply, set, clear, has };
+  async function clear() {
+    await ensureMigrated();
+    await DB.setSetting(CURRENT_KEY, null);
+    await apply();
+  }
+
+  async function has() {
+    return !!(await getCurrentId());
+  }
+
+  // 给设置页用：把历史列表转成可以直接渲染的 { id, blob, isCurrent } 数组。
+  async function list() {
+    const [history, currentId] = [await getHistory(), await getCurrentId()];
+    return history.map((h) => ({ id: h.id, blob: storableToBlob(h.storable), isCurrent: h.id === currentId }));
+  }
+
+  return { apply, set, clear, has, list, selectFromHistory, removeFromHistory };
 })();
 window.Wallpaper = Wallpaper;

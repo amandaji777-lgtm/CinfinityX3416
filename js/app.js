@@ -132,17 +132,16 @@ const App = (() => {
     return merged;
   }
 
-  // 白金/黑银两套固定底色不开放自定义；customAccent 只覆盖"点按时的光辉颜色"这一件事
-  // （--ripple-glow），不会影响其他任何 UI 元素的配色，保证整体氛围不会被自定义弄乱。
+  // 只保留白金这一套固定底色，不再开放深色模式；customAccent 只覆盖"点按时的
+  // 光辉颜色"这一件事（--ripple-glow），不会影响其他任何 UI 元素的配色。
   function applyTheme(s) {
-    const isDark = s.theme === 'soft-dark';
-    document.documentElement.dataset.theme = isDark ? 'soft-dark' : 'light';
+    document.documentElement.dataset.theme = 'light';
     const root = document.documentElement.style;
 
     if (s.customAccent) root.setProperty('--ripple-glow', s.customAccent);
     else root.removeProperty('--ripple-glow');
 
-    if (window.Wallpaper) Wallpaper.apply(isDark ? 'soft-dark' : 'light');
+    if (window.Wallpaper) Wallpaper.apply();
   }
 
   async function startMainApp() {

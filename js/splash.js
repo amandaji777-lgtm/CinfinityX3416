@@ -140,16 +140,12 @@
   updateClock();
   clockId = setInterval(updateClock, 15000);
 
-  // ---------------- 背景：主题纯色，或用户自定义的开屏照片 ----------------
+  // ---------------- 背景：白金纯色，或用户自定义的开屏照片 ----------------
   async function setupBackground() {
-    // 这段脚本在 app.js（真正 applyTheme 的地方）之前就执行了，document.documentElement
-    // 的 data-theme 这时还没被设置，不能用它判断深浅——直接问 DB 拿存好的主题设置。
-    let theme = 'light';
-    try { theme = (await DB.getSetting('theme')) === 'soft-dark' ? 'soft-dark' : 'light'; } catch (_) {}
     let photoUrl = null;
-    try { photoUrl = window.SplashPhoto ? await window.SplashPhoto.urlFor(theme) : null; } catch (_) { photoUrl = null; }
+    try { photoUrl = window.SplashPhoto ? await window.SplashPhoto.urlFor() : null; } catch (_) { photoUrl = null; }
 
-    isDark = !!photoUrl || theme === 'soft-dark';
+    isDark = !!photoUrl;
     root.classList.toggle('is-light', !isDark);
 
     if (photoUrl && photoBg) {

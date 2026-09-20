@@ -1011,9 +1011,14 @@ const Chat = (() => {
   // 流式过程中 msg.content 是原始缓冲区，可能正卡在 <think> 标签中间——跟存库后
   // 的"已拆好 thinking/content"两码事，所以这里单独解析显示，不复用 messageBubble
   // 那套（那套假定 m.content/m.thinking 已经是最终拆好的）。
+  const TYPING_DOTS_HTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
+
   function streamingDisplayHtml(rawContent) {
     const { thinking, content, stillThinking } = splitThinking(rawContent);
-    if (stillThinking) return `<span class="msg-thinking-live">💭 思考中…</span>`;
+    // 还在 <think> 里，或者干脆一个字都还没吐出来——这两种情况用户看到的都是
+    // "对方还没开始说话"，统一用 iMessage 那种三个跳动圆点表示，不再单独
+    // 显示一句"思考中…"的文字。
+    if (stillThinking || (!content && !thinking)) return TYPING_DOTS_HTML;
     let html = '';
     if (thinking) {
       html += `<button class="msg-thinking-toggle" data-act="toggle-thinking">💭 思考过程 <span class="chevron">▾</span></button><div class="msg-thinking-body" hidden>${escapeHtml(thinking)}</div>`;
