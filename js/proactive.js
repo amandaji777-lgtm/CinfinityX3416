@@ -67,11 +67,11 @@ const Proactive = (() => {
     const now = Date.now();
     if (pr.lastTriggeredAt) {
       const minutesSince = (now - new Date(pr.lastTriggeredAt).getTime()) / 60000;
-      if (minutesSince < (pr.minCooldownMinutes ?? 120)) return;
+      if (minutesSince < (pr.minCooldownMinutes ?? 10)) return;
     }
     const today = todayStr();
     const dailyCount = pr.dailyCountDate === today ? (pr.dailyCount || 0) : 0;
-    if (dailyCount >= (pr.dailyCap ?? 3)) return;
+    if (dailyCount >= (pr.dailyCap ?? 10)) return;
 
     if (getPendingDraft(conv.id)) return; // 已经有一条草稿在等待确认，先不再生成新的
 

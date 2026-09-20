@@ -287,7 +287,7 @@ const Chat = (() => {
         title: fields.title || character?.name || '未命名对话',
         ...fields,
         longMemory: { enabled: false, summarizeEveryN: 0, maxCount: 200, summaryPrompt: '', injectionPrompt: '', injectionCap: 6, lastSummarizedCount: 0 },
-        proactive: { mode: 'off', quietStart: '23:00', quietEnd: '08:00', minCooldownMinutes: 120, dailyCap: 3, paused: false, dailyCount: 0, dailyCountDate: '', lastTriggeredAt: '' },
+        proactive: { mode: 'off', quietStart: '23:00', quietEnd: '05:00', minCooldownMinutes: 10, dailyCap: 10, paused: false, dailyCount: 0, dailyCountDate: '', lastTriggeredAt: '' },
         lastMessagePreview: '',
         createdAt: now,
         updatedAt: now,
@@ -907,7 +907,7 @@ const Chat = (() => {
     // 一道无条件的硬上限，不管长记忆开没开、覆盖没覆盖，单轮最多只带最近
     // 这么多条原始消息（超出的部分本地聊天记录还在，只是这一轮不再发给
     // 模型），可以在对话设置里调整。
-    const maxRawHistory = conv.maxRawHistory ?? 40;
+    const maxRawHistory = conv.maxRawHistory ?? 70;
     if (history.length > maxRawHistory) history = history.slice(-maxRawHistory);
     const character = characterOf(conv);
 
@@ -1057,7 +1057,7 @@ const Chat = (() => {
         ${bindingFieldsHTML(conv)}
 
         <fieldset class="fieldset"><legend>上下文</legend>
-          <label class="field"><span>单轮最多携带的原始聊天记录条数</span><input type="number" name="maxRawHistory" value="${conv.maxRawHistory ?? 40}" min="4"></label>
+          <label class="field"><span>单轮最多携带的原始聊天记录条数</span><input type="number" name="maxRawHistory" value="${conv.maxRawHistory ?? 70}" min="4"></label>
           <p class="section-hint">每次发消息，聊天记录不会无限往前带——超过这个条数的更早消息这一轮就不会发给 AI（本地记录不受影响，还是看得到），避免聊得越久、每次都要处理的内容越多、越慢越贵。想让更早的内容还能影响回复，去下面开启"独立长记忆"，让它总结进去。</p>
         </fieldset>
 
@@ -1089,11 +1089,11 @@ const Chat = (() => {
           <label class="field"><span>安静时段（开始-结束，24 小时制）</span>
             <div style="display:flex;gap:8px">
               <input type="time" name="pQuietStart" value="${pr.quietStart || '23:00'}">
-              <input type="time" name="pQuietEnd" value="${pr.quietEnd || '08:00'}">
+              <input type="time" name="pQuietEnd" value="${pr.quietEnd || '05:00'}">
             </div>
           </label>
-          <label class="field"><span>最短冷却（分钟）</span><input type="number" name="pMinCooldown" value="${pr.minCooldownMinutes ?? 120}" min="1"></label>
-          <label class="field"><span>每日上限（条）</span><input type="number" name="pDailyCap" value="${pr.dailyCap ?? 3}" min="0"></label>
+          <label class="field"><span>最短冷却（分钟）</span><input type="number" name="pMinCooldown" value="${pr.minCooldownMinutes ?? 10}" min="1"></label>
+          <label class="field"><span>每日上限（条）</span><input type="number" name="pDailyCap" value="${pr.dailyCap ?? 10}" min="0"></label>
           <label class="field-inline"><input type="checkbox" name="pPaused" ${pr.paused ? 'checked' : ''}><span>一键暂停</span></label>
         </fieldset>
 
@@ -1136,7 +1136,7 @@ const Chat = (() => {
       conv.title = fields.title || conv.title;
       Object.assign(conv, fields);
       delete conv.title_unused;
-      conv.maxRawHistory = Number(fd.get('maxRawHistory')) || 40;
+      conv.maxRawHistory = Number(fd.get('maxRawHistory')) || 70;
       conv.longMemory = {
         ...lm,
         enabled: fd.get('lmEnabled') === 'on',
@@ -1151,8 +1151,8 @@ const Chat = (() => {
         ...pr,
         mode: fd.get('pMode') || 'off',
         quietStart: fd.get('pQuietStart') || '23:00',
-        quietEnd: fd.get('pQuietEnd') || '08:00',
-        minCooldownMinutes: Number(fd.get('pMinCooldown')) || 120,
+        quietEnd: fd.get('pQuietEnd') || '05:00',
+        minCooldownMinutes: Number(fd.get('pMinCooldown')) || 10,
         dailyCap: Number(fd.get('pDailyCap')) || 0,
         paused: fd.get('pPaused') === 'on',
       };
