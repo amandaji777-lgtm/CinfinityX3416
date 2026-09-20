@@ -24,16 +24,17 @@
     const panned = gap > 100 || (vv && vv.offsetTop > 1);
     const top = panned ? vv.offsetTop : 0;
     const visibleH = panned ? vv.height : h;
-    // 真正的谜底：body/html 一直还是靠 CSS 的 100vh 撑高度的，这次全新安装、
-    // 全新代码测出来 shell/splash 自己的盒子量出来都精确等于 innerHeight，
-    // 但画面还是被裁掉一截——因为 body 自己还挂着 overflow:hidden，如果 body
-    // 自己那个 100vh 量出来比真实高度矮，body 就会把里面所有内容（哪怕它们
-    // 自己的盒子量出来是对的）都按 body 自己这个偏矮的边界裁掉一截。子元素
-    // 自己的 getBoundingClientRect() 不会告诉你它被祖先的 overflow:hidden
-    // 裁剪了——这就是为什么诊断条一直看起来"数字是对的"却始终没测出真正
-    // 问题。body/html 也一起用这个可靠的 JS 测量值撑高度，不再假手 CSS。
-    document.documentElement.style.height = h + 'px';
-    document.body.style.height = h + 'px';
+    // 这里以前也顺手把 html/body 的高度用 JS 改写成像素值，是为了修另一个
+    // "内容被 body 自己的 overflow:hidden 边界裁掉一截"的问题——但这跟
+    // css/style.css 里 `html, body { height: 100vh }` 那条规则的注释直接
+    // 打架：那条注释引用了一份具体的排查记录，结论是"安全区能不能生效"这个
+    // 更底层的开关，只认源头 CSS 写死的 100vh，一旦被 JS 事后覆盖成任何
+    // 别的值（哪怕数值上等价），iOS 就会悄悄关掉"内容画到安全区底下"这个
+    // 渲染模式——发消息、键盘开合这些高频触发 apply() 的场景，每次都在
+    // 用这行 JS 把安全区模式重新关一次，这才是白边反复出现、怎么调 padding
+    // 都没用的真正原因。html/body 自己的高度交给 CSS 的 100vh 就够，不再
+    // 用 JS 碰它；shell/splash 这两个子元素本来就不影响这个底层开关，
+    // 该怎么跟着键盘收缩还是照旧。
     [shell, splash].forEach((el) => {
       if (!el) return;
       el.style.height = visibleH + 'px';
@@ -50,6 +51,10 @@
       wallpaper.style.top = (top - 0.06 * h) + 'px';
       wallpaper.style.height = (1.12 * h) + 'px';
     }
+    // 视口比整个屏幕矮出一大截，只可能是键盘挡住了下面这块——用这个当"键盘
+    // 是不是弹起来了"的判断依据，给输入框那圈"给键盘让位"的安全区留白该
+    // 去掉的时候去掉（见 .composer 里 body.keyboard-open 那条规则）。
+    document.body.classList.toggle('keyboard-open', gap > 100);
     // 键盘弹起时 message-list 的可视高度跟着变矮了，但它的滚动位置不会自动
     // 跟着调整——如果之前刚好停在底部附近，外壳一变矮，最后几条消息就会被
     // 新冒出来的输入框正好挡住/压住。聊天室里，只要还大致停在底部，就跟着

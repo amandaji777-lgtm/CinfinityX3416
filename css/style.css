@@ -787,21 +787,21 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
 .msg-act { background: none; border: none; font-size: 11.5px; color: rgba(255, 255, 255, 0.75); padding: 0; }
 .msg-act.active { color: #ffffff; font-weight: 600; }
 
-/* 之前这里给键盘收起时留了一圈 --safe-bottom 安全区，靠 body.keyboard-open
-   这个"键盘是不是弹起"的判断去掉它——但这个判断依赖 visualViewport 的高度差，
-   点击发送按钮、输入法切换这些场景都可能让它判断不准，留白该消不消，多次
-   反馈"这条白边又出现了"。不再靠这套推测，直接不留这圈安全区，固定用一个
-   很小的底边距——发送按钮确实会更贴近全面屏手机的最底边一点，但换来的是
-   这条白边彻底不会再出现，不用再猜键盘状态。 */
 .composer {
   display: flex; align-items: flex-end; gap: 8px;
-  padding: 10px 12px 10px;
+  padding: 10px 12px calc(var(--safe-bottom) + 10px);
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur-chat);
   backdrop-filter: var(--glass-blur-chat);
   border-top: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
+/* 这圈安全区留白之前反复"关不掉"，真正原因是 js/app.js 里曾经用 JS 把
+   html/body 的高度覆盖成像素值，间接关掉了 iOS 的安全区渲染开关，导致
+   env(safe-bottom) 这类值和 body.keyboard-open 的判断全都不可靠——根源
+   已经在 app.js 里改掉（不再让 JS 碰 html/body 的高度），这圈留白和下面
+   键盘弹起时收起它的规则，本身逻辑一直是对的，不用再改。 */
+body.keyboard-open .composer { padding-bottom: 10px; }
 .composer textarea {
   flex: 1;
   resize: none;
