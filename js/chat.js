@@ -345,15 +345,16 @@ const Chat = (() => {
     const hiddenOlderCount = allMsgs.length - msgs.length;
     const character = characterOf(conv);
     const draft = window.Proactive?.getPendingDraft(conv.id);
+    const headerAvatarUrl = character ? state.avatarUrls[character.id] : null;
     container.innerHTML = `
       <div class="chat-room-view">
         <div class="room-header">
           <button class="btn-icon" id="btn-back">←</button>
-          <div class="room-title">
-            <div class="room-name">${escapeHtml(conv.title)}</div>
-            <div class="room-sub">${character ? 'AI 生成角色 · ' + escapeHtml(character.name) : '无角色人设'}</div>
-          </div>
-          <button class="btn-icon" id="btn-room-settings" title="对话设置">⚙</button>
+          <button class="room-title" id="btn-room-settings">
+            <div class="room-avatar">${avatarInner(headerAvatarUrl, character?.name || conv.title)}</div>
+            <span class="room-name">${escapeHtml(conv.title)} <span class="room-chevron">›</span></span>
+          </button>
+          <div class="room-header-spacer" aria-hidden="true"></div>
         </div>
         ${!navigator.onLine ? '<div class="hint-banner warn">当前处于离线状态，暂时无法连接 AI 服务。</div>' : ''}
         ${draft ? `
@@ -467,13 +468,6 @@ const Chat = (() => {
   // 其余在群组中间的消息用方一点的角，视觉上"粘"在一起，参考 Tidal_Echo 的分组气泡。
   function messageBubble(m, isGroupLast, character) {
     const isUser = m.role === 'user';
-    const avatarUrl = isUser ? state.avatarUrls.user : (character ? state.avatarUrls[character.id] : null);
-    // 头像只在同一发言方连续消息的最后一条上显示（跟 iMessage/大部分聊天软件一样），
-    // 中间几条留一个同样大小的空位占位置，不然每条消息都摆一个头像会占掉不少
-    // 横向空间，看起来比实际更拥挤。
-    const avatarHtml = isGroupLast
-      ? `<div class="msg-avatar">${avatarInner(avatarUrl, isUser ? '你' : character?.name)}</div>`
-      : `<div class="msg-avatar is-spacer"></div>`;
     const bubbleHtml = `
         <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''} ${isGroupLast ? 'is-group-last' : 'is-group-mid'}" data-id="${m.id}">
           ${m.isProactive ? `<div class="msg-proactive-tag">✨ ${escapeHtml(character?.name || 'TA')} 主动消息</div>` : ''}
@@ -496,7 +490,7 @@ const Chat = (() => {
     `;
     return `
       <div class="msg-row ${isUser ? 'from-user' : 'from-ai'}">
-        ${isUser ? bubbleHtml + avatarHtml : avatarHtml + bubbleHtml}
+        ${bubbleHtml}
       </div>
     `;
   }

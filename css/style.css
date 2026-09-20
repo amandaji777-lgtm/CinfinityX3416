@@ -624,7 +624,7 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
   flex-shrink: 0;
   overflow: hidden;
 }
-.conv-avatar img, .msg-avatar img, .avatar-preview img {
+.conv-avatar img, .room-avatar img, .avatar-preview img {
   width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
 }
 .conv-meta { flex: 1; min-width: 0; }
@@ -634,6 +634,8 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
 
 /* ---------- 聊天室 ---------- */
 .chat-room-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* iMessage 的会话头是"返回 - 居中头像+联系人名+小箭头 - 右侧留空对称"，
+   点名字/头像这一整块直接打开对话设置，不再单独放一个齿轮图标。 */
 .room-header {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 12px;
@@ -643,9 +645,24 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
-.room-title { flex: 1; min-width: 0; }
-.room-name { font-weight: 600; font-size: 15px; }
-.room-sub { font-size: 11.5px; color: var(--text-muted); }
+.room-title {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: none; padding: 2px 0;
+}
+.room-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 600;
+  overflow: hidden;
+}
+.room-name { font-weight: 600; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 2px; }
+.room-chevron { color: var(--text-muted); font-size: 13px; }
+/* 跟返回按钮左右对称，标题这块才能真的居中，不会因为左边有按钮、右边没有而偏一边。 */
+.room-header-spacer { width: 34px; flex-shrink: 0; }
 .archived-toggle { padding: 6px 16px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
 
 .message-list {
@@ -712,18 +729,6 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
 }
 .msg-row.from-user .msg-bubble.is-group-last::after { right: -6px; border-bottom-left-radius: 12px; }
 .msg-row.from-ai .msg-bubble.is-group-last::after { left: -6px; border-bottom-right-radius: 12px; }
-.msg-avatar {
-  width: 34px; height: 34px; flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid var(--glass-border);
-  color: var(--text);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 600;
-  margin-bottom: 3px;
-  overflow: hidden;
-}
-.msg-avatar.is-spacer { background: none; border: none; }
 .msg-bubble.is-highlighted { box-shadow: 0 0 0 3px var(--accent-strong); }
 @keyframes bubble-in {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
