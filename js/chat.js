@@ -425,6 +425,13 @@ const Chat = (() => {
       body.hidden = !willOpen;
       btn.classList.toggle('is-open', willOpen);
     });
+    // 时间戳和复制/收藏/编辑这些操作按钮跟 iMessage 一样默认收起，点一下气泡
+    // 正文才展开——不然每条消息底下常驻一整排按钮文字，气泡看着又宽又挤。
+    list.addEventListener('click', (e) => {
+      const content = e.target.closest('.msg-content');
+      if (!content) return;
+      content.closest('.msg-bubble')?.classList.toggle('is-expanded');
+    });
 
     if (state.streaming) {
       container.querySelector('#btn-stop').addEventListener('click', () => {
@@ -461,7 +468,12 @@ const Chat = (() => {
   function messageBubble(m, isGroupLast, character) {
     const isUser = m.role === 'user';
     const avatarUrl = isUser ? state.avatarUrls.user : (character ? state.avatarUrls[character.id] : null);
-    const avatarHtml = `<div class="msg-avatar">${avatarInner(avatarUrl, isUser ? '你' : character?.name)}</div>`;
+    // 头像只在同一发言方连续消息的最后一条上显示（跟 iMessage/大部分聊天软件一样），
+    // 中间几条留一个同样大小的空位占位置，不然每条消息都摆一个头像会占掉不少
+    // 横向空间，看起来比实际更拥挤。
+    const avatarHtml = isGroupLast
+      ? `<div class="msg-avatar">${avatarInner(avatarUrl, isUser ? '你' : character?.name)}</div>`
+      : `<div class="msg-avatar is-spacer"></div>`;
     const bubbleHtml = `
         <div class="msg-bubble ${isUser ? 'from-user' : 'from-ai'} ${m.archived ? 'is-archived' : ''} ${isGroupLast ? 'is-group-last' : 'is-group-mid'}" data-id="${m.id}">
           ${m.isProactive ? `<div class="msg-proactive-tag">✨ ${escapeHtml(character?.name || 'TA')} 主动消息</div>` : ''}
