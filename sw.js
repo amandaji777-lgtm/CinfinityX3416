@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xingji-shell-v76';
+const CACHE_NAME = 'xingji-shell-v77';
 const APP_SHELL = [
   './',
   './index.html',
@@ -35,10 +35,17 @@ const APP_SHELL = [
   './icons/nav-more.png'
 ];
 
+// cache.addAll() 内部就是逐个 fetch()，默认缓存策略下会先看浏览器自己的 HTTP
+// 缓存——如果这个文件最近被普通页面加载访问过、Cache-Control 还没过期，就会
+// 直接拿 HTTP 缓存里那份旧内容去填新的 Cache Storage，新缓存的名字虽然换了，
+// 塞进去的还是旧字节。逐个用 {cache:'reload'} 强制绕开 HTTP 缓存直接问网络，
+// 才能保证每次真的换版本号时，装进新缓存里的必定是最新内容。
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => Promise.all(
+        APP_SHELL.map((url) => fetch(url, { cache: 'reload' }).then((res) => cache.put(url, res)))
+      ))
       .then(() => self.skipWaiting())
   );
 });

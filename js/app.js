@@ -89,7 +89,11 @@ const App = (() => {
 
   async function boot() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      // updateViaCache:'none' 让浏览器每次检查 sw.js 有没有变化时都直接问网络，
+      // 不许用 HTTP 缓存里可能还没过期的旧版本糊弄过去——不然哪怕这份文件字节
+      // 已经变了，浏览器也可能因为"缓存还新鲜"压根不去发这个请求，永远发现不了
+      // 有新版本可用。
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
       // sw.js 换了新版本号之后，新 worker 会用 skipWaiting()+clients.claim() 立刻
       // "接管"当前页面，但这只是换了以后由谁来处理网络请求——页面里已经在跑的那份
       // 旧 HTML/JS/CSS 不会因为接管就自动变成新的。之前每次发新版本都得靠用户自己
