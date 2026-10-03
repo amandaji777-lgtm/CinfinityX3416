@@ -9,7 +9,7 @@
 // 不是单纯靠 Cache-Control/Service Worker 这层能绕开的。查询参数一换，
 // 不管是浏览器缓存、Service Worker 缓存还是 CDN 边缘缓存，看到的都是
 // "一个从没出现过的新地址"，没有旧内容可复用，只能老老实实回源拿最新的。
-const ASSET_VERSION = 'v86';
+const ASSET_VERSION = 'v87';
 const CACHE_NAME = 'xingji-shell-' + ASSET_VERSION;
 const APP_SHELL = [
   './',
