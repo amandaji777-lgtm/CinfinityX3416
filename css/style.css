@@ -526,7 +526,14 @@ body.is-chat-room #view-chat.view { overflow: hidden; }
 .page-view {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
-  background: var(--bg);
+  /* 之前这里是纯色 --bg，跟壁纸完全不沾边——资料库/API连接/对话设置这些整页
+     表单一滑出来就是一整块白板，跟聊天室、"更多"页那种能看到壁纸的玻璃质感
+     完全是两种风格，切换过去很突兀。壁纸照片是静态的，不会像聊天流那样持续
+     变化，这里用跟页头一样的强玻璃背景不会有额外的持续重绘开销，改成跟全站
+     一致的磨砂玻璃，壁纸能透出来。 */
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   transform: translateX(100%);
   transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.32, 1);
   pointer-events: auto;
